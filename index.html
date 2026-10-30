@@ -206,6 +206,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
   'use strict';
 
   /* ---------------- Plan constants (from Base Plan v1.4) ---------------- */
+  var APP_VERSION = '0.2.2';
   var PLAN_START = '2026-11-08';               // Sunday, week 1 day 1
   var NORMAL_MIN = 350, HOMEWARD_MIN = 60;      // 5 h 50 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
@@ -566,7 +567,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
       '<section class="card"><div class="card-head"><h3 class="heading">Weekly budget plan</h3><span class="caption">Base Plan v1.4</span></div>' +
       '<div class="kv"><span>Receipts after fees (average week)</span><span class="fig-sm">$1,820.00</span>' + budgetRows +
       '<span class="total">Left for other costs and savings</span><span class="fig-sm total">' + money(1820 - budgetTotal, true) + '</span></div></section>' +
-      '<section class="card"><h3 class="heading">Backup</h3><p class="body" style="margin:0">Saves a copy of all your entries as a file. On iPhone, choose Save to Files and pick your Transition Year Plan folder in OneDrive, so Claude can read it.</p><button class="btn btn-secondary btn-small" data-act="export">Back up my data</button></section>' +
+      '<section class="card"><div class="card-head"><h3 class="heading">Backup</h3><span class="caption">App version ' + APP_VERSION + '</span></div><p class="body" style="margin:0">Saves a copy of all your entries as a file. On iPhone, choose Save to Files and pick your Transition Year Plan folder in OneDrive, so Claude can read it.</p><button class="btn btn-secondary btn-small" data-act="export">Back up my data</button></section>' +
       (user ? '<button class="link-btn" data-act="signout" style="align-self:center">Sign out (' + esc(user.email) + ')</button>' : '');
   }
 
@@ -699,8 +700,21 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
   var h0 = (location.hash || '').replace('#', '');
   if (['work', 'study', 'health', 'money'].indexOf(h0) >= 0) state.tab = h0;
   window.addEventListener('hashchange', function () { var h = (location.hash || '').replace('#', ''); state.tab = ['work', 'study', 'health', 'money'].indexOf(h) >= 0 ? h : 'today'; render(); });
+  function checkUpdate() {
+    if (location.protocol.indexOf('http') !== 0) return;
+    fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (v) {
+      if (!v || !v.version || v.version === APP_VERSION) return;
+      var key = 'fn-updated-' + v.version;
+      try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch (x) {}
+      fetch('./', { cache: 'reload' }).catch(function () {}).then(function () {
+        fetch('config.js', { cache: 'reload' }).catch(function () {}).then(function () { location.reload(); });
+      });
+    }).catch(function () {});
+  }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') checkUpdate(); });
   render();
   connect();
+  checkUpdate();
   setInterval(function () { if (!scrim.classList.contains('open')) render(); }, 30000);
 })();
 </script>
