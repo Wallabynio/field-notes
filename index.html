@@ -141,6 +141,20 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 .kv .fig-sm { text-align: right; }
 .kv .total { font-weight: 900; border-top: 1px solid var(--line); padding-top: 6px; }
 
+/* day agenda */
+.agenda { display: flex; flex-direction: column; gap: 2px; }
+.ag-row { display: grid; grid-template-columns: 52px 6px minmax(0, 1fr) auto; gap: 12px; align-items: stretch; padding: 8px 10px; border-radius: 16px; }
+.ag-row.now { background: var(--sunken); }
+.ag-time { font-family: var(--font-mono); font-size: 13px; line-height: 18px; font-weight: 600; font-variant-numeric: tabular-nums; padding-top: 1px; }
+.ag-pill { border-radius: 999px; min-height: 36px; }
+.ag-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ag-title { font-size: 14px; line-height: 20px; font-weight: 800; }
+.ag-sub { font-size: 12px; line-height: 16px; font-weight: 700; color: var(--ink-muted); }
+.ag-state { align-self: center; font-size: 12px; font-weight: 800; color: var(--ink-muted); white-space: nowrap; }
+.ag-row.past .ag-title, .ag-row.past .ag-time { color: var(--ink-muted); }
+.ag-row.past .ag-pill { opacity: .45; }
+.ag-badge { font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; padding: 3px 8px; border-radius: 999px; background: var(--ink); color: var(--on-ink); }
+
 /* nav */
 .nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; }
 .nav-inner { max-width: 480px; margin: 0 auto; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); background: var(--surface); border-radius: 24px 24px 0 0; padding: 10px 4px calc(16px + env(safe-area-inset-bottom)); }
@@ -206,7 +220,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
   'use strict';
 
   /* ---------------- Plan constants (from Base Plan v1.4) ---------------- */
-  var APP_VERSION = '0.2.2';
+  var APP_VERSION = '0.2.3';
   var PLAN_START = '2026-11-08';               // Sunday, week 1 day 1
   var NORMAL_MIN = 350, HOMEWARD_MIN = 60;      // 5 h 50 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
@@ -234,7 +248,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
     var dow = d.getDay(); var weekend = dow === 0 || dow === 6;
     var gym = dow === 1 || dow === 3 || dow === 5;
     var s = [
-      [330, 405, 'health', gym ? 'Gym (walk there and back)' : 'Homebush Bay walk'],
+      [330, 405, 'health', gym ? 'Gym' : 'Homebush Bay walk'],
       [405, 420, 'neutral', 'Shower'],
       [420, 450, 'neutral', 'Breakfast, get ready'],
       [450, 630, 'work', 'Driving'],
@@ -426,6 +440,28 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
     return '<div class="notice">Practice run: the plan starts Sunday 8 November (' + days + ' day' + (days === 1 ? '' : 's') + ' to go). Anything you log now still saves.</div>';
   }
 
+  var BLOCK_INFO = {
+    'Driving': 'Normal rate', 'Homeward driving': 'Two-thirds rate, heading home', 'Offline break': 'App off, rest',
+    'Midday stop: charge, lunch, rest': 'Charge the car, eat, rest', 'Study': 'Focused study at home',
+    'Shower': 'After exercise', 'Breakfast, get ready': 'Pack food and laptop', 'Unpack, shower, snack': 'Reset before study',
+    'Dinner and a proper break': 'Away from the desk', 'Prepare for tomorrow': 'Food, laptop, exercise gear',
+    'Personal time, wind-down': 'Screens down, bed at 9:30'
+  };
+  function dur(min) { var h = Math.floor(min / 60), m = min % 60; return (h ? h + ' h' : '') + (h && m ? ' ' : '') + (m ? m + ' min' : ''); }
+  function agenda(d) {
+    var sch = schedule(d), nm = nowMin(d), isToday = ymd(d) === ymd(now());
+    var blocks = sch.blocks.concat([[DAY_END, DAY_END + 480, 'rest', 'Sleep']]);
+    return '<div class="agenda" role="list">' + blocks.map(function (b) {
+      var past = isToday && nm >= b[1], cur = isToday && nm >= b[0] && nm < b[1];
+      var info = b[2] === 'health' ? (sch.gym ? '55 min session, 10 min walk each way' : 'Door to door, 1 h 15') : b[3] === 'Sleep' ? 'Up at 5:30 am' : (BLOCK_INFO[b[3]] || '');
+      var state = cur ? '<span class="ag-badge">Now</span>' : past ? 'Done' : '';
+      return '<div class="ag-row' + (cur ? ' now' : '') + (past ? ' past' : '') + '" role="listitem"' + (cur ? ' aria-current="time"' : '') + '>' +
+        '<span class="ag-time">' + clock(b[0] % 1440) + '</span><span class="ag-pill f-' + b[2] + '" aria-hidden="true"></span>' +
+        '<span class="ag-main"><span class="ag-title">' + esc(b[3]) + '</span><span class="ag-sub">' + clock(b[0] % 1440) + '–' + clockAp(b[1] % 1440) + ' · ' + dur(b[1] - b[0]) + (info ? ' · ' + esc(info) : '') + '</span></span>' +
+        '<span class="ag-state">' + state + '</span></div>';
+    }).join('') + '</div>';
+  }
+
   function viewToday(d) {
     var key = ymd(d), sch = schedule(d), nm = nowMin(d), doc = dayDoc(key);
     var todayDrive = sum(shiftsOn(key), driveMin);
@@ -493,7 +529,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 
     return notice() + startNote(d) + rings + nowCard + timeline +
       '<div class="btn-row"><button class="btn btn-primary" data-act="shift">' + icon('plus', 20) + 'Log shift</button><button class="btn btn-secondary" data-act="expense">Log expense</button></div>' +
-      quick + week + moneyCard + longView;
+      quick + '<section class="card" aria-label="Today\'s plan"><div class="card-head"><h2 class="heading">Today\'s plan</h2><span class="caption">' + DAYS[d.getDay()] + '</span></div>' + agenda(d) + '</section>' + week + moneyCard + longView;
   }
 
   function viewWork(d) {
