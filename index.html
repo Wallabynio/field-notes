@@ -566,6 +566,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
       '<section class="card"><div class="card-head"><h3 class="heading">Weekly budget plan</h3><span class="caption">Base Plan v1.4</span></div>' +
       '<div class="kv"><span>Receipts after fees (average week)</span><span class="fig-sm">$1,820.00</span>' + budgetRows +
       '<span class="total">Left for other costs and savings</span><span class="fig-sm total">' + money(1820 - budgetTotal, true) + '</span></div></section>' +
+      '<section class="card"><h3 class="heading">Backup</h3><p class="body" style="margin:0">Saves a copy of all your entries as a file. On iPhone, choose Save to Files and pick your Transition Year Plan folder in OneDrive, so Claude can read it.</p><button class="btn btn-secondary btn-small" data-act="export">Back up my data</button></section>' +
       (user ? '<button class="link-btn" data-act="signout" style="align-self:center">Sign out (' + esc(user.email) + ')</button>' : '');
   }
 
@@ -630,6 +631,33 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
     });
   }
 
+  function exportData() {
+    var stamp = ymd(now());
+    var pack = function (tables) {
+      var payload = { app: 'Field Notes', version: 1, exportedAt: new Date().toISOString(), account: user ? user.email : null, tables: tables };
+      var json = JSON.stringify(payload, null, 2);
+      var name = 'field-notes-backup-' + stamp + '.json';
+      var file = null;
+      try { file = new File([json], name, { type: 'application/json' }); } catch (x) {}
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: name }).catch(function () {});
+        return;
+      }
+      var url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+      var a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click();
+      setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
+      toast('Backup saved: ' + name);
+    };
+    if (sb && user) {
+      Promise.all(['shifts', 'expenses', 'days', 'tax_weeks'].map(function (t) { return sb.from(t).select('*').limit(5000); })).then(function (res) {
+        if (res.some(function (r) { return r.error; })) { toast('Could not read your data for the backup'); return; }
+        pack({ shifts: res[0].data, expenses: res[1].data, days: res[2].data, tax_weeks: res[3].data });
+      });
+    } else {
+      pack({ shifts: state.shifts, expenses: state.expenses, days: state.days, tax_weeks: state.tax });
+    }
+  }
+
   /* ---------------- actions ---------------- */
   var busy = {};
   function setDay(key, patch) {
@@ -644,6 +672,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
     else if (act === 'expense') expenseSheet();
     else if (act === 'tax') taxSheet();
     else if (act === 'close') closeSheet();
+    else if (act === 'export') exportData();
     else if (act === 'signout') { if (sb) sb.auth.signOut(); }
     else if (act === 'ex') { var v = b.getAttribute('data-v'); setDay(key, { exercise: v || null }); toast(v ? (v === 'gym' ? 'Gym logged' : 'Walk logged') : 'Exercise cleared'); }
     else if (act === 'study') { var add = parseInt(b.getAttribute('data-v'), 10); var m = Math.max(0, (Number(dayDoc(key).studyMin) || 0) + add); setDay(key, { studyMin: m }); toast('Study today: ' + hm(m)); }
