@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Field Notes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f4efe6">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Field Notes</title>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* Field Notes design system tokens. Layout: one phone column, bottom tabs; wider screens centre the column. */
+:root {
+  --ground:#f4efe6; --surface:#fbf8f2; --sunken:#e7dfd0; --ink:#2b2a26; --ink-muted:#5e5a52; --on-ink:#f4efe6; --line:#dcd3c3;
+  --work:#36699d; --work-soft:#d3e3f0; --work-label:#2f5e8c; --work-track:#b7cfe5;
+  --study:#6e52b0; --study-soft:#e4dcf1; --study-label:#5b4790; --study-track:#cfc2e8;
+  --health:#4a7c3d; --health-soft:#d8e8d0; --health-label:#3f6634; --health-track:#bcd6af;
+  --money:#9a6b1a; --money-soft:#f1e2c4; --money-label:#7a5418; --money-track:#e6cfa0;
+  --rest:#766d5f; --rest-soft:#eae3d6; --rest-label:#5e5a52; --rest-track:#dcd3c3;
+  --bay-water:#6d93b8; --bay-land:#7e9c70; --bay-sun:#b9893b; --bay-sun-fill:#f1e2c4;
+  --scrim: rgba(43,42,38,.45);
+  --font-sans: Nunito, ui-rounded, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ground:#1b1a17; --surface:#25231f; --sunken:#2f2c27; --ink:#f1ece2; --ink-muted:#b8b0a2; --on-ink:#1b1a17; --line:#3a3630;
+  --work:#7faad6; --work-soft:#22324a; --work-label:#a9c8ea; --work-track:#31476a;
+  --study:#a992dd; --study-soft:#2e2742; --study-label:#c9b8f0; --study-track:#423860;
+  --health:#8dbe7e; --health-soft:#243822; --health-label:#b4d9a8; --health-track:#34502f;
+  --money:#d9a955; --money-soft:#3b301b; --money-label:#ebc987; --money-track:#574627;
+  --rest:#9c9385; --rest-soft:#2f2c27; --rest-label:#b8b0a2; --rest-track:#3a3630;
+  --bay-water:#5c7fa3; --bay-land:#6c8a5f; --bay-sun:#c99a4c; --bay-sun-fill:#3b301b; --scrim: rgba(0,0,0,.6);
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --ground:#1b1a17; --surface:#25231f; --sunken:#2f2c27; --ink:#f1ece2; --ink-muted:#b8b0a2; --on-ink:#1b1a17; --line:#3a3630;
+  --work:#7faad6; --work-soft:#22324a; --work-label:#a9c8ea; --work-track:#31476a;
+  --study:#a992dd; --study-soft:#2e2742; --study-label:#c9b8f0; --study-track:#423860;
+  --health:#8dbe7e; --health-soft:#243822; --health-label:#b4d9a8; --health-track:#34502f;
+  --money:#d9a955; --money-soft:#3b301b; --money-label:#ebc987; --money-track:#574627;
+  --rest:#9c9385; --rest-soft:#2f2c27; --rest-label:#b8b0a2; --rest-track:#3a3630;
+  --bay-water:#5c7fa3; --bay-land:#6c8a5f; --bay-sun:#c99a4c; --bay-sun-fill:#3b301b; --scrim: rgba(0,0,0,.6);
+  color-scheme: dark; }
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--ground); color: var(--ink); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; color: inherit; }
+.app { max-width: 480px; margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; background: var(--ground); }
+main { flex: 1; padding: 18px 20px 120px; display: flex; flex-direction: column; gap: 16px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+
+/* header */
+.bay { position: relative; height: calc(150px + env(safe-area-inset-top)); background: var(--sunken); display: flex; flex-direction: column; justify-content: flex-end; padding: 0 22px 16px; overflow: hidden; }
+.bay svg { position: absolute; right: 0; top: 0; }
+.bay .water { stroke: var(--bay-water); } .bay .land { stroke: var(--bay-land); } .bay .sun { stroke: var(--bay-sun); fill: var(--bay-sun-fill); }
+.bay-words { position: relative; display: flex; flex-direction: column; gap: 2px; }
+.bay-date { font-size: 13px; font-weight: 700; color: var(--ink-muted); }
+.bay-greeting { font-size: 28px; line-height: 32px; font-weight: 900; letter-spacing: -.01em; }
+.page-title { font-size: 28px; line-height: 32px; font-weight: 900; }
+
+/* text */
+.eyebrow { font-size: 12px; line-height: 16px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; }
+.heading { font-size: 15px; line-height: 20px; font-weight: 900; }
+.title { font-size: 22px; line-height: 28px; font-weight: 900; }
+.body { font-size: 14px; line-height: 20px; color: var(--ink-muted); }
+.caption { font-size: 12px; line-height: 16px; font-weight: 700; color: var(--ink-muted); }
+.fig { font-family: var(--font-mono); font-size: 16px; line-height: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.fig-sm { font-family: var(--font-mono); font-size: 13px; line-height: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.fig-lg { font-family: var(--font-mono); font-size: 22px; line-height: 28px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.l-work { color: var(--work-label); } .l-study { color: var(--study-label); } .l-health { color: var(--health-label); } .l-money { color: var(--money-label); } .l-rest { color: var(--rest-label); }
+
+/* cards */
+.card { background: var(--surface); border-radius: 28px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+.card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.a-work { background: var(--work-soft); } .a-study { background: var(--study-soft); } .a-health { background: var(--health-soft); } .a-money { background: var(--money-soft); } .a-rest { background: var(--rest-soft); }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.tile { border-radius: 24px; padding: 16px; display: flex; flex-direction: column; gap: 4px; }
+.tile-title { font-size: 17px; line-height: 22px; font-weight: 800; }
+.tile-detail { font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+
+/* rings */
+.ringstack { display: flex; gap: 18px; align-items: center; }
+.ringstack svg { flex-shrink: 0; display: block; }
+.legend { display: flex; flex-direction: column; gap: 12px; flex: 1; min-width: 0; }
+.figure { display: flex; flex-direction: column; gap: 1px; }
+.arc { stroke-linecap: round; transition: stroke-dashoffset .5s ease; }
+.ring-c { fill: var(--ink); font-family: var(--font-sans); font-weight: 900; }
+.ring-s { fill: var(--ink-muted); font-family: var(--font-sans); font-weight: 700; }
+
+/* bars */
+.bar { display: flex; flex-direction: column; gap: 6px; }
+.bar-head { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; line-height: 18px; font-weight: 800; }
+.track { height: 8px; border-radius: 999px; overflow: hidden; }
+.bar.lg .track { height: 10px; }
+.fill { height: 100%; border-radius: 999px; transition: width .4s ease; }
+.t-work { background: var(--work-soft); } .t-study { background: var(--study-soft); } .t-health { background: var(--health-soft); } .t-money { background: var(--money-soft); } .t-rest { background: var(--rest-soft); }
+.on-soft.t-work { background: var(--work-track); } .on-soft.t-study { background: var(--study-track); } .on-soft.t-health { background: var(--health-track); } .on-soft.t-money { background: var(--money-track); } .on-soft.t-rest { background: var(--rest-track); }
+.f-work { background: var(--work); } .f-study { background: var(--study); } .f-health { background: var(--health); } .f-money { background: var(--money); } .f-rest { background: var(--rest); } .f-neutral { background: var(--line); } .f-commute { background: var(--work-track); }
+.segs { display: grid; gap: 4px; }
+.seg { height: 8px; border-radius: 999px; }
+
+/* timeline */
+.tl-wrap { position: relative; }
+.tl { display: flex; height: 22px; border-radius: 999px; overflow: hidden; gap: 2px; }
+.tl-now { position: absolute; top: -5px; width: 3px; height: 32px; margin-left: -1px; background: var(--ink); border-radius: 2px; }
+.tl-ends { display: flex; justify-content: space-between; }
+.legend-row { display: flex; gap: 14px; flex-wrap: wrap; }
+.dot { width: 10px; height: 10px; border-radius: 999px; display: inline-block; vertical-align: -1px; margin-right: 5px; }
+
+/* buttons */
+.btn { min-height: 52px; padding: 0 22px; border: none; border-radius: 999px; font-size: 15px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-primary { background: var(--ink); color: var(--on-ink); }
+.btn-secondary { background: var(--sunken); color: var(--ink); }
+.btn-small { min-height: 44px; padding: 0 16px; font-size: 14px; }
+.btn-row { display: flex; gap: 10px; } .btn-row .btn { flex: 1; }
+.btn:focus-visible, .nav button:focus-visible, .chip:focus-visible, .link-btn:focus-visible { outline: 2px solid var(--work); outline-offset: 2px; }
+.chip { min-height: 44px; padding: 0 16px; border-radius: 999px; border: none; background: var(--sunken); color: var(--ink); font-weight: 800; font-size: 14px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.link-btn { background: none; border: none; color: var(--ink-muted); font-weight: 700; font-size: 13px; cursor: pointer; min-height: 44px; padding: 0 4px; }
+
+/* lists */
+.list { display: flex; flex-direction: column; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+.row:first-child { border-top: none; }
+.row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.row-title { font-size: 14px; font-weight: 800; }
+.row-sub { font-size: 12px; color: var(--ink-muted); font-weight: 700; overflow-wrap: anywhere; }
+.empty { font-size: 14px; color: var(--ink-muted); padding: 6px 0; }
+.kv { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; font-size: 14px; }
+.kv .fig-sm { text-align: right; }
+.kv .total { font-weight: 900; border-top: 1px solid var(--line); padding-top: 6px; }
+
+/* nav */
+.nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; }
+.nav-inner { max-width: 480px; margin: 0 auto; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); background: var(--surface); border-radius: 24px 24px 0 0; padding: 10px 4px calc(16px + env(safe-area-inset-bottom)); }
+.nav button { display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: none; color: var(--ink-muted); font-size: 11px; font-weight: 700; min-height: 48px; cursor: pointer; }
+.nav button[aria-current="page"] { color: var(--ink); font-weight: 800; }
+
+/* sheet */
+.sheet-scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 10; display: none; align-items: flex-end; justify-content: center; }
+.sheet-scrim.open { display: flex; }
+.sheet { width: 100%; max-width: 480px; max-height: 92%; overflow-y: auto; background: var(--ground); border-radius: 28px 28px 0 0; padding: 22px 20px calc(24px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 16px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 13px; font-weight: 800; }
+.field input, .field select { min-height: 48px; border-radius: 14px; border: 2px solid var(--line); background: var(--surface); padding: 0 14px; font-size: 16px; }
+.field input:focus, .field select:focus { outline: none; border-color: var(--work); }
+.field .hint { font-size: 12px; color: var(--ink-muted); font-weight: 700; }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.notice { font-size: 13px; font-weight: 700; color: var(--money-label); background: var(--money-soft); border-radius: 14px; padding: 10px 14px; }
+.toast { position: fixed; left: 50%; bottom: 110px; transform: translateX(-50%); background: var(--ink); color: var(--on-ink); padding: 10px 18px; border-radius: 999px; font-weight: 800; font-size: 14px; z-index: 20; opacity: 0; pointer-events: none; transition: opacity .2s ease; }
+.toast.show { opacity: 1; }
+.login { padding: 24px 20px 60px; display: flex; flex-direction: column; gap: 16px; }
+.login[hidden], .app-main[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .fill, .arc, .toast { transition: none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="bay">
+    <svg aria-hidden="true" width="390" height="150" viewBox="0 0 390 150">
+      <circle class="sun" cx="318" cy="46" r="18" stroke-width="2"></circle>
+      <path class="land" d="M0 98 C60 84 110 92 170 86 C240 78 300 90 390 82" fill="none" stroke-width="2" stroke-linecap="round"></path>
+      <path class="water" d="M0 112 C70 106 140 114 210 108 C280 102 330 110 390 104" fill="none" stroke-width="2" stroke-linecap="round"></path>
+      <path class="water" d="M30 124 C90 120 150 126 220 122 C290 118 340 124 390 120" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="6 6"></path>
+      <path class="land" d="M250 86 v-16 M244 76 l6 -10 l6 10 M262 88 v-12 M257 80 l5 -8 l5 8" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+    </svg>
+    <div class="bay-words">
+      <span class="bay-date" id="hdr-date">Today</span>
+      <h1 class="bay-greeting" id="hdr-greeting">Morning, Istvan</h1>
+    </div>
+  </header>
+  <section class="login" id="login" hidden aria-labelledby="login-title">
+    <h2 class="page-title" id="login-title">Sign in</h2>
+    <p class="body" style="margin:0">Your entries are private to your account and sync between your phone and laptop.</p>
+    <form id="f-login" style="display:flex;flex-direction:column;gap:14px" novalidate>
+      <div class="field"><label for="l-email">Email</label><input id="l-email" type="email" autocomplete="username" required></div>
+      <div class="field"><label for="l-pass">Password</label><input id="l-pass" type="password" autocomplete="current-password" minlength="8" required><span class="hint">At least 8 characters.</span></div>
+      <p class="caption" id="l-err" role="alert" style="margin:0;color:var(--money-label)"></p>
+      <button type="submit" class="btn btn-primary">Sign in</button>
+      <button type="button" class="btn btn-secondary" id="l-signup">First time? Create my account</button>
+    </form>
+  </section>
+  <main id="view" class="app-main" aria-live="polite"></main>
+</div>
+
+<nav class="nav" aria-label="Main"><div class="nav-inner" id="nav"></div></nav>
+
+<div class="sheet-scrim" id="sheet-scrim">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" id="sheet"></div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------------- Plan constants (from Base Plan v1.4) ---------------- */
+  var PLAN_START = '2026-11-08';               // Sunday, week 1 day 1
+  var NORMAL_MIN = 350, HOMEWARD_MIN = 60;      // 5 h 50 + 1 h per day
+  var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
+  var WEEK_DRIVE_MIN = DRIVE_TARGET_MIN * 7;   // 47 h 50
+  var WEEK_STUDY_MIN = 1200;                    // 20 h
+  var TAX_WEEKLY = 268.86;                      // GST 108.14 + income tax 139.10 + Medicare 21.63 (rounded)
+  var DAY_START = 330, DAY_END = 1290;          // 5:30 am – 9:30 pm
+  var BUDGET = [
+    ['Splend', 450], ['Charging ($35 × 7)', 245], ['Cleaning', 70], ['Vodafone', 36.97],
+    ['GST provision', 108.14], ['Income-tax provision', 139.10], ['Medicare provision', 21.63],
+    ['Rent', 310], ['Food ($35/day)', 245], ['Utilities', 40], ['Anytime Fitness', 25.95],
+    ['Subscriptions (AI, Apple One, Microsoft 365)', 37.73]
+  ];
+  var EXPENSE_CATS = ['Charging', 'Splend', 'Cleaning', 'Vodafone', 'Parking', 'Tolls', 'Food on shift', 'Other'];
+
+  function seasonFor(d) {
+    var m = d.getMonth() + 1;
+    if (m === 12 || m <= 2) return { name: 'Summer', rate: 50 };
+    if (m <= 5) return { name: 'Autumn', rate: 40 };
+    if (m <= 8) return { name: 'Winter', rate: 30 };
+    return { name: 'Spring', rate: 40 };
+  }
+
+  function schedule(d) {
+    var dow = d.getDay(); var weekend = dow === 0 || dow === 6;
+    var gym = dow === 1 || dow === 3 || dow === 5;
+    var s = [
+      [330, 405, 'health', gym ? 'Gym (walk there and back)' : 'Homebush Bay walk'],
+      [405, 420, 'neutral', 'Shower'],
+      [420, 450, 'neutral', 'Breakfast, get ready'],
+      [450, 630, 'work', 'Driving'],
+      [630, 650, 'neutral', 'Offline break'],
+      [650, 720, 'work', 'Driving'],
+      [720, 780, 'money', 'Midday stop: charge, lunch, rest'],
+      [780, 880, 'work', 'Driving'],
+      [880, 940, 'commute', 'Homeward driving'],
+      [940, 980, 'neutral', 'Unpack, shower, snack'],
+      [980, 1070, 'study', 'Study'],
+      [1070, 1130, 'neutral', 'Dinner and a proper break']
+    ];
+    if (weekend) s.push([1130, 1190, 'study', 'Study'], [1190, 1220, 'neutral', 'Prepare for tomorrow'], [1220, 1290, 'rest', 'Personal time, wind-down']);
+    else s.push([1130, 1220, 'study', 'Study'], [1220, 1250, 'neutral', 'Prepare for tomorrow'], [1250, 1290, 'rest', 'Personal time, wind-down']);
+    return { blocks: s, studyTarget: weekend ? 150 : 180, gym: gym };
+  }
+
+  /* ---------------- helpers ---------------- */
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function parseYmd(s) { var p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function addDays(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
+  function weekStart(d) { return addDays(new Date(d.getFullYear(), d.getMonth(), d.getDate()), -d.getDay()); } // Sunday
+  function hm(min) { min = Math.max(0, Math.round(min)); return Math.floor(min / 60) + ':' + pad(min % 60); }
+  function clock(min) { var h = Math.floor(min / 60) % 24, m = min % 60, ap = h < 12 ? 'am' : 'pm'; var h12 = h % 12 === 0 ? 12 : h % 12; return h12 + ':' + pad(m) + (min === 720 || min === 0 ? '' : ''); }
+  function clockAp(min) { var h = Math.floor(min / 60) % 24; return clock(min) + ' ' + (h < 12 ? 'am' : 'pm'); }
+  function money(v, cents) { var n = Number(v) || 0; return '$' + n.toLocaleString('en-AU', { minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: cents ? 2 : 0 }); }
+  function clamp(v) { v = Number(v); return isFinite(v) ? Math.max(0, Math.min(1, v)) : 0; }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  function longDate(d) { return DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()]; }
+  function shortDate(s) { var d = parseYmd(s); return DAYS[d.getDay()].slice(0, 3) + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()].slice(0, 3); }
+
+  /* ---------------- state + storage ---------------- */
+  var state = { shifts: [], expenses: [], days: {}, tax: {}, tab: 'today', saving: true, ready: false };
+
+  var sb = null, user = null;
+  var TABLES = { shifts: 'shifts', expenses: 'expenses', days: 'days', tax: 'tax_weeks' };
+  function fromShift(r) { return { id: r.id, date: r.date, normalMin: r.normal_min, homeMin: r.home_min, receipts: Number(r.receipts), km: r.km, note: r.note }; }
+  function fromExpense(r) { return { id: r.id, date: r.date, category: r.category, amount: Number(r.amount), note: r.note }; }
+  function toRow(collection, id, d) {
+    if (collection === 'shifts') return { date: d.date, normal_min: d.normalMin, home_min: d.homeMin, receipts: d.receipts, km: d.km, note: d.note };
+    if (collection === 'expenses') return { date: d.date, category: d.category, amount: d.amount, note: d.note };
+    if (collection === 'days') return { date: id, exercise: d.exercise || null, study_min: d.studyMin || 0, updated_at: new Date().toISOString() };
+    return { week_start: id.slice(1), amount: d.amount, updated_at: new Date().toISOString() };
+  }
+
+  function showLogin(show) {
+    document.getElementById('login').hidden = !show;
+    document.getElementById('view').hidden = show;
+    document.querySelector('.nav').style.display = show ? 'none' : '';
+  }
+
+  function loadAll() {
+    if (!sb || !user) return Promise.resolve();
+    return Promise.all([
+      sb.from('shifts').select('*').order('date', { ascending: false }).limit(1000),
+      sb.from('expenses').select('*').order('date', { ascending: false }).limit(1000),
+      sb.from('days').select('*').limit(1000),
+      sb.from('tax_weeks').select('*').limit(200)
+    ]).then(function (res) {
+      if (res.some(function (r) { return r.error; })) { toast('Could not load your data. Check your connection.'); return; }
+      state.shifts = res[0].data.map(fromShift);
+      state.expenses = res[1].data.map(fromExpense);
+      var dm = {}; res[2].data.forEach(function (r) { dm[r.date] = { exercise: r.exercise, studyMin: r.study_min }; }); state.days = dm;
+      var tm = {}; res[3].data.forEach(function (r) { tm['w' + r.week_start] = { amount: Number(r.amount) }; }); state.tax = tm;
+      state.ready = true; render();
+    });
+  }
+
+  function connect() {
+    var cfg = window.FIELD_NOTES_CONFIG || {};
+    if (!window.supabase || !cfg.supabaseUrl || cfg.supabaseUrl.indexOf('YOUR_') === 0) {
+      state.saving = false; state.ready = true; showLogin(false); render(); return;
+    }
+    sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, { auth: { persistSession: true, autoRefreshToken: true } });
+    sb.auth.getSession().then(function (r) {
+      user = r.data && r.data.session ? r.data.session.user : null;
+      showLogin(!user); if (user) loadAll(); else render();
+    });
+    sb.auth.onAuthStateChange(function (_e, session) {
+      var was = user; user = session ? session.user : null;
+      showLogin(!user); if (user && !was) loadAll();
+    });
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') loadAll(); });
+
+    var form = document.getElementById('f-login'), err = document.getElementById('l-err');
+    function creds() { return { email: document.getElementById('l-email').value.trim(), password: document.getElementById('l-pass').value }; }
+    form.addEventListener('submit', function (e) {
+      e.preventDefault(); err.textContent = '';
+      sb.auth.signInWithPassword(creds()).then(function (r) { if (r.error) err.textContent = 'Sign-in failed: ' + r.error.message; });
+    });
+    document.getElementById('l-signup').addEventListener('click', function () {
+      err.textContent = ''; var c = creds();
+      if (!c.email || c.password.length < 8) { err.textContent = 'Enter your email and a password of at least 8 characters.'; return; }
+      sb.auth.signUp(c).then(function (r) {
+        if (r.error) err.textContent = 'Could not create the account: ' + r.error.message;
+        else if (!r.data.session) err.textContent = 'Account created. Check your email to confirm it, then sign in here.';
+      });
+    });
+  }
+
+  function save(collection, id, data) {
+    if (sb && user) {
+      var row = toRow(collection, id, data), q;
+      if (collection === 'days') q = sb.from('days').upsert(row, { onConflict: 'user_id,date' });
+      else if (collection === 'tax') q = sb.from('tax_weeks').upsert(row, { onConflict: 'user_id,week_start' });
+      else q = sb.from(TABLES[collection]).insert(row);
+      return q.then(function (r) { if (r.error) { toast('Could not save, try again'); throw r.error; } return loadAll(); });
+    }
+    var rec = Object.assign({ id: id || ('local' + Date.now()) }, data);
+    if (collection === 'shifts' || collection === 'expenses') state[collection] = state[collection].filter(function (r) { return r.id !== rec.id; }).concat([rec]);
+    else state[collection][rec.id] = rec;
+    render(); return Promise.resolve();
+  }
+  function remove(collection, id) {
+    if (sb && user) return sb.from(TABLES[collection]).delete().eq('id', id).then(function (r) { if (r.error) toast('Could not delete, try again'); return loadAll(); });
+    if (collection === 'shifts' || collection === 'expenses') state[collection] = state[collection].filter(function (r) { return r.id !== id; });
+    else delete state[collection][id];
+    render(); return Promise.resolve();
+  }
+
+  /* ---------------- derived numbers ---------------- */
+  function now() { return new Date(); }
+  function nowMin(d) { return d.getHours() * 60 + d.getMinutes(); }
+  function dayDoc(key) { return state.days[key] || {}; }
+  function shiftsOn(key) { return state.shifts.filter(function (s) { return s.date === key; }); }
+  function inWeek(list, ws) { var a = ymd(ws), b = ymd(addDays(ws, 7)); return list.filter(function (r) { return r.date >= a && r.date < b; }); }
+  function driveMin(s) { return (Number(s.normalMin) || 0) + (Number(s.homeMin) || 0); }
+  function sum(list, f) { return list.reduce(function (t, r) { return t + (Number(f(r)) || 0); }, 0); }
+  function weekNumber(d) { var start = parseYmd(PLAN_START); var diff = Math.floor((weekStart(d) - start) / 864e5 / 7); return diff + 1; }
+
+  /* ---------------- graphics ---------------- */
+  var STROKE = { work: 'var(--work)', study: 'var(--study)', health: 'var(--health)', money: 'var(--money)', rest: 'var(--rest)' };
+  var TRACK = { work: 'var(--work-soft)', study: 'var(--study-soft)', health: 'var(--health-soft)', money: 'var(--money-soft)', rest: 'var(--rest-soft)' };
+  var TRACK_ON = { work: 'var(--work-track)', study: 'var(--study-track)', health: 'var(--health-track)', money: 'var(--money-track)', rest: 'var(--rest-track)' };
+  function arc(r, c, value, area, th, onSoft) {
+    var circ = 2 * Math.PI * r, v = clamp(value);
+    var t = '<circle cx="' + c + '" cy="' + c + '" r="' + r + '" fill="none" stroke="' + (onSoft ? TRACK_ON : TRACK)[area] + '" stroke-width="' + th + '"></circle>';
+    if (v > 0) t += '<circle class="arc" cx="' + c + '" cy="' + c + '" r="' + r + '" fill="none" stroke="' + STROKE[area] + '" stroke-width="' + th + '" stroke-dasharray="' + circ.toFixed(1) + '" stroke-dashoffset="' + (circ * (1 - v)).toFixed(1) + '" transform="rotate(-90 ' + c + ' ' + c + ')"></circle>';
+    return t;
+  }
+  function ringStack(rings, center, sub, label) {
+    var size = 164, th = 13, gap = 4, c = size / 2, out = '';
+    rings.forEach(function (rg, i) { out += arc(c - th / 2 - i * (th + gap), c, rg.value, rg.area, th); });
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '" role="img" aria-label="' + esc(label) + '">' + out +
+      '<text x="' + c + '" y="' + (c - 2) + '" text-anchor="middle" class="ring-c" font-size="17">' + esc(center) + '</text>' +
+      '<text x="' + c + '" y="' + (c + 14) + '" text-anchor="middle" class="ring-s" font-size="10">' + esc(sub) + '</text></svg>';
+  }
+  function ring(value, area, center, sub, onSoft, label) {
+    var size = 84, th = 10, c = size / 2;
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '" role="img" aria-label="' + esc(label) + '" style="flex-shrink:0">' + arc(c - th / 2, c, value, area, th, onSoft) +
+      '<text x="' + c + '" y="' + (c - 2) + '" text-anchor="middle" class="ring-c" font-size="13">' + esc(center) + '</text>' +
+      '<text x="' + c + '" y="' + (c + 13) + '" text-anchor="middle" class="ring-s" font-size="10">' + esc(sub) + '</text></svg>';
+  }
+  function bar(area, value, label, valueText, opts) {
+    opts = opts || {}; var v = clamp(value);
+    return '<div class="bar' + (opts.lg ? ' lg' : '') + '">' + (label || valueText ? '<div class="bar-head"><span>' + esc(label || '') + '</span><span class="fig-sm">' + esc(valueText || '') + '</span></div>' : '') +
+      '<div class="track t-' + area + (opts.onSoft ? ' on-soft' : '') + '" role="progressbar" aria-label="' + esc(label || area) + '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + Math.round(v * 100) + '">' +
+      (v > 0 ? '<div class="fill f-' + area + '" style="width:' + (v * 100).toFixed(1) + '%"></div>' : '') + '</div></div>';
+  }
+  function segBar(area, total, done, label, valueText) {
+    var s = ''; for (var i = 0; i < total; i++) s += '<div class="seg ' + (i < done ? 'f-' + area : 't-' + area) + '"></div>';
+    return '<div class="bar"><div class="bar-head"><span>' + esc(label) + '</span><span class="fig-sm">' + esc(valueText || (done + ' / ' + total)) + '</span></div>' +
+      '<div class="segs" style="grid-template-columns:repeat(' + total + ',minmax(0,1fr))" role="img" aria-label="' + esc(label + ': ' + done + ' of ' + total) + '">' + s + '</div></div>';
+  }
+  function figure(area, label, value) { return '<div class="figure"><span class="eyebrow l-' + area + '">' + esc(label) + '</span><span class="fig">' + esc(value) + '</span></div>'; }
+
+  var ICONS = {
+    home: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1Z"/>',
+    car: '<path d="M5 17h14l-1.5-6.5A2 2 0 0 0 15.6 9H8.4a2 2 0 0 0-1.9 1.5Z"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="16.5" cy="17.5" r="1.5"/>',
+    book: '<path d="M2 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H2Z"/><path d="M22 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8Z"/>',
+    heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/>',
+    wallet: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>'
+  };
+  function icon(n, size) { return '<svg aria-hidden="true" width="' + (size || 24) + '" height="' + (size || 24) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + ICONS[n] + '</svg>'; }
+
+  /* ---------------- views ---------------- */
+  function notice() {
+    if (state.saving) return '';
+    return '<div class="notice">Not connected to your database yet, so entries are not saved. Finish the setup steps to switch saving on.</div>';
+  }
+  function startNote(d) {
+    var start = parseYmd(PLAN_START);
+    if (d >= start) return '';
+    var days = Math.ceil((start - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 864e5);
+    return '<div class="notice">Practice run: the plan starts Sunday 8 November (' + days + ' day' + (days === 1 ? '' : 's') + ' to go). Anything you log now still saves.</div>';
+  }
+
+  function viewToday(d) {
+    var key = ymd(d), sch = schedule(d), nm = nowMin(d), doc = dayDoc(key);
+    var todayDrive = sum(shiftsOn(key), driveMin);
+    var studyToday = Number(doc.studyMin) || 0;
+    var exDone = !!doc.exercise;
+    var dayFrac = clamp((nm - DAY_START) / (DAY_END - DAY_START));
+    var cur = null, next = null;
+    sch.blocks.forEach(function (b) { if (nm >= b[0] && nm < b[1]) cur = b; if (!next && b[0] > nm) next = b; });
+
+    var rings = '<section class="card" aria-label="Today"><div class="ringstack">' +
+      ringStack([{ area: 'work', value: todayDrive / DRIVE_TARGET_MIN }, { area: 'study', value: studyToday / sch.studyTarget }, { area: 'health', value: exDone ? 1 : 0 }],
+        Math.round(dayFrac * 100) + '%', 'of day',
+        'Today: driving ' + hm(todayDrive) + ' of ' + hm(DRIVE_TARGET_MIN) + ', study ' + hm(studyToday) + ' of ' + hm(sch.studyTarget) + ', exercise ' + (exDone ? 'done' : 'not yet')) +
+      '<div class="legend">' + figure('work', 'Work', hm(todayDrive) + ' / ' + hm(DRIVE_TARGET_MIN)) + figure('study', 'Study', hm(studyToday) + ' / ' + hm(sch.studyTarget)) +
+      figure('health', 'Exercise', exDone ? (doc.exercise === 'gym' ? 'Gym · done' : 'Walk · done') : 'Not yet') + '</div></div></section>';
+
+    var nowCard;
+    if (cur) {
+      var area = cur[2] === 'commute' ? 'work' : (cur[2] === 'neutral' ? 'rest' : cur[2]);
+      var left = cur[1] - nm, frac = (nm - cur[0]) / (cur[1] - cur[0]);
+      nowCard = '<section class="card a-' + area + '" aria-label="Now"><div class="card-head"><span class="eyebrow l-' + area + '">Now · ' + clock(cur[0]) + ' – ' + clock(cur[1]) + '</span><span class="eyebrow l-' + area + '" style="text-transform:none;font-size:13px">' + hm(left).replace(/^0:/, '') + (left < 60 ? ' min' : ' h') + ' left</span></div>' +
+        '<span class="title">' + esc(cur[3]) + '</span>' + bar(area, frac, '', '', { lg: true, onSoft: true }) +
+        (next ? '<span class="body" style="color:var(--ink)">Next: ' + esc(next[3].toLowerCase()) + ' at ' + clock(next[0]) + '</span>' : '<span class="body" style="color:var(--ink)">Next: sleep at 9:30 pm</span>') + '</section>';
+    } else {
+      var asleep = nm >= DAY_END || nm < DAY_START;
+      nowCard = '<section class="card a-rest" aria-label="Now"><span class="eyebrow l-rest">Now · 9:30 pm – 5:30 am</span><span class="title">' + (asleep ? 'Sleep' : 'Rest') + '</span><span class="body" style="color:var(--ink)">Next: ' + (sch.gym ? 'gym' : 'Homebush Bay walk') + ' at 5:30 am</span></section>';
+    }
+
+    var tl = '', legend = { health: 'Exercise', work: 'Driving', money: 'Charge + lunch', study: 'Study' };
+    sch.blocks.forEach(function (b) { tl += '<div class="f-' + b[2] + '" style="flex:' + (b[1] - b[0]) + '"></div>'; });
+    var timeline = '<section aria-label="Your day" style="display:flex;flex-direction:column;gap:8px"><div class="card-head"><h2 class="heading">Your day</h2><span class="caption">5:30 am – 9:30 pm</span></div>' +
+      '<div class="tl-wrap"><div class="tl" role="img" aria-label="Day timeline: exercise from 5:30, driving 7:30 am to 3:40 pm with a midday charging stop, study in the evening">' + tl + '</div>' +
+      (nm >= DAY_START && nm <= DAY_END ? '<div class="tl-now" aria-hidden="true" style="left:' + (dayFrac * 100).toFixed(1) + '%"></div>' : '') + '</div>' +
+      '<div class="tl-ends caption"><span>5:30</span><span>' + (nm >= DAY_START && nm <= DAY_END ? 'Now ' + clock(nm) : '') + '</span><span>9:30 pm</span></div>' +
+      '<div class="legend-row caption">' + Object.keys(legend).map(function (k) { return '<span><span class="dot f-' + k + '"></span>' + legend[k] + '</span>'; }).join('') + '</div></section>';
+
+    var ws = weekStart(d), wShifts = inWeek(state.shifts, ws);
+    var wDrive = sum(wShifts, driveMin), wEarn = sum(wShifts, function (s) { return s.receipts; });
+    var wStudy = 0, wEx = 0, dayIdx = d.getDay() + 1;
+    for (var i = 0; i < 7; i++) { var k = ymd(addDays(ws, i)); var dd = dayDoc(k); wStudy += Number(dd.studyMin) || 0; if (dd.exercise) wEx++; }
+    var season = seasonFor(d), forecast = 6.5 * season.rate * 7;
+    var week = '<section class="card" aria-label="This week"><div class="card-head"><h2 class="heading">This week</h2><span class="caption">Day ' + dayIdx + ' of 7</span></div>' +
+      bar('work', wDrive / WEEK_DRIVE_MIN, 'Driving', hm(wDrive) + ' / ' + hm(WEEK_DRIVE_MIN)) +
+      bar('study', wStudy / WEEK_STUDY_MIN, 'Study', hm(wStudy) + ' / 20:00') +
+      segBar('health', 7, wEx, 'Exercise') +
+      bar('money', wEarn / forecast, 'Earnings', money(wEarn) + ' / ' + money(forecast)) + '</section>';
+
+    var taxKey = 'w' + ymd(ws), taxDone = Number((state.tax[taxKey] || {}).amount) || 0;
+    var moneyCard = '<section class="card a-money" aria-label="Money"><div style="display:flex;gap:16px;align-items:center">' +
+      ring(taxDone / TAX_WEEKLY, 'money', 'Tax', Math.round(clamp(taxDone / TAX_WEEKLY) * 100) + '%', true, 'Tax account: ' + money(taxDone, true) + ' of ' + money(TAX_WEEKLY, true) + ' set aside this week') +
+      '<div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:0"><span class="eyebrow l-money">Tax account · this week</span><span class="fig">' + money(taxDone, true) + ' / ' + money(TAX_WEEKLY, true) + '</span>' +
+      '<button class="btn btn-secondary btn-small" data-act="tax" style="align-self:flex-start;background:var(--money-track)">Record set-aside</button></div></div></section>';
+
+    var wn = weekNumber(d);
+    var longView = '<section class="card" aria-label="The long view"><h2 class="heading">The long view</h2>' +
+      bar('rest', Math.max(0, wn) / 52, 'Transition year', wn >= 1 ? 'Week ' + Math.min(wn, 52) + ' / 52' : 'Starts 8 Nov') +
+      bar('study', 0, 'Master of Planning', 'to [May 2027]') + bar('work', 0, 'Splend term', 'ends [Dec 2027]') + '</section>';
+
+    var quick = '<section class="card" aria-label="Quick log"><h2 class="heading">Quick log</h2>' +
+      '<div class="chips" role="group" aria-label="Exercise today">' +
+      '<button class="chip" data-act="ex" data-v="gym" aria-pressed="' + (doc.exercise === 'gym') + '">Gym done</button>' +
+      '<button class="chip" data-act="ex" data-v="walk" aria-pressed="' + (doc.exercise === 'walk') + '">Walk done</button></div>' +
+      '<div class="chips" role="group" aria-label="Add study time">' +
+      '<button class="chip" data-act="study" data-v="30">+30 min study</button><button class="chip" data-act="study" data-v="60">+1 h</button><button class="chip" data-act="study" data-v="90">+1 h 30</button></div></section>';
+
+    return notice() + startNote(d) + rings + nowCard + timeline +
+      '<div class="btn-row"><button class="btn btn-primary" data-act="shift">' + icon('plus', 20) + 'Log shift</button><button class="btn btn-secondary" data-act="expense">Log expense</button></div>' +
+      quick + week + moneyCard + longView;
+  }
+
+  function viewWork(d) {
+    var ws = weekStart(d), list = inWeek(state.shifts, ws).sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+    var drive = sum(list, driveMin), normal = sum(list, function (s) { return s.normalMin; }), home = sum(list, function (s) { return s.homeMin; });
+    var earn = sum(list, function (s) { return s.receipts; }), km = sum(list, function (s) { return s.km; });
+    var season = seasonFor(d), forecast = 6.5 * season.rate * 7;
+    var equiv = (normal + home * 2 / 3) / 60, perHour = equiv > 0 ? earn / equiv : 0;
+    var rows = list.length ? list.map(function (s) {
+      return '<div class="row"><div class="row-main"><span class="row-title">' + shortDate(s.date) + ' · ' + hm(driveMin(s)) + ' driven</span><span class="row-sub">' +
+        (s.km ? Number(s.km) + ' km · ' : '') + (s.note ? esc(s.note) : (Number(s.homeMin) ? 'incl. ' + hm(s.homeMin) + ' homeward' : '')) + '</span></div>' +
+        '<span class="fig-sm">' + money(s.receipts, true) + '</span><button class="link-btn" data-act="del" data-c="shifts" data-id="' + esc(s.id) + '" aria-label="Delete shift on ' + shortDate(s.date) + '">Delete</button></div>';
+    }).join('') : '<p class="empty">No shifts logged this week yet.</p>';
+    return notice() + '<h2 class="page-title">Work</h2>' +
+      '<section class="card a-work"><span class="eyebrow l-work">' + season.name + ' rate · ' + money(season.rate) + '/h after fees</span>' +
+      '<span class="fig-lg">' + money(earn, true) + '</span><span class="body" style="color:var(--ink)">earned this week of ' + money(forecast) + ' forecast</span>' +
+      bar('work', earn / forecast, '', '', { onSoft: true }) + '</section>' +
+      '<section class="card"><div class="card-head"><h3 class="heading">This week</h3><span class="caption">from Sunday ' + ws.getDate() + ' ' + MONTHS[ws.getMonth()].slice(0, 3) + '</span></div>' +
+      bar('work', drive / WEEK_DRIVE_MIN, 'Hours driven', hm(drive) + ' / ' + hm(WEEK_DRIVE_MIN)) +
+      '<div class="kv"><span>Normal-rate hours</span><span class="fig-sm">' + hm(normal) + '</span><span>Homeward hours</span><span class="fig-sm">' + hm(home) + '</span>' +
+      '<span>Earnings per normal-rate hour</span><span class="fig-sm">' + (perHour ? money(perHour, true) : '–') + '</span><span>Kilometres</span><span class="fig-sm">' + (km ? km.toLocaleString('en-AU') : '–') + '</span></div></section>' +
+      '<button class="btn btn-primary" data-act="shift">' + icon('plus', 20) + 'Log shift</button>' +
+      '<section class="card"><h3 class="heading">Shifts this week</h3><div class="list">' + rows + '</div></section>';
+  }
+
+  function viewStudy(d) {
+    var ws = weekStart(d), total = 0, perDay = '';
+    for (var i = 0; i < 7; i++) {
+      var dt = addDays(ws, i), k = ymd(dt), m = Number(dayDoc(k).studyMin) || 0, tgt = schedule(dt).studyTarget; total += m;
+      perDay += bar('study', m / tgt, DAYS[i].slice(0, 3) + ' ' + dt.getDate(), hm(m) + ' / ' + hm(tgt));
+    }
+    var key = ymd(d), today = Number(dayDoc(key).studyMin) || 0, tgtToday = schedule(d).studyTarget;
+    return notice() + '<h2 class="page-title">Study</h2>' +
+      '<section class="card a-study"><div style="display:flex;gap:16px;align-items:center">' + ring(today / tgtToday, 'study', hm(today), 'of ' + hm(tgtToday), true, 'Study today ' + hm(today) + ' of ' + hm(tgtToday)) +
+      '<div style="display:flex;flex-direction:column;gap:4px"><span class="eyebrow l-study">Today · at home, 4:20 pm</span><span class="title">' + (today >= tgtToday ? 'Target met' : hm(tgtToday - today) + ' to go') + '</span></div></div>' +
+      '<div class="chips"><button class="chip" data-act="study" data-v="30">+30 min</button><button class="chip" data-act="study" data-v="60">+1 h</button><button class="chip" data-act="study" data-v="90">+1 h 30</button><button class="chip" data-act="study" data-v="-30">−30 min</button></div></section>' +
+      '<section class="card"><div class="card-head"><h3 class="heading">This week</h3><span class="fig-sm">' + hm(total) + ' / 20:00</span></div>' + bar('study', total / WEEK_STUDY_MIN, '', '') + perDay + '</section>' +
+      '<section class="card"><h3 class="heading">Coming next</h3><p class="body" style="margin:0">Subjects, assessment due dates and the countdown to the end of your Master of Planning. Tell me your subjects and due dates and I will add them.</p></section>';
+  }
+
+  function viewHealth(d) {
+    var ws = weekStart(d), segs = '', count = 0, key = ymd(d), doc = dayDoc(key), sch = schedule(d);
+    for (var i = 0; i < 7; i++) { var dt = addDays(ws, i), dd = dayDoc(ymd(dt)), g = schedule(dt).gym; if (dd.exercise) count++;
+      segs += '<div class="row"><div class="row-main"><span class="row-title">' + DAYS[i] + '</span><span class="row-sub">Planned: ' + (g ? 'gym' : 'Homebush Bay walk') + '</span></div><span class="fig-sm">' + (dd.exercise ? (dd.exercise === 'gym' ? 'Gym · done' : 'Walk · done') : '–') + '</span><span></span></div>'; }
+    return notice() + '<h2 class="page-title">Health</h2>' +
+      '<section class="card a-health"><span class="eyebrow l-health">Today · 5:30 am</span><span class="title">' + (doc.exercise ? (doc.exercise === 'gym' ? 'Gym done' : 'Walk done') : (sch.gym ? 'Gym day' : 'Bay walk day')) + '</span>' +
+      '<div class="chips"><button class="chip" data-act="ex" data-v="gym" aria-pressed="' + (doc.exercise === 'gym') + '">Gym done</button><button class="chip" data-act="ex" data-v="walk" aria-pressed="' + (doc.exercise === 'walk') + '">Walk done</button>' +
+      (doc.exercise ? '<button class="chip" data-act="ex" data-v="">Undo</button>' : '') + '</div></section>' +
+      '<section class="card"><h3 class="heading">This week</h3>' + segBar('health', 7, count, 'Exercise days') + '<div class="list">' + segs + '</div></section>' +
+      '<section class="card"><h3 class="heading">Coming next</h3><p class="body" style="margin:0">Your gym routine for the 55-minute sessions, simple packable meals and a shopping list. We will build these in December.</p></section>';
+  }
+
+  function viewMoney(d) {
+    var ws = weekStart(d), list = inWeek(state.expenses, ws).sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+    var spent = sum(list, function (e) { return e.amount; });
+    var taxKey = 'w' + ymd(ws), taxDone = Number((state.tax[taxKey] || {}).amount) || 0;
+    var rows = list.length ? list.map(function (e) {
+      return '<div class="row"><div class="row-main"><span class="row-title">' + esc(e.category) + '</span><span class="row-sub">' + shortDate(e.date) + (e.note ? ' · ' + esc(e.note) : '') + '</span></div>' +
+        '<span class="fig-sm">' + money(e.amount, true) + '</span><button class="link-btn" data-act="del" data-c="expenses" data-id="' + esc(e.id) + '" aria-label="Delete ' + esc(e.category) + ' expense">Delete</button></div>';
+    }).join('') : '<p class="empty">No expenses logged this week yet.</p>';
+    var budgetRows = BUDGET.map(function (b) { return '<span>' + esc(b[0]) + '</span><span class="fig-sm">' + money(b[1], true) + '</span>'; }).join('');
+    var budgetTotal = BUDGET.reduce(function (t, b) { return t + b[1]; }, 0);
+    return notice() + '<h2 class="page-title">Money</h2>' +
+      '<section class="card a-money"><div style="display:flex;gap:16px;align-items:center">' +
+      ring(taxDone / TAX_WEEKLY, 'money', 'Tax', Math.round(clamp(taxDone / TAX_WEEKLY) * 100) + '%', true, 'Tax account ' + money(taxDone, true) + ' of ' + money(TAX_WEEKLY, true)) +
+      '<div style="display:flex;flex-direction:column;gap:6px"><span class="eyebrow l-money">Tax account · this week</span><span class="fig">' + money(taxDone, true) + ' / ' + money(TAX_WEEKLY, true) + '</span>' +
+      '<span class="caption">GST $108.14 · income tax $139.10 · Medicare $21.63</span></div></div>' +
+      '<button class="btn btn-secondary btn-small" data-act="tax" style="background:var(--money-track)">Record set-aside</button></section>' +
+      '<section class="card"><div class="card-head"><h3 class="heading">Expenses this week</h3><span class="fig-sm">' + money(spent, true) + '</span></div><div class="list">' + rows + '</div>' +
+      '<button class="btn btn-primary btn-small" data-act="expense">' + icon('plus', 18) + 'Log expense</button></section>' +
+      '<section class="card"><div class="card-head"><h3 class="heading">Weekly budget plan</h3><span class="caption">Base Plan v1.4</span></div>' +
+      '<div class="kv"><span>Receipts after fees (average week)</span><span class="fig-sm">$1,820.00</span>' + budgetRows +
+      '<span class="total">Left for other costs and savings</span><span class="fig-sm total">' + money(1820 - budgetTotal, true) + '</span></div></section>' +
+      (user ? '<button class="link-btn" data-act="signout" style="align-self:center">Sign out (' + esc(user.email) + ')</button>' : '');
+  }
+
+  /* ---------------- sheets (forms) ---------------- */
+  var scrim = document.getElementById('sheet-scrim'), sheet = document.getElementById('sheet'), lastFocus = null;
+  function openSheet(html) { lastFocus = document.activeElement; sheet.innerHTML = html; scrim.classList.add('open'); var f = sheet.querySelector('input,select,button'); if (f) f.focus(); }
+  function closeSheet() { scrim.classList.remove('open'); sheet.innerHTML = ''; if (lastFocus && lastFocus.focus) lastFocus.focus(); }
+  scrim.addEventListener('click', function (e) { if (e.target === scrim) closeSheet(); });
+  sheet.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSheet(); });
+
+  function shiftSheet() {
+    var d = now();
+    openSheet('<h2 class="title" id="sheet-title">Log shift</h2>' +
+      '<form id="f-shift" style="display:flex;flex-direction:column;gap:14px" novalidate>' +
+      '<div class="field"><label for="s-date">Date</label><input id="s-date" type="date" value="' + ymd(d) + '" required></div>' +
+      '<div class="field"><label for="s-nh">Normal-rate driving</label><div class="two"><input id="s-nh" type="number" inputmode="numeric" min="0" max="16" value="5" aria-label="Hours"><input id="s-nm" type="number" inputmode="numeric" min="0" max="59" step="5" value="50" aria-label="Minutes"></div><span class="hint">Hours and minutes online, not counting the homeward hour. Plan: 5 h 50.</span></div>' +
+      '<div class="field"><label for="s-hm">Homeward driving (minutes)</label><input id="s-hm" type="number" inputmode="numeric" min="0" max="180" step="5" value="60"></div>' +
+      '<div class="field"><label for="s-r">Receipts after fees ($)</label><input id="s-r" type="number" inputmode="decimal" min="0" step="0.01" placeholder="e.g. 260.00" required></div>' +
+      '<div class="two"><div class="field"><label for="s-km">Kilometres</label><input id="s-km" type="number" inputmode="numeric" min="0" step="1"></div>' +
+      '<div class="field"><label for="s-n">Note</label><input id="s-n" type="text" maxlength="80"></div></div>' +
+      '<p class="caption" id="s-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
+      '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save shift</button></div></form>');
+    document.getElementById('f-shift').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var r = parseFloat(document.getElementById('s-r').value), date = document.getElementById('s-date').value;
+      var nmin = (parseInt(document.getElementById('s-nh').value, 10) || 0) * 60 + (parseInt(document.getElementById('s-nm').value, 10) || 0);
+      if (!date) { document.getElementById('s-err').textContent = 'Pick a date.'; return; }
+      if (!(r >= 0)) { document.getElementById('s-err').textContent = 'Enter the receipts after fees, e.g. 260.'; return; }
+      var data = { date: date, normalMin: nmin, homeMin: parseInt(document.getElementById('s-hm').value, 10) || 0, receipts: Math.round(r * 100) / 100,
+        km: parseInt(document.getElementById('s-km').value, 10) || 0, note: document.getElementById('s-n').value.trim(), createdAt: new Date().toISOString() };
+      save('shifts', null, data).then(function () { closeSheet(); toast('Shift saved'); });
+    });
+  }
+
+  function expenseSheet() {
+    var d = now();
+    openSheet('<h2 class="title" id="sheet-title">Log expense</h2>' +
+      '<form id="f-exp" style="display:flex;flex-direction:column;gap:14px" novalidate>' +
+      '<div class="field"><label for="e-date">Date</label><input id="e-date" type="date" value="' + ymd(d) + '" required></div>' +
+      '<div class="field"><label for="e-cat">What for</label><select id="e-cat">' + EXPENSE_CATS.map(function (c) { return '<option>' + c + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field"><label for="e-amt">Amount ($, incl. GST)</label><input id="e-amt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="e.g. 35.00" required></div>' +
+      '<div class="field"><label for="e-n">Note</label><input id="e-n" type="text" maxlength="80" placeholder="e.g. Evie charger, Rhodes"></div>' +
+      '<p class="caption" id="e-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
+      '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save expense</button></div></form>');
+    document.getElementById('f-exp').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var a = parseFloat(document.getElementById('e-amt').value), date = document.getElementById('e-date').value;
+      if (!date || !(a > 0)) { document.getElementById('e-err').textContent = 'Enter a date and an amount above $0.'; return; }
+      save('expenses', null, { date: date, category: document.getElementById('e-cat').value, amount: Math.round(a * 100) / 100, note: document.getElementById('e-n').value.trim(), createdAt: new Date().toISOString() })
+        .then(function () { closeSheet(); toast('Expense saved'); });
+    });
+  }
+
+  function taxSheet() {
+    var ws = weekStart(now()), key = 'w' + ymd(ws), cur = Number((state.tax[key] || {}).amount) || 0;
+    openSheet('<h2 class="title" id="sheet-title">Tax account</h2><p class="body" style="margin:0">How much have you moved to the tax account for the week starting Sunday ' + ws.getDate() + ' ' + MONTHS[ws.getMonth()] + '? The weekly target is ' + money(TAX_WEEKLY, true) + '.</p>' +
+      '<form id="f-tax" style="display:flex;flex-direction:column;gap:14px" novalidate><div class="field"><label for="t-amt">Total set aside this week ($)</label><input id="t-amt" type="number" inputmode="decimal" min="0" step="0.01" value="' + (cur || TAX_WEEKLY) + '"></div>' +
+      '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div></form>');
+    document.getElementById('f-tax').addEventListener('submit', function (e) {
+      e.preventDefault(); var a = parseFloat(document.getElementById('t-amt').value) || 0;
+      save('tax', key, { amount: Math.round(a * 100) / 100, updatedAt: new Date().toISOString() }).then(function () { closeSheet(); toast('Tax account updated'); });
+    });
+  }
+
+  /* ---------------- actions ---------------- */
+  var busy = {};
+  function setDay(key, patch) {
+    if (busy[key]) return; busy[key] = true;
+    var doc = Object.assign({}, dayDoc(key), patch); delete doc.id; doc.updatedAt = new Date().toISOString();
+    save('days', key, doc).then(function () { busy[key] = false; }, function () { busy[key] = false; });
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]'); if (!b) return;
+    var act = b.getAttribute('data-act'), key = ymd(now());
+    if (act === 'shift') shiftSheet();
+    else if (act === 'expense') expenseSheet();
+    else if (act === 'tax') taxSheet();
+    else if (act === 'close') closeSheet();
+    else if (act === 'signout') { if (sb) sb.auth.signOut(); }
+    else if (act === 'ex') { var v = b.getAttribute('data-v'); setDay(key, { exercise: v || null }); toast(v ? (v === 'gym' ? 'Gym logged' : 'Walk logged') : 'Exercise cleared'); }
+    else if (act === 'study') { var add = parseInt(b.getAttribute('data-v'), 10); var m = Math.max(0, (Number(dayDoc(key).studyMin) || 0) + add); setDay(key, { studyMin: m }); toast('Study today: ' + hm(m)); }
+    else if (act === 'del') { remove(b.getAttribute('data-c'), b.getAttribute('data-id')).then(function () { toast('Deleted'); }); }
+    else if (act === 'tab') { state.tab = b.getAttribute('data-v'); try { location.hash = state.tab === 'today' ? '' : state.tab; } catch (x) {} render(); window.scrollTo(0, 0); }
+  });
+
+  var toastTimer;
+  function toast(msg) { var t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove('show'); }, 1800); }
+
+  /* ---------------- render ---------------- */
+  var TABS = [['today', 'Today', 'home'], ['work', 'Work', 'car'], ['study', 'Study', 'book'], ['health', 'Health', 'heart'], ['money', 'Money', 'wallet']];
+  function render() {
+    var d = now(), h = d.getHours();
+    document.getElementById('hdr-date').textContent = longDate(d) + ' · ' + clockAp(nowMin(d));
+    document.getElementById('hdr-greeting').textContent = (h < 12 ? 'Morning' : h < 17 ? 'Afternoon' : 'Evening') + ', Istvan';
+    document.getElementById('nav').innerHTML = TABS.map(function (t) {
+      return '<button type="button" data-act="tab" data-v="' + t[0] + '"' + (state.tab === t[0] ? ' aria-current="page"' : '') + '>' + icon(t[2]) + t[1] + '</button>';
+    }).join('');
+    var v = state.tab;
+    document.getElementById('view').innerHTML = v === 'work' ? viewWork(d) : v === 'study' ? viewStudy(d) : v === 'health' ? viewHealth(d) : v === 'money' ? viewMoney(d) : viewToday(d);
+  }
+
+  var h0 = (location.hash || '').replace('#', '');
+  if (['work', 'study', 'health', 'money'].indexOf(h0) >= 0) state.tab = h0;
+  window.addEventListener('hashchange', function () { var h = (location.hash || '').replace('#', ''); state.tab = ['work', 'study', 'health', 'money'].indexOf(h) >= 0 ? h : 'today'; render(); });
+  render();
+  connect();
+  setInterval(function () { if (!scrim.classList.contains('open')) render(); }, 30000);
+})();
+</script>
+</body>
+</html>
