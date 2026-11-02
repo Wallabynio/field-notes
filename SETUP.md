@@ -29,3 +29,7 @@ Run once: Supabase → SQL Editor → New query → paste `update-v0.3.sql` → 
 ## Update for version 0.4 (weigh-ins)
 
 Run once: Supabase → SQL Editor → New query → paste `update-v0.4.sql` → Run (accept the "destructive operations" warning — it only refers to the privacy rule on the new table).
+
+## Update for app version 0.7 (course, assessments and study plans)
+
+Run once: Supabase → SQL Editor → New query → paste `update-v0.5.sql` → Run (accept the "destructive operations" warning — it only refers to the privacy rules on the new tables). Until then the Study tab shows Urban Project Part A read-only with a notice. On the first load after the update, the three Part A assessments are added automatically, with study plans.

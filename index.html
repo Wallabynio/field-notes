@@ -192,6 +192,23 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
 .check:first-child { border-top: none; }
 .check input { width: 20px; height: 20px; accent-color: var(--gold); }
 .check.done .row-title { color: var(--ink-faint); text-decoration: line-through; }
+.grade { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .06em; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-muted); }
+.grade.hd { color: var(--gold-bright); border-color: var(--hair); background: var(--gold-soft); }
+.as-row { grid-template-columns: 40px minmax(0,1fr) auto; }
+.as-icon { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; border: 1px solid var(--line); color: var(--ink-muted); }
+.as-icon.done { color: #1A1610; background: var(--gold); border-color: var(--gold); }
+.timeline { display: flex; flex-direction: column; position: relative; }
+.tl-year { font-family: var(--font-display); font-size: 17px; color: var(--gold-bright); padding: 14px 0 4px; }
+.tl-year:first-child { padding-top: 0; }
+.tl-row { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 14px minmax(0,1fr) auto; gap: 12px; align-items: start; padding: 10px 0; border-top: 1px solid var(--line); }
+button.tl-row { cursor: pointer; }
+.tl-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--gold); margin-top: 6px; }
+.tl-row.future .tl-dot { background: transparent; border: 1px solid var(--ink-faint); }
+.tl-row.future .row-title, .tl-row.future .row-sub { color: var(--ink-faint); }
+.tl-row.now .tl-dot { background: var(--study, #A487D1); box-shadow: 0 0 0 4px rgba(164,135,209,.22); }
+.tl-row.now .row-title { color: var(--ink); }
+.tl-mark { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.check .row-main .eyebrow { font-size: 12px; }
 .tabs { display: flex; gap: 6px; padding: 4px; background: var(--sunken); border-radius: 999px; border: 1px solid var(--line); }
 .tabs button { flex: 1; min-height: 40px; border: none; border-radius: 999px; background: none; color: var(--ink-muted); font-weight: 500; cursor: pointer; }
 .tabs button[aria-pressed="true"] { background: var(--raised); color: var(--gold-bright); box-shadow: inset 0 0 0 1px var(--hair); }
@@ -248,7 +265,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '0.6.2';
+  var APP_VERSION = '0.7.0';
   var PLAN_START = '2026-11-08';               // Sunday, week 1 day 1
   var NORMAL_MIN = 340, HOMEWARD_MIN = 60;      // 5 h 40 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
@@ -438,7 +455,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
   function shortDate(s) { var d = parseYmd(s); return DAYS[d.getDay()].slice(0, 3) + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()].slice(0, 3); }
 
   /* ---------------- state + storage ---------------- */
-  var state = { shifts: [], expenses: [], days: {}, tax: {}, logbook: [], body: {}, tab: 'today', saving: true, ready: false, dbV2: true, dbV3: true };
+  var state = { shifts: [], expenses: [], days: {}, tax: {}, logbook: [], body: {}, assessments: [], results: {}, tab: 'today', saving: true, ready: false, dbV2: true, dbV3: true, dbV4: true };
 
   var sb = null, user = null;
   var TABLES = { shifts: 'shifts', expenses: 'expenses', days: 'days', tax: 'tax_weeks', logbook: 'logbook', body: 'body' };
@@ -449,6 +466,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
     return { id: r.id, date: r.date, category: r.category, amount: Number(r.amount), note: r.note,
       businessPct: legacy ? catInfo(r.category)[1] : Number(r.business_pct), gst: legacy ? Number(r.amount) / 11 : Number(r.gst), receiptKept: !!r.receipt_kept };
   }
+  function fromAssess(r) { return { id: r.id, code: r.subject_code, name: r.name, due: r.due, weight: num(r.weight), status: r.status || 'todo', mark: num(r.mark), plan: Array.isArray(r.plan) ? r.plan : [] }; }
+  function assessRow(a) { return { subject_code: a.code, name: a.name, due: a.due, weight: a.weight, status: a.status, mark: a.mark, plan: a.plan || [], updated_at: new Date().toISOString() }; }
+  function seedDone() { try { return !!localStorage.getItem('fn-seed-17914'); } catch (x) { return false; } }
+  function markSeeded() { try { localStorage.setItem('fn-seed-17914', '1'); } catch (x) {} }
   function fromLog(r) { return { id: r.id, date: r.date, odoStart: Number(r.odo_start), odoEnd: Number(r.odo_end), kind: r.kind, purpose: r.purpose }; }
   function toRow(collection, id, d) {
     if (collection === 'shifts') {
@@ -481,7 +502,9 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
       sb.from('days').select('*').limit(1000),
       sb.from('tax_weeks').select('*').limit(200),
       sb.from('logbook').select('*').order('date', { ascending: false }).limit(2000),
-      sb.from('body').select('*').limit(2000)
+      sb.from('body').select('*').limit(2000),
+      sb.from('assessments').select('*').order('due', { ascending: true }).limit(500),
+      sb.from('subject_results').select('*').limit(100)
     ]).then(function (res) {
       if (res.slice(0, 4).some(function (r) { return r.error; })) { toast('Could not load your data. Check your connection.'); return; }
       state.dbV2 = !res[4].error;
@@ -492,6 +515,12 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
       state.logbook = state.dbV2 ? res[4].data.map(fromLog) : [];
       state.dbV3 = !res[5].error;
       var bm = {}; if (state.dbV3) res[5].data.forEach(function (r) { bm[r.date] = { weight: num(r.weight_kg), waist: num(r.waist_cm), bpSys: num(r.bp_sys), bpDia: num(r.bp_dia) }; }); state.body = bm;
+      state.dbV4 = !res[6].error && !res[7].error;
+      if (state.dbV4) {
+        state.assessments = res[6].data.map(fromAssess);
+        var rm = {}; res[7].data.forEach(function (r) { rm[r.code] = num(r.mark); }); state.results = rm;
+        if (!state.assessments.length && !seedDone()) { markSeeded(); return sb.from('assessments').insert(seedRows(ymd(now())).map(assessRow)).then(function () { return loadAll(); }); }
+      } else { state.assessments = seedRows(ymd(now())); state.results = {}; }
       var first = !state.ready; state.ready = true; render(first);
     });
   }
@@ -499,7 +528,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
   function connect() {
     var cfg = window.FIELD_NOTES_CONFIG || {};
     if (!window.supabase || !cfg.supabaseUrl || cfg.supabaseUrl.indexOf('YOUR_') === 0) {
-      state.saving = false; state.ready = true; showLogin(false); render(); return;
+      state.saving = false; state.ready = true; state.assessments = seedRows(ymd(now())); showLogin(false); render(); return;
     }
     sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, { auth: { persistSession: true, autoRefreshToken: true } });
     sb.auth.getSession().then(function (r) {
@@ -547,6 +576,29 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
     if (collection === 'shifts' || collection === 'expenses' || collection === 'logbook') state[collection] = state[collection].filter(function (r) { return r.id !== id; });
     else delete state[collection][id];
     render(); return Promise.resolve();
+  }
+
+  function saveAssess(a) {
+    if (sb && user) {
+      if (!state.dbV4) { toast('Run the database update first'); return Promise.reject(); }
+      var row = assessRow(a), q = a.id && !/^(local|seed)/.test(a.id) ? sb.from('assessments').update(row).eq('id', a.id) : sb.from('assessments').insert(row);
+      return q.then(function (r) { if (r.error) { toast('Could not save, try again'); throw r.error; } return loadAll(); });
+    }
+    if (!a.id) a.id = 'local' + Date.now();
+    state.assessments = state.assessments.filter(function (x) { return x.id !== a.id; }).concat([JSON.parse(JSON.stringify(a))]);
+    render(); return Promise.resolve();
+  }
+  function removeAssess(id) {
+    if (sb && user) return sb.from('assessments').delete().eq('id', id).then(function (r) { if (r.error) toast('Could not delete, try again'); return loadAll(); });
+    state.assessments = state.assessments.filter(function (x) { return x.id !== id; }); render(); return Promise.resolve();
+  }
+  function saveResult(code, mark) {
+    if (sb && user) {
+      if (!state.dbV4) { toast('Run the database update first'); return Promise.reject(); }
+      var q = mark == null ? sb.from('subject_results').delete().eq('code', code) : sb.from('subject_results').upsert({ code: code, mark: mark, updated_at: new Date().toISOString() }, { onConflict: 'user_id,code' });
+      return q.then(function (r) { if (r.error) { toast('Could not save, try again'); throw r.error; } return loadAll(); });
+    }
+    if (mark == null) delete state.results[code]; else state.results[code] = mark; render(); return Promise.resolve();
   }
 
   /* ---------------- derived numbers ---------------- */
@@ -620,6 +672,8 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/>',
     clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
     check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    cap: '<path d="M12 5 21.5 9 12 13 2.5 9Z"/><path d="M6.5 11v4.5c0 1.4 2.5 2.5 5.5 2.5s5.5-1.1 5.5-2.5V11"/><path d="M21.5 9v5"/>',
+    flag: '<path d="M6 21V4"/><path d="M6 4.5h11l-2 4 2 4H6"/>',
     shield: '<path d="M12 3.5 19 6v5.5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6Z"/><path d="M9 12l2 2 4-4"/>'
   };
   // Icon for each block of the day plan
@@ -654,6 +708,8 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
     receipt: '<path d="M38 8h44v62l-6-4-6 4-6-4-6 4-6-4-6 4-6-4-2 4Z"/><path d="M46 22h28M46 30h22M46 38h28M46 50h14"/><path d="M66 50h8" class="hot"/><path d="M46 58h28"/>',
     gauge: '<path d="M22 62a38 38 0 0 1 76 0"/><path d="M28 46l5 3M40 33l3 5M60 26v6M80 33l-3 5M92 46l-5 3"/><path d="M60 62l20-24" class="hot"/><circle cx="60" cy="62" r="4"/><path d="M14 70H106"/>',
     coffee: '<path d="M36 34h44v18c0 10-8 16-22 16s-22-6-22-16Z"/><path d="M80 40c10 0 10 14 0 14"/><path d="M24 72h68"/><path d="M50 26c-3-5 3-8 0-14M62 26c-3-5 3-8 0-14" class="hot"/>',
+    cap: '<path d="M10 72H110"/><path d="M60 12 104 30 60 48 16 30Z"/><path d="M34 38v14c0 6 12 11 26 11s26-5 26-11V38"/><path d="M104 30v20" class="hot"/><circle cx="104" cy="53" r="3" class="hot"/>',
+    desk: '<path d="M8 70H112"/><path d="M30 58h60l-4-30H34Z"/><path d="M22 58h76"/><path d="M52 28l2-6h12l2 6"/><path d="M82 52V34" class="hot"/><path d="M78 38l4-6 4 6" class="hot"/><path d="M40 42h20M40 48h14"/>',
     ledger: '<path d="M30 10h56c4 0 6 2 6 6v52c0 2-2 4-4 4H30Z"/><path d="M38 10v62"/><path d="M46 26h36M46 34h30M46 42h36M46 50h24"/><path d="M78 72v8l-4-3-4 3v-8" class="hot"/>'
   };
   function illo(k, cls) {
@@ -703,7 +759,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
     var blocks = sch.blocks.concat([[DAY_END, DAY_END + 480, 'rest', 'Sleep']]);
     return '<div class="agenda" role="list">' + blocks.map(function (b) {
       var past = isToday && nm >= b[1], cur = isToday && nm >= b[0] && nm < b[1];
-      var info = b[3] === 'Cook and eat dinner' ? 'Cook two portions: ' + mealsFor(d).dinner.name : b[3] === 'Midday stop: charge, lunch, rest' ? 'Lunch: ' + mealsFor(d).lunch.name : b[2] === 'health' ? (sch.gym ? '55 min session, 10 min walk each way' : 'Door to door, 1 h 15') : b[3] === 'Sleep' ? 'Up at 5:30 am' : (BLOCK_INFO[b[3]] || '');
+      var info = b[3] === 'Cook and eat dinner' ? 'Cook two portions: ' + mealsFor(d).dinner.name : b[3] === 'Midday stop: charge, lunch, rest' ? 'Lunch: ' + mealsFor(d).lunch.name : b[2] === 'health' ? (sch.gym ? '55 min session, 10 min walk each way' : 'Door to door, 1 h 15') : b[3] === 'Sleep' ? 'Up at 5:30 am' : b[3] === 'Study' && studyFocus(ymd(d)) ? 'Focus: ' + studyFocus(ymd(d)).m.t : (BLOCK_INFO[b[3]] || '');
       var state = cur ? '<span class="ag-badge">Now</span>' : past ? 'Done' : '';
       return '<div class="ag-row' + (cur ? ' now' : '') + (past ? ' past' : '') + '" role="listitem"' + (cur ? ' aria-current="time"' : '') + '>' +
         '<span class="ag-time">' + clock(b[0] % 1440) + '</span><span class="ag-ico i-' + b[2] + '" aria-hidden="true">' + icon(blockIcon(b[3]), 16) + '</span>' +
@@ -819,6 +875,82 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
       '<section class="card"><h3 class="heading">Shifts this week</h3><div class="list">' + rows + '</div></section>';
   }
 
+  /* ---------------- Master of Urban Planning (Online), UTS ---------------- */
+  // [term, start, end, code, name, description, final mark or null]
+  var COURSE = [
+    ['2024 T5', '2024-08-26', '2024-10-13', '17903', 'Planning and Design Theory and Decision Making', 'Theory and collaborative approaches: ESD, Indigenous, place-making, economic, strategic.', 71],
+    ['2024 T6', '2024-10-21', '2024-12-08', '17904', 'Urban Design Fundamentals', 'Urban design principles, scales, DCPs, visual communication for placemaking.', 96],
+    ['2025 T1', '2025-01-20', '2025-03-09', '17901', 'Property Development and Planning Process', 'Planning frameworks, feasibility, market analysis, design and regulatory impacts.', 75],
+    ['2025 T2', '2025-03-17', '2025-05-04', '17902', 'Sustainable Urban Development', 'Principles and practices for sustainable cities: environment, economics, society.', 70],
+    ['2025 T3', '2025-05-12', '2025-06-29', '17908', 'Planning and Environmental Law in Australia', 'Statutory planning, legal principles, institutions, local and state frameworks.', 81],
+    ['2025 T4', '2025-07-07', '2025-08-24', '17907', 'Urban Economics and Infrastructure Planning', 'Microeconomics of urban growth, land markets, housing, transport, inequality.', 87],
+    ['2025 T5', '2025-09-01', '2025-10-19', '17905', 'Urban Analytics', 'Urban data sources, forecasting, scenario modelling, ethical urban data.', 78],
+    ['2025 T6', '2025-10-27', '2025-12-14', '17906', 'Environmental and Social Impact Assessments', 'EIA and SIA legislation, methodology, case studies, planning processes.', 92],
+    ['2026 T2', '2026-03-16', '2026-05-03', '17911', 'Structure Planning', 'Strategic land use and infrastructure at regional and city scale.', 79],
+    ['2026 T3', '2026-05-11', '2026-06-28', '17909', 'Local Strategic Planning', 'Local strategic planning, community engagement, infrastructure provision.', 80],
+    ['2026 T4', '2026-07-06', '2026-08-23', '17912', 'Development Negotiation and Community Engagement', 'Stakeholder engagement, negotiation, conflict resolution.', 89],
+    ['2026 T5', '2026-08-31', '2026-10-18', '17910', 'Spatial Analysis (GIS)', 'GIS methods for spatial data, mapping and analysis in planning.', 91],
+    ['2026 T6', '2026-10-26', '2026-12-13', '17914', 'Urban Project – Part A', 'Project-based: apply planning skills to a practical urban project.', null],
+    ['2027 T1', '2027-01-18', '2027-03-07', '17915', 'Urban Project – Part B', 'Project-based: independent further work on an urban planning topic.', null],
+    ['2027 T2', '2027-03-15', '2027-05-02', '17913', 'Urban Redevelopment', 'Urban renewal, adaptive reuse, revitalisation, brownfield planning.', null]
+  ];
+  var COURSE_END = '2027-05-02';
+  var STATUS = [['todo', 'Not started'], ['doing', 'In progress'], ['submitted', 'Submitted'], ['marked', 'Marked']];
+  function statusLabel(s) { for (var i = 0; i < STATUS.length; i++) if (STATUS[i][0] === s) return STATUS[i][1]; return 'Not started'; }
+  function subj(code) { for (var i = 0; i < COURSE.length; i++) if (COURSE[i][3] === code) return COURSE[i]; return null; }
+  function finalMark(c) { var r = state.results[c[3]]; return r != null ? r : c[6]; }
+  function grade(m) { return m >= 85 ? 'HD' : m >= 75 ? 'D' : m >= 65 ? 'C' : m >= 50 ? 'P' : 'F'; }
+  function gradeTag(m) { var g = grade(m); return '<span class="grade' + (g === 'HD' ? ' hd' : '') + '">' + g + '</span>'; }
+  function currentSubject(key) {
+    for (var i = 0; i < COURSE.length; i++) if (key >= COURSE[i][1] && key <= COURSE[i][2]) return COURSE[i];
+    for (var j = 0; j < COURSE.length; j++) if (COURSE[j][1] > key) return COURSE[j];
+    return null;
+  }
+  function daysBetween(a, b) { return Math.round((parseYmd(b) - parseYmd(a)) / 864e5); }
+  function dueText(due, key) {
+    var n = daysBetween(key, due);
+    return n === 0 ? 'Due today, 11:59 pm' : n === 1 ? 'Due tomorrow, 11:59 pm' : n > 1 ? 'Due in ' + n + ' days' : 'Due date passed';
+  }
+  function subjectAssess(code) { return state.assessments.filter(function (a) { return a.code === code; }).sort(function (a, b) { return a.due < b.due ? -1 : 1; }); }
+
+  // Study plans: exact milestones spread over the evenings before the due date.
+  var PLAN_DRAFT = ['Re-read the brief and marking rubric; list every required section and the word limit', 'Set the outline: headings and words for each section',
+    'Collect sources, site data and policy documents', 'Write the introduction and context', 'Write the analysis sections', 'Make the maps, figures and tables',
+    'Write the findings and recommendations', 'Edit against the rubric: references, word count, formatting', 'Submit'];
+  var PLAN_FINAL = ['Read the feedback on the draft; list every change needed', 'Restructure and fix the analysis from the feedback', 'Finalise the maps, figures and tables',
+    'Rewrite and complete every section', 'Write the executive summary', 'Proofread: references, captions, word count, formatting', 'Check against the rubric and submit'];
+  var PLAN_GENERIC = ['Read the brief and marking rubric; list what is required', 'Set the outline: headings and words for each section', 'Research: collect sources and data',
+    'Write the first half', 'Write the second half', 'Edit against the rubric: references, word count, formatting', 'Submit'];
+  function makePlan(a, key) {
+    var steps = /draft/i.test(a.name) ? PLAN_DRAFT : /final/i.test(a.name) ? PLAN_FINAL : PLAN_GENERIC;
+    var start = key;
+    state.assessments.forEach(function (o) { if (o.code === a.code && o.id !== a.id && o.due < a.due) { var nx = ymd(addDays(parseYmd(o.due), 1)); if (nx > start) start = nx; } });
+    var end = ymd(addDays(parseYmd(a.due), -1)); if (end < start) end = start;
+    var span = daysBetween(start, end);
+    return steps.map(function (t, i) { return { t: t, d: ymd(addDays(parseYmd(start), steps.length === 1 ? 0 : Math.round(i * span / (steps.length - 1)))), done: false }; });
+  }
+  // The next thing to work on: overdue or today's milestone first, otherwise the next upcoming one.
+  function studyFocus(key) {
+    var best = null;
+    state.assessments.forEach(function (a) {
+      if (a.status === 'submitted' || a.status === 'marked') return;
+      (a.plan || []).forEach(function (m, i) { if (!m.done && (!best || m.d < best.m.d)) best = { a: a, m: m, i: i }; });
+    });
+    return best;
+  }
+  var SEED = [
+    { code: '17914', name: 'Assessment 1 — Research and Communication in Contemporary Urban Issues', due: '2026-11-01', weight: 20, status: 'submitted', mark: null, plan: [] },
+    { code: '17914', name: 'Assessment 2 — Draft Report', due: '2026-11-22', weight: 45, status: 'todo', mark: null, plan: [] },
+    { code: '17914', name: 'Assessment 3 — Final Project Submission', due: '2026-12-06', weight: 35, status: 'todo', mark: null, plan: [] }
+  ];
+  function seedRows(key) {
+    var rows = SEED.map(function (s, i) { return Object.assign({ id: 'seed' + i }, s); });
+    var saved = state.assessments; state.assessments = rows;
+    rows.forEach(function (r) { if (r.status === 'todo') r.plan = makePlan(r, key); });
+    state.assessments = saved;
+    return rows;
+  }
+
   function viewStudy(d) {
     var ws = weekStart(d), total = 0, perDay = '';
     for (var i = 0; i < 7; i++) {
@@ -826,13 +958,146 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
       perDay += bar('study', m / tgt, DAYS[i].slice(0, 3) + ' ' + dt.getDate(), hm(m) + ' / ' + hm(tgt));
     }
     var key = ymd(d), today = Number(dayDoc(key).studyMin) || 0, tgtToday = schedule(d).studyTarget;
+    var focus = studyFocus(key), cur = currentSubject(key);
+
+    var focusCard = '';
+    if (focus) {
+      var late = focus.m.d < key, isToday = focus.m.d === key;
+      focusCard = '<section class="card a-study has-illo">' + illo('desk', 'corner') + '<span class="eyebrow l-study">' + (late ? 'Catch up · planned for ' + shortDate(focus.m.d) : isToday ? 'Tonight\'s focus' : 'Next · ' + shortDate(focus.m.d)) + '</span>' +
+        '<span class="title" style="max-width:26ch">' + esc(focus.m.t) + '</span><span class="body">' + esc(shortName(focus.a.name)) + ' · ' + dueText(focus.a.due, key).toLowerCase() + '</span>' +
+        '<div class="chips"><button class="chip" data-act="ms-done" data-id="' + esc(focus.a.id) + '" data-i="' + focus.i + '">' + icon('check', 18) + ' Done</button><button class="chip" data-act="assess" data-id="' + esc(focus.a.id) + '">Open plan</button></div></section>';
+    }
+
+    var curCard = '';
+    if (cur) {
+      var list = subjectAssess(cur[3]), started = key >= cur[1], week = Math.min(7, Math.floor(daysBetween(cur[1], key) / 7) + 1);
+      var wSum = 0, wMarked = 0, pts = 0;
+      list.forEach(function (a) { wSum += a.weight || 0; if (a.status === 'marked' && a.mark != null) { wMarked += a.weight || 0; pts += (a.weight || 0) * a.mark / 100; } });
+      var rows = list.length ? list.map(function (a) {
+        var done = a.status === 'submitted' || a.status === 'marked', pl = a.plan || [], nd = pl.filter(function (m) { return m.done; }).length;
+        return '<button type="button" class="row-btn as-row" data-act="assess" data-id="' + esc(a.id) + '">' +
+          '<span class="as-icon' + (done ? ' done' : '') + '">' + icon(done ? 'check' : 'flag', 20) + '</span>' +
+          '<span class="row-main"><span class="eyebrow">' + shortDate(a.due) + (a.weight ? ' · ' + a.weight + '%' : '') + '</span><span class="row-title">' + esc(shortName(a.name)) + '</span>' +
+          '<span class="row-sub">' + (a.status === 'marked' && a.mark != null ? 'Marked: ' + a.mark + ' / 100' : done ? 'Submitted' : dueText(a.due, key) + (pl.length ? ' · plan ' + nd + ' of ' + pl.length : '')) + '</span></span>' +
+          '<span class="chev" aria-hidden="true">' + icon('chev', 18) + '</span></button>';
+      }).join('') : '<p class="empty">No assessments yet. Add them once the subject opens in Canvas.</p>';
+      curCard = '<section class="card has-illo">' + illo('cap', 'corner') + '<span class="eyebrow l-study">' + cur[0] + ' · ' + cur[3] + (started ? ' · week ' + week + ' of 7' : ' · starts ' + shortDate(cur[1])) + '</span>' +
+        '<h3 class="heading" style="max-width:22ch">' + esc(cur[4]) + '</h3><span class="caption">' + shortDate(cur[1]) + ' – ' + shortDate(cur[2]) + '</span>' +
+        '<div class="list">' + rows + '</div>' +
+        (wMarked ? '<span class="caption">Marked so far: ' + pts.toFixed(1) + ' of ' + wMarked + ' points (' + Math.round(pts / wMarked * 100) + '% average).</span>' : '') +
+        (wSum && wSum !== 100 ? '<span class="caption">Weightings add up to ' + wSum + '%, not 100%.</span>' : '') +
+        '<button class="btn btn-secondary btn-small" data-act="assess-new" data-code="' + cur[3] + '">' + icon('plus', 18) + 'Add assessment</button></section>';
+    }
+
+    var marks = COURSE.map(finalMark).filter(function (m) { return m != null; });
+    var avg = marks.length ? marks.reduce(function (t, m) { return t + m; }, 0) / marks.length : 0;
+    var counts = { HD: 0, D: 0, C: 0, P: 0, F: 0 }; marks.forEach(function (m) { counts[grade(m)]++; });
+    var left = daysBetween(key, COURSE_END), wLeft = Math.ceil(left / 7);
+    var progCard = '<section class="card a-study"><span class="eyebrow l-study">Master of Urban Planning (Online) · UTS</span>' +
+      '<span class="fig-lg">' + avg.toFixed(1) + '</span><span class="body" style="color:var(--ink)">average mark over ' + marks.length + ' subjects · ' + grade(avg) + ' range</span>' +
+      segBar('study', COURSE.length, marks.length, 'Subjects', marks.length + ' of ' + COURSE.length + ' complete') +
+      '<div class="kv"><span>High Distinctions (85+)</span><span class="fig-sm">' + counts.HD + '</span><span>Distinctions (75–84)</span><span class="fig-sm">' + counts.D + '</span><span>Credits (65–74)</span><span class="fig-sm">' + counts.C + '</span>' +
+      '<span>Last day of study</span><span class="fig-sm">' + shortDate(COURSE_END) + ' 2027</span><span>Time to go</span><span class="fig-sm">' + (left > 0 ? left + ' days (' + wLeft + ' weeks)' : 'Finished') + '</span></div></section>';
+
+    var tl = '', lastYear = '';
+    COURSE.forEach(function (c) {
+      var yr = c[0].slice(0, 4), fm = finalMark(c), isCur = cur && cur[3] === c[3] && key >= c[1], past = key > c[2], open = past && fm == null;
+      if (yr !== lastYear) { tl += '<span class="tl-year">' + yr + '</span>'; lastYear = yr; }
+      tl += '<' + (open ? 'button type="button" data-act="result" data-code="' + c[3] + '"' : 'div') + ' class="tl-row' + (isCur ? ' now' : fm == null && !past ? ' future' : '') + '">' +
+        '<span class="tl-dot" aria-hidden="true"></span><span class="row-main"><span class="eyebrow">' + c[0].slice(5) + ' · ' + c[3] + (isCur ? ' · now' : '') + '</span><span class="row-title">' + esc(c[4]) + '</span><span class="row-sub">' + esc(c[5]) + '</span></span>' +
+        (fm != null ? '<span class="tl-mark"><span class="fig-sm">' + fm + '</span>' + gradeTag(fm) + '</span>' : open ? '<span class="tl-mark"><span class="caption">Add mark</span></span>' : '<span></span>') +
+        '</' + (open ? 'button' : 'div') + '>';
+    });
+    var tlCard = '<section class="card"><div class="card-head"><h3 class="heading">Course timeline</h3><span class="caption">Aug 2024 – May 2027</span></div><div class="timeline">' + tl + '</div></section>';
+
     return hero('study', 'Study', 'Two hours fifty of focused study every evening, at home.') + notice() +
+      (state.saving && !state.dbV4 ? '<div class="notice">Assessments and study plans can\'t be saved yet. The database needs its one-time update for this version.</div>' : '') +
       '<section class="card a-study"><div style="display:flex;gap:16px;align-items:center">' + ring(today / tgtToday, 'study', hm(today), 'of ' + hm(tgtToday), true, 'Study today ' + hm(today) + ' of ' + hm(tgtToday)) +
       '<div style="display:flex;flex-direction:column;gap:4px"><span class="eyebrow l-study">Today, at home from 4:10 pm</span><span class="title">' + (today >= tgtToday ? 'Target met' : hm(tgtToday - today) + ' to go') + '</span></div></div>' +
       '<div class="chips"><button class="chip" data-act="study" data-v="90">+1 h 30 (4:10 block)</button><button class="chip" data-act="study" data-v="80">+1 h 20 (6:40 block)</button><button class="chip" data-act="study" data-v="10">+10 min</button><button class="chip" data-act="study" data-v="-10">−10 min</button></div></section>' +
+      focusCard + curCard +
       '<section class="card"><div class="card-head"><h3 class="heading">This week</h3><span class="fig-sm">' + hm(total) + ' / ' + hm(WEEK_STUDY_MIN) + '</span></div>' + bar('study', total / WEEK_STUDY_MIN, '', '') + perDay + '</section>' +
-      '<section class="card has-illo">' + illo('study', 'corner') + '<h3 class="heading">Master of Planning</h3><p class="body" style="margin:0;max-width:24ch">Subjects and assessment due dates will appear here, with a countdown to May 2027.</p></section>';
+      progCard + tlCard;
   }
+  function shortName(n) { return String(n).replace(/^\s*\[\d+\]\s*/, '').replace(/^Assessment\s+(\d+)\s*[—–-]\s*/i, 'A$1 · '); }
+
+  function assessSheet(id, code) {
+    var key = ymd(now()), orig = id ? state.assessments.filter(function (a) { return a.id === id; })[0] : null;
+    if (id && !orig) return;
+    var a = orig ? JSON.parse(JSON.stringify(orig)) : { code: code, name: '', due: '', weight: null, status: 'todo', mark: null, plan: [] };
+    var c = subj(a.code) || ['', '', '', a.code, a.code];
+    function planHtml() {
+      if (!orig) return '';
+      var pl = a.plan || [];
+      return '<h3 class="heading">Study plan</h3>' + (pl.length ? '<div class="list">' + pl.map(function (m, i) {
+        return '<label class="check' + (m.done ? ' done' : '') + '"><input type="checkbox" data-ms="' + i + '"' + (m.done ? ' checked' : '') + '><span class="row-main"><span class="eyebrow' + (!m.done && m.d < key ? ' l-money' : '') + '">' + shortDate(m.d) + (m.d === key ? ' · tonight' : '') + '</span><span class="row-title">' + esc(m.t) + '</span></span><button type="button" class="link-btn" data-ms-del="' + i + '" aria-label="Remove step">Remove</button></label>';
+      }).join('') + '</div>' : '<p class="empty">No plan yet. Make one and the steps are spread over your evenings up to the day before it\'s due.</p>') +
+        '<div class="two"><div class="field"><label for="m-t">New step</label><input id="m-t" type="text" maxlength="120" placeholder="What to do"></div><div class="field"><label for="m-d">Evening</label><input id="m-d" type="date" value="' + key + '"></div></div>' +
+        '<div class="btn-row"><button type="button" class="btn btn-secondary btn-small" data-ms-add="1">Add step</button><button type="button" class="btn btn-secondary btn-small" data-ms-make="1">' + (pl.length ? 'Rebuild plan' : 'Make a study plan') + '</button></div>';
+    }
+    function body() {
+      return '<span class="eyebrow l-study">' + esc(c[3] + ' · ' + c[4]) + '</span><h2 class="title" id="sheet-title">' + (orig ? esc(shortName(a.name)) : 'Add assessment') + '</h2>' +
+        (orig ? '<span class="body">' + dueText(a.due, key) + '</span>' : '') +
+        '<form id="f-as" style="display:flex;flex-direction:column;gap:14px" novalidate>' +
+        '<div class="field"><label for="a-n">Name</label><input id="a-n" type="text" maxlength="140" value="' + esc(a.name) + '" placeholder="e.g. Assessment 1 — Report" required></div>' +
+        '<div class="two"><div class="field"><label for="a-d">Due date (11:59 pm)</label><input id="a-d" type="date" value="' + esc(a.due) + '" required></div>' +
+        '<div class="field"><label for="a-w">Weighting (%)</label><input id="a-w" type="number" inputmode="numeric" min="0" max="100" step="1" value="' + (a.weight != null ? a.weight : '') + '"></div></div>' +
+        '<div class="field"><span class="eyebrow">Status</span><div class="chips">' + STATUS.map(function (s) { return '<button type="button" class="chip" data-st="' + s[0] + '" aria-pressed="' + (a.status === s[0]) + '">' + s[1] + '</button>'; }).join('') + '</div></div>' +
+        (a.status === 'marked' ? '<div class="field"><label for="a-m">Mark (out of 100)</label><input id="a-m" type="number" inputmode="decimal" min="0" max="100" step="0.5" value="' + (a.mark != null ? a.mark : '') + '"></div>' : '') +
+        '<p class="caption" id="a-err" role="alert"></p>' +
+        '<div class="btn-row"><button type="submit" class="btn btn-primary">' + (orig ? 'Save' : 'Add') + '</button><button type="button" class="btn btn-secondary" data-act="close">Close</button></div></form>' +
+        planHtml() + (orig ? '<button type="button" class="link-btn" data-as-del="1">Delete this assessment</button>' : '');
+    }
+    function readForm() {
+      var n = document.getElementById('a-n'), dd = document.getElementById('a-d'), w = document.getElementById('a-w'), mk = document.getElementById('a-m');
+      if (n) a.name = n.value.trim(); if (dd) a.due = dd.value; if (w) a.weight = w.value === '' ? null : Number(w.value);
+      if (mk) a.mark = mk.value === '' ? null : Number(mk.value);
+    }
+    function redraw() { readForm(); sheet.innerHTML = body(); bindForm(); }
+    function persist(msg) { return saveAssess(a).then(function () { if (msg) toast(msg); var fresh = state.assessments.filter(function (x) { return x.id === a.id; })[0]; if (fresh) { orig = fresh; } }); }
+    function bindForm() {
+      document.getElementById('f-as').addEventListener('submit', function (e) {
+        e.preventDefault(); readForm(); var err = document.getElementById('a-err');
+        if (!a.name || !a.due) { err.textContent = 'Enter a name and a due date.'; return; }
+        if (a.weight != null && (a.weight < 0 || a.weight > 100)) { err.textContent = 'Weighting is between 0 and 100.'; return; }
+        if (a.status === 'marked' && a.mark != null && (a.mark < 0 || a.mark > 100)) { err.textContent = 'Mark is between 0 and 100.'; return; }
+        if (!orig) a.plan = makePlan(a, key);
+        saveAssess(a).then(function () { closeSheet(); toast(orig ? 'Saved' : 'Assessment added, with a study plan'); });
+      });
+    }
+    openSheet(body()); bindForm();
+    sheet.onclick = function (e) {
+      var t = e.target.closest('[data-st],[data-ms-del],[data-ms-add],[data-ms-make],[data-as-del]'); if (!t) return;
+      if (t.hasAttribute('data-st')) { a.status = t.getAttribute('data-st'); redraw(); return; }
+      if (t.hasAttribute('data-ms-del')) { e.preventDefault(); readForm(); a.plan.splice(+t.getAttribute('data-ms-del'), 1); persist('Step removed'); sheet.innerHTML = body(); bindForm(); return; }
+      if (t.hasAttribute('data-ms-add')) {
+        readForm(); var mt = document.getElementById('m-t').value.trim(), md = document.getElementById('m-d').value;
+        if (!mt || !md) { document.getElementById('m-t').focus(); return; }
+        a.plan = (a.plan || []).concat([{ t: mt, d: md, done: false }]).sort(function (x, y) { return x.d < y.d ? -1 : x.d > y.d ? 1 : 0; });
+        persist('Step added'); sheet.innerHTML = body(); bindForm(); return;
+      }
+      if (t.hasAttribute('data-ms-make')) { readForm(); a.plan = makePlan(a, key); persist('Study plan ready'); sheet.innerHTML = body(); bindForm(); return; }
+      if (t.hasAttribute('data-as-del')) { if (t.getAttribute('data-sure')) { removeAssess(a.id).then(function () { closeSheet(); toast('Deleted'); }); } else { t.setAttribute('data-sure', '1'); t.textContent = 'Tap again to delete'; } }
+    };
+    sheet.onchange = function (e) {
+      var i = e.target.getAttribute && e.target.getAttribute('data-ms'); if (i == null) return;
+      readForm(); a.plan[+i].done = e.target.checked; if (e.target.checked && a.status === 'todo') a.status = 'doing';
+      e.target.closest('.check').classList.toggle('done', e.target.checked); persist(e.target.checked ? 'Step done' : '');
+    };
+  }
+
+  function resultSheet(code) {
+    var c = subj(code); if (!c) return; var cur = state.results[code];
+    openSheet('<span class="eyebrow l-study">' + c[0] + ' · ' + c[3] + '</span><h2 class="title" id="sheet-title">' + esc(c[4]) + '</h2><p class="body" style="margin:0">Enter the final subject mark once it is released.</p>' +
+      '<form id="f-res" style="display:flex;flex-direction:column;gap:14px" novalidate><div class="field"><label for="r-m">Final mark (out of 100)</label><input id="r-m" type="number" inputmode="decimal" min="0" max="100" step="1" value="' + (cur != null ? cur : '') + '" required></div>' +
+      '<p class="caption" id="r-err" role="alert"></p><div class="btn-row"><button type="submit" class="btn btn-primary">Save</button><button type="button" class="btn btn-secondary" data-act="close">Cancel</button></div></form>');
+    document.getElementById('f-res').addEventListener('submit', function (e) {
+      e.preventDefault(); var v = document.getElementById('r-m').value, m = v === '' ? null : Number(v);
+      if (m != null && (m < 0 || m > 100)) { document.getElementById('r-err').textContent = 'Mark is between 0 and 100.'; return; }
+      saveResult(code, m).then(function () { closeSheet(); toast('Saved'); });
+    });
+  }
+
 
   function bodySeries() {
     return Object.keys(state.body).sort().map(function (k) { return Object.assign({ date: k }, state.body[k]); });
@@ -1214,12 +1479,12 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
       toast('Backup saved: ' + name);
     };
     if (sb && user) {
-      Promise.all(['shifts', 'expenses', 'days', 'tax_weeks', 'logbook', 'body'].map(function (t) { return sb.from(t).select('*').limit(5000); })).then(function (res) {
+      Promise.all(['shifts', 'expenses', 'days', 'tax_weeks', 'logbook', 'body', 'assessments', 'subject_results'].map(function (t) { return sb.from(t).select('*').limit(5000); })).then(function (res) {
         if (res.slice(0, 4).some(function (r) { return r.error; })) { toast('Could not read your data for the backup'); return; }
-        pack({ shifts: res[0].data, expenses: res[1].data, days: res[2].data, tax_weeks: res[3].data, logbook: res[4].error ? [] : res[4].data, body: res[5].error ? [] : res[5].data });
+        pack({ shifts: res[0].data, expenses: res[1].data, days: res[2].data, tax_weeks: res[3].data, logbook: res[4].error ? [] : res[4].data, body: res[5].error ? [] : res[5].data, assessments: res[6].error ? [] : res[6].data, subject_results: res[7].error ? [] : res[7].data });
       });
     } else {
-      pack({ shifts: state.shifts, expenses: state.expenses, days: state.days, tax_weeks: state.tax, logbook: state.logbook, body: state.body });
+      pack({ shifts: state.shifts, expenses: state.expenses, days: state.days, tax_weeks: state.tax, logbook: state.logbook, body: state.body, assessments: state.assessments, subject_results: state.results });
     }
   }
 
@@ -1240,6 +1505,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
     else if (act === 'weigh') bodySheet();
     else if (act === 'recipe') recipeSheet(b.getAttribute('data-k'));
     else if (act === 'shop') shopSheet();
+    else if (act === 'assess') assessSheet(b.getAttribute('data-id'));
+    else if (act === 'assess-new') assessSheet(null, b.getAttribute('data-code'));
+    else if (act === 'result') resultSheet(b.getAttribute('data-code'));
+    else if (act === 'ms-done') { var as = state.assessments.filter(function (x) { return x.id === b.getAttribute('data-id'); })[0]; if (as) { var cp = JSON.parse(JSON.stringify(as)); cp.plan[+b.getAttribute('data-i')].done = true; if (cp.status === 'todo') cp.status = 'doing'; saveAssess(cp).then(function () { toast('Step done'); }); } }
     else if (act === 'close') closeSheet();
     else if (act === 'export') exportData();
     else if (act === 'signout') { if (sb) sb.auth.signOut(); }
