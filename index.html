@@ -248,7 +248,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '0.6.0';
+  var APP_VERSION = '0.6.1';
   var PLAN_START = '2026-11-08';               // Sunday, week 1 day 1
   var NORMAL_MIN = 340, HOMEWARD_MIN = 60;      // 5 h 40 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
@@ -767,7 +767,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
       '<button class="chip" data-act="ex" data-v="gym" aria-pressed="' + (doc.exercise === 'gym') + '">Gym done</button>' +
       '<button class="chip" data-act="ex" data-v="walk" aria-pressed="' + (doc.exercise === 'walk') + '">Walk done</button></div>' +
       '<div class="chips" role="group" aria-label="Add study time">' +
-      '<button class="chip" data-act="study" data-v="30">+30 min study</button><button class="chip" data-act="study" data-v="60">+1 h</button><button class="chip" data-act="study" data-v="90">+1 h 30</button></div></section>';
+      '<button class="chip" data-act="study" data-v="90">+1 h 30 study</button><button class="chip" data-act="study" data-v="80">+1 h 20</button><button class="chip" data-act="study" data-v="10">+10 min</button><button class="chip" data-act="study" data-v="-10">−10 min</button></div></section>';
 
     return hero('today', (d.getHours() < 12 ? 'Good morning' : d.getHours() < 17 ? 'Good afternoon' : 'Good evening') + ', Istvan', '', { tall: true }) + notice() + startNote(d) + rings + nowCard + timeline +
       '<div class="btn-row"><button class="btn btn-primary" data-act="shift">' + icon('plus', 20) + 'Log shift</button><button class="btn btn-secondary" data-act="expense">Log expense</button></div>' +
@@ -814,7 +814,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
     return hero('study', 'Study', 'Two hours fifty of focused study every evening, at home.') + notice() +
       '<section class="card a-study"><div style="display:flex;gap:16px;align-items:center">' + ring(today / tgtToday, 'study', hm(today), 'of ' + hm(tgtToday), true, 'Study today ' + hm(today) + ' of ' + hm(tgtToday)) +
       '<div style="display:flex;flex-direction:column;gap:4px"><span class="eyebrow l-study">Today, at home from 4:10 pm</span><span class="title">' + (today >= tgtToday ? 'Target met' : hm(tgtToday - today) + ' to go') + '</span></div></div>' +
-      '<div class="chips"><button class="chip" data-act="study" data-v="30">+30 min</button><button class="chip" data-act="study" data-v="60">+1 h</button><button class="chip" data-act="study" data-v="90">+1 h 30</button><button class="chip" data-act="study" data-v="-30">−30 min</button></div></section>' +
+      '<div class="chips"><button class="chip" data-act="study" data-v="90">+1 h 30 (4:10 block)</button><button class="chip" data-act="study" data-v="80">+1 h 20 (6:40 block)</button><button class="chip" data-act="study" data-v="10">+10 min</button><button class="chip" data-act="study" data-v="-10">−10 min</button></div></section>' +
       '<section class="card"><div class="card-head"><h3 class="heading">This week</h3><span class="fig-sm">' + hm(total) + ' / ' + hm(WEEK_STUDY_MIN) + '</span></div>' + bar('study', total / WEEK_STUDY_MIN, '', '') + perDay + '</section>' +
       '<section class="card has-illo">' + illo('study', 'corner') + '<h3 class="heading">Master of Planning</h3><p class="body" style="margin:0;max-width:24ch">Subjects and assessment due dates will appear here, with a countdown to May 2027.</p></section>';
   }
