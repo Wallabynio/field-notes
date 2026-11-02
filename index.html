@@ -219,22 +219,80 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 (function () {
   'use strict';
 
-  /* ---------------- Plan constants (from Base Plan v1.4) ---------------- */
-  var APP_VERSION = '0.2.3';
+  /* ---------------- Plan constants (from Base Plan v1.5) ---------------- */
+  var APP_VERSION = '0.3.0';
   var PLAN_START = '2026-11-08';               // Sunday, week 1 day 1
   var NORMAL_MIN = 350, HOMEWARD_MIN = 60;      // 5 h 50 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
   var WEEK_DRIVE_MIN = DRIVE_TARGET_MIN * 7;   // 47 h 50
   var WEEK_STUDY_MIN = 1200;                    // 20 h
-  var TAX_WEEKLY = 268.86;                      // GST 108.14 + income tax 139.10 + Medicare 21.63 (rounded)
+  var DAY_TARGET = 250, DAY_BREAKEVEN = 238.48;  // receipts after platform fees
+  var WEEK_TARGET = DAY_TARGET * 7;              // $1,750
+  var TAX_WEEKLY = 247.03;                       // at target: GST 103.12 + income tax 123.29 + Medicare 20.62
+  var TAX_DAILY = TAX_WEEKLY / 7;
+  var TAX_MARGINAL = 1 / 11 + 0.30 / 1.1 + 0.02 / 1.1; // 38.2% of each dollar above (or below) target
   var DAY_START = 330, DAY_END = 1290;          // 5:30 am – 9:30 pm
-  var BUDGET = [
-    ['Splend', 450], ['Charging ($35 × 7)', 245], ['Cleaning', 70], ['Vodafone', 36.97],
-    ['GST provision', 108.14], ['Income-tax provision', 139.10], ['Medicare provision', 21.63],
-    ['Rent', 310], ['Food ($35/day)', 245], ['Utilities', 40], ['Anytime Fitness', 25.95],
-    ['Subscriptions (AI, Apple One, Microsoft 365)', 37.73]
+  var BUDGET_BIZ = [
+    ['Splend', 449.01], ['Charging ($35 × 7)', 245], ['Car washes (White Diamond, IMO + vacuum)', 52.50], ['Vodafone ($160.17/month)', 36.96]
   ];
-  var EXPENSE_CATS = ['Charging', 'Splend', 'Cleaning', 'Vodafone', 'Parking', 'Tolls', 'Food on shift', 'Other'];
+  var BUDGET_TAX = [['GST provision', 103.12], ['Income-tax provision', 123.29], ['Medicare provision', 20.62]];
+  var BUDGET_PERSONAL = [
+    ['Rent', 310], ['Food ($30/day)', 210], ['Utilities', 40], ['Claude Max ($199.99/month)', 46.15], ['Anytime Fitness', 25.95],
+    ['Higgsfield (≈ $93.94/month)', 21.68], ['Microsoft 365 ($48.51/month)', 11.19], ['Apple One ($24.95/month)', 5.76]
+  ];
+  // Expense categories: [name, default business %, includes GST by default]
+  var EXPENSE_CATS = [
+    ['Charging', 80, true], ['Splend', 80, true], ['Car wash', 80, true], ['Vodafone', 50, true],
+    ['Parking (on shift)', 100, true], ['Tolls (on shift)', 100, true], ['Car supplies', 80, true],
+    ['Other business', 100, true], ['Food on shift', 0, true], ['Personal', 0, true]
+  ];
+  function catInfo(name) { for (var i = 0; i < EXPENSE_CATS.length; i++) if (EXPENSE_CATS[i][0] === name) return EXPENSE_CATS[i]; return [name, 100, true]; }
+
+  /* ---------------- tax engine (illustrative resident rates, sole trader, no other income) ---------------- */
+  function fyStartYear(dateStr) { var p = dateStr.split('-'); return +p[1] >= 7 ? +p[0] : +p[0] - 1; } // FY 2026-27 → 2026
+  function fyLabel(y) { return y + '–' + String(y + 1).slice(2); }
+  function quarterOf(dateStr) { var p = dateStr.split('-'), m = +p[1], y = +p[0]; var q = m >= 7 && m <= 9 ? 1 : m >= 10 ? 2 : m <= 3 ? 3 : 4; return { fy: fyStartYear(dateStr), q: q }; }
+  var Q_NAMES = { 1: 'Jul–Sep', 2: 'Oct–Dec', 3: 'Jan–Mar', 4: 'Apr–Jun' };
+  function qDue(fy, q) { return q === 1 ? '28 Oct ' + fy : q === 2 ? '28 Feb ' + (fy + 1) : q === 3 ? '28 Apr ' + (fy + 1) : '28 Jul ' + (fy + 1); }
+  function qRange(fy, q) { var s = q === 1 ? [fy, 7] : q === 2 ? [fy, 10] : q === 3 ? [fy + 1, 1] : [fy + 1, 4]; var a = s[0] + '-' + pad(s[1]) + '-01'; var e = s[1] + 3 > 12 ? (s[0] + 1) + '-01-01' : s[0] + '-' + pad(s[1] + 3) + '-01'; return [a, e]; }
+  function incomeTax(ti, fy) {
+    var low = fy >= 2027 ? 0.14 : 0.15; if (fy < 2026) low = 0.16;
+    var t = 0;
+    if (ti > 18200) t += low * (Math.min(ti, 45000) - 18200);
+    if (ti > 45000) t += 0.30 * (Math.min(ti, 135000) - 45000);
+    if (ti > 135000) t += 0.37 * (Math.min(ti, 190000) - 135000);
+    if (ti > 190000) t += 0.45 * (ti - 190000);
+    var lito = ti <= 37500 ? 700 : ti <= 45000 ? 700 - 0.05 * (ti - 37500) : ti <= 66667 ? 325 - 0.015 * (ti - 45000) : 0;
+    var ml = 27222, med = ti <= ml ? 0 : Math.min(0.02 * ti, 0.10 * (ti - ml)); // low-income reduction (2025–26 single threshold)
+    return { gross: t, lito: Math.min(lito, t), net: Math.max(0, t - lito), medicare: med };
+  }
+  function shiftGross(s) { return s.grossFares != null && s.grossFares !== '' ? Number(s.grossFares) : null; }
+  function shiftFees(s) { return s.uberFees != null && s.uberFees !== '' ? Number(s.uberFees) : 0; }
+  // Totals for a date range [a, b): sales, GST, credits, deductions.
+  function taxFigures(a, b) {
+    var sh = state.shifts.filter(function (s) { return s.date >= a && s.date < b; });
+    var ex = state.expenses.filter(function (e) { return e.date >= a && e.date < b; });
+    var missing = 0, g1 = 0, fees = 0, net = 0;
+    sh.forEach(function (s) { var g = shiftGross(s); net += Number(s.receipts) || 0; if (g == null) { missing++; g = Number(s.receipts) || 0; } g1 += g; fees += shiftFees(s); });
+    var a1 = g1 / 11, creditsFees = fees / 11, creditsExp = 0, dedExp = 0, noReceipt = 0, bizSpend = 0;
+    ex.forEach(function (e) {
+      var pct = (e.businessPct == null ? 100 : Number(e.businessPct)) / 100, gst = Number(e.gst) || 0, amt = Number(e.amount) || 0;
+      if (pct <= 0) return;
+      bizSpend += amt * pct; creditsExp += gst * pct; dedExp += (amt - gst) * pct;
+      if (!e.receiptKept && gst > 0) noReceipt++;
+    });
+    var b1 = creditsFees + creditsExp;
+    var income = g1 - a1, deductions = (fees - creditsFees) + dedExp;
+    return { shifts: sh.length, missing: missing, g1: g1, a1: a1, b1: b1, gstOwing: a1 - b1, fees: fees, net: net,
+      income: income, deductions: deductions, profit: income - deductions, noReceipt: noReceipt, bizSpend: bizSpend };
+  }
+  // Tax reserve for a week: plan figure per day worked, adjusted by 38.2% of earnings above/below target.
+  function weekReserve(ws) {
+    var list = inWeek(state.shifts, ws), days = {}, r = 0;
+    list.forEach(function (s) { days[s.date] = 1; r += Number(s.receipts) || 0; });
+    var n = Object.keys(days).length;
+    return { days: n, receipts: r, target: Math.max(0, n * TAX_DAILY + TAX_MARGINAL * (r - n * DAY_TARGET)) };
+  }
 
   function seasonFor(d) {
     var m = d.getMonth() + 1;
@@ -284,15 +342,30 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
   function shortDate(s) { var d = parseYmd(s); return DAYS[d.getDay()].slice(0, 3) + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()].slice(0, 3); }
 
   /* ---------------- state + storage ---------------- */
-  var state = { shifts: [], expenses: [], days: {}, tax: {}, tab: 'today', saving: true, ready: false };
+  var state = { shifts: [], expenses: [], days: {}, tax: {}, logbook: [], tab: 'today', saving: true, ready: false, dbV2: true };
 
   var sb = null, user = null;
-  var TABLES = { shifts: 'shifts', expenses: 'expenses', days: 'days', tax: 'tax_weeks' };
-  function fromShift(r) { return { id: r.id, date: r.date, normalMin: r.normal_min, homeMin: r.home_min, receipts: Number(r.receipts), km: r.km, note: r.note }; }
-  function fromExpense(r) { return { id: r.id, date: r.date, category: r.category, amount: Number(r.amount), note: r.note }; }
+  var TABLES = { shifts: 'shifts', expenses: 'expenses', days: 'days', tax: 'tax_weeks', logbook: 'logbook' };
+  function num(v) { return v == null ? null : Number(v); }
+  function fromShift(r) { return { id: r.id, date: r.date, normalMin: r.normal_min, homeMin: r.home_min, receipts: Number(r.receipts), km: r.km, note: r.note, grossFares: num(r.gross_fares), uberFees: num(r.uber_fees) }; }
+  function fromExpense(r) {
+    var legacy = r.business_pct === undefined;
+    return { id: r.id, date: r.date, category: r.category, amount: Number(r.amount), note: r.note,
+      businessPct: legacy ? catInfo(r.category)[1] : Number(r.business_pct), gst: legacy ? Number(r.amount) / 11 : Number(r.gst), receiptKept: !!r.receipt_kept };
+  }
+  function fromLog(r) { return { id: r.id, date: r.date, odoStart: Number(r.odo_start), odoEnd: Number(r.odo_end), kind: r.kind, purpose: r.purpose }; }
   function toRow(collection, id, d) {
-    if (collection === 'shifts') return { date: d.date, normal_min: d.normalMin, home_min: d.homeMin, receipts: d.receipts, km: d.km, note: d.note };
-    if (collection === 'expenses') return { date: d.date, category: d.category, amount: d.amount, note: d.note };
+    if (collection === 'shifts') {
+      var s = { date: d.date, normal_min: d.normalMin, home_min: d.homeMin, receipts: d.receipts, km: d.km, note: d.note };
+      if (state.dbV2) { s.gross_fares = d.grossFares; s.uber_fees = d.uberFees; }
+      return s;
+    }
+    if (collection === 'expenses') {
+      var e = { date: d.date, category: d.category, amount: d.amount, note: d.note };
+      if (state.dbV2) { e.business_pct = d.businessPct; e.gst = d.gst; e.receipt_kept = d.receiptKept; }
+      return e;
+    }
+    if (collection === 'logbook') return { date: d.date, odo_start: d.odoStart, odo_end: d.odoEnd, kind: d.kind, purpose: d.purpose };
     if (collection === 'days') return { date: id, exercise: d.exercise || null, study_min: d.studyMin || 0, updated_at: new Date().toISOString() };
     return { week_start: id.slice(1), amount: d.amount, updated_at: new Date().toISOString() };
   }
@@ -309,13 +382,16 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
       sb.from('shifts').select('*').order('date', { ascending: false }).limit(1000),
       sb.from('expenses').select('*').order('date', { ascending: false }).limit(1000),
       sb.from('days').select('*').limit(1000),
-      sb.from('tax_weeks').select('*').limit(200)
+      sb.from('tax_weeks').select('*').limit(200),
+      sb.from('logbook').select('*').order('date', { ascending: false }).limit(2000)
     ]).then(function (res) {
-      if (res.some(function (r) { return r.error; })) { toast('Could not load your data. Check your connection.'); return; }
+      if (res.slice(0, 4).some(function (r) { return r.error; })) { toast('Could not load your data. Check your connection.'); return; }
+      state.dbV2 = !res[4].error;
       state.shifts = res[0].data.map(fromShift);
       state.expenses = res[1].data.map(fromExpense);
       var dm = {}; res[2].data.forEach(function (r) { dm[r.date] = { exercise: r.exercise, studyMin: r.study_min }; }); state.days = dm;
       var tm = {}; res[3].data.forEach(function (r) { tm['w' + r.week_start] = { amount: Number(r.amount) }; }); state.tax = tm;
+      state.logbook = state.dbV2 ? res[4].data.map(fromLog) : [];
       state.ready = true; render();
     });
   }
@@ -361,13 +437,13 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
       return q.then(function (r) { if (r.error) { toast('Could not save, try again'); throw r.error; } return loadAll(); });
     }
     var rec = Object.assign({ id: id || ('local' + Date.now()) }, data);
-    if (collection === 'shifts' || collection === 'expenses') state[collection] = state[collection].filter(function (r) { return r.id !== rec.id; }).concat([rec]);
+    if (collection === 'shifts' || collection === 'expenses' || collection === 'logbook') state[collection] = state[collection].filter(function (r) { return r.id !== rec.id; }).concat([rec]);
     else state[collection][rec.id] = rec;
     render(); return Promise.resolve();
   }
   function remove(collection, id) {
     if (sb && user) return sb.from(TABLES[collection]).delete().eq('id', id).then(function (r) { if (r.error) toast('Could not delete, try again'); return loadAll(); });
-    if (collection === 'shifts' || collection === 'expenses') state[collection] = state[collection].filter(function (r) { return r.id !== id; });
+    if (collection === 'shifts' || collection === 'expenses' || collection === 'logbook') state[collection] = state[collection].filter(function (r) { return r.id !== id; });
     else delete state[collection][id];
     render(); return Promise.resolve();
   }
@@ -430,7 +506,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 
   /* ---------------- views ---------------- */
   function notice() {
-    if (state.saving) return '';
+    if (state.saving) return state.dbV2 ? '' : '<div class="notice">One-off database update needed for the BAS, tax and logbook sections. In Supabase, open SQL Editor, paste update-v0.3.sql and press Run. Until then, new fields are not saved.</div>';
     return '<div class="notice">Not connected to your database yet, so entries are not saved. Finish the setup steps to switch saving on.</div>';
   }
   function startNote(d) {
@@ -502,17 +578,23 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
     var wDrive = sum(wShifts, driveMin), wEarn = sum(wShifts, function (s) { return s.receipts; });
     var wStudy = 0, wEx = 0, dayIdx = d.getDay() + 1;
     for (var i = 0; i < 7; i++) { var k = ymd(addDays(ws, i)); var dd = dayDoc(k); wStudy += Number(dd.studyMin) || 0; if (dd.exercise) wEx++; }
-    var season = seasonFor(d), forecast = 6.5 * season.rate * 7;
+    var todayEarn = sum(shiftsOn(key), function (s) { return s.receipts; });
     var week = '<section class="card" aria-label="This week"><div class="card-head"><h2 class="heading">This week</h2><span class="caption">Day ' + dayIdx + ' of 7</span></div>' +
       bar('work', wDrive / WEEK_DRIVE_MIN, 'Driving', hm(wDrive) + ' / ' + hm(WEEK_DRIVE_MIN)) +
       bar('study', wStudy / WEEK_STUDY_MIN, 'Study', hm(wStudy) + ' / 20:00') +
       segBar('health', 7, wEx, 'Exercise') +
-      bar('money', wEarn / forecast, 'Earnings', money(wEarn) + ' / ' + money(forecast)) + '</section>';
+      bar('money', wEarn / WEEK_TARGET, 'Earnings', money(wEarn) + ' / ' + money(WEEK_TARGET)) + '</section>';
 
-    var taxKey = 'w' + ymd(ws), taxDone = Number((state.tax[taxKey] || {}).amount) || 0;
-    var moneyCard = '<section class="card a-money" aria-label="Money"><div style="display:flex;gap:16px;align-items:center">' +
-      ring(taxDone / TAX_WEEKLY, 'money', 'Tax', Math.round(clamp(taxDone / TAX_WEEKLY) * 100) + '%', true, 'Tax account: ' + money(taxDone, true) + ' of ' + money(TAX_WEEKLY, true) + ' set aside this week') +
-      '<div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:0"><span class="eyebrow l-money">Tax account · this week</span><span class="fig">' + money(taxDone, true) + ' / ' + money(TAX_WEEKLY, true) + '</span>' +
+    var taxKey = 'w' + ymd(ws), taxDone = Number((state.tax[taxKey] || {}).amount) || 0, wr = weekReserve(ws);
+    var taxGoal = wr.days ? wr.target : TAX_WEEKLY;
+    var moneyCard = '<section class="card a-money" aria-label="Money"><span class="eyebrow l-money">Today · earnings after fees</span>' +
+      '<span class="fig-lg">' + money(todayEarn, true) + ' <span class="caption">of ' + money(DAY_TARGET) + ' target</span></span>' +
+      bar('money', todayEarn / DAY_TARGET, '', '', { lg: true, onSoft: true }) +
+      '<span class="caption">' + (todayEarn === 0 ? 'Break-even is ' + money(DAY_BREAKEVEN, true) + ' a day.' : todayEarn >= DAY_TARGET ? 'Target met.' : todayEarn >= DAY_BREAKEVEN ? 'Above break-even (' + money(DAY_BREAKEVEN, true) + '), ' + money(DAY_TARGET - todayEarn, true) + ' to target.' : money(DAY_BREAKEVEN - todayEarn, true) + ' to break-even, ' + money(DAY_TARGET - todayEarn, true) + ' to target.') + '</span>' +
+      '<div style="display:flex;gap:16px;align-items:center">' +
+      ring(taxDone / taxGoal, 'money', 'Tax', Math.round(clamp(taxDone / taxGoal) * 100) + '%', true, 'Tax account: ' + money(taxDone, true) + ' of ' + money(taxGoal, true) + ' set aside this week') +
+      '<div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:0"><span class="eyebrow l-money">Tax account · this week</span><span class="fig">' + money(taxDone, true) + ' / ' + money(taxGoal, true) + '</span>' +
+      '<span class="caption">' + (wr.days ? 'Based on ' + wr.days + ' day' + (wr.days === 1 ? '' : 's') + ' logged' : 'Plan figure for a full week') + '</span>' +
       '<button class="btn btn-secondary btn-small" data-act="tax" style="align-self:flex-start;background:var(--money-track)">Record set-aside</button></div></div></section>';
 
     var wn = weekNumber(d);
@@ -538,19 +620,26 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
     var earn = sum(list, function (s) { return s.receipts; }), km = sum(list, function (s) { return s.km; });
     var season = seasonFor(d), forecast = 6.5 * season.rate * 7;
     var equiv = (normal + home * 2 / 3) / 60, perHour = equiv > 0 ? earn / equiv : 0;
+    var nDays = {}; list.forEach(function (s) { nDays[s.date] = 1; }); nDays = Object.keys(nDays).length;
+    var avgDay = nDays ? earn / nDays : 0;
+    var gross = sum(list, function (s) { return shiftGross(s) || 0; }), fees = sum(list, shiftFees);
     var rows = list.length ? list.map(function (s) {
+      var g = shiftGross(s);
       return '<div class="row"><div class="row-main"><span class="row-title">' + shortDate(s.date) + ' · ' + hm(driveMin(s)) + ' driven</span><span class="row-sub">' +
+        (g != null ? 'Gross ' + money(g, true) + ' · fees ' + money(shiftFees(s), true) + ' · ' : 'Gross fares not entered · ') +
         (s.km ? Number(s.km) + ' km · ' : '') + (s.note ? esc(s.note) : (Number(s.homeMin) ? 'incl. ' + hm(s.homeMin) + ' homeward' : '')) + '</span></div>' +
         '<span class="fig-sm">' + money(s.receipts, true) + '</span><button class="link-btn" data-act="del" data-c="shifts" data-id="' + esc(s.id) + '" aria-label="Delete shift on ' + shortDate(s.date) + '">Delete</button></div>';
     }).join('') : '<p class="empty">No shifts logged this week yet.</p>';
     return notice() + '<h2 class="page-title">Work</h2>' +
-      '<section class="card a-work"><span class="eyebrow l-work">' + season.name + ' rate · ' + money(season.rate) + '/h after fees</span>' +
-      '<span class="fig-lg">' + money(earn, true) + '</span><span class="body" style="color:var(--ink)">earned this week of ' + money(forecast) + ' forecast</span>' +
-      bar('work', earn / forecast, '', '', { onSoft: true }) + '</section>' +
+      '<section class="card a-work"><span class="eyebrow l-work">Target ' + money(DAY_TARGET) + ' a day · ' + money(WEEK_TARGET) + ' a week</span>' +
+      '<span class="fig-lg">' + money(earn, true) + '</span><span class="body" style="color:var(--ink)">earned this week after fees</span>' +
+      bar('work', earn / WEEK_TARGET, '', '', { onSoft: true }) +
+      '<span class="caption">' + (nDays ? 'Average ' + money(avgDay, true) + ' a day over ' + nDays + ' day' + (nDays === 1 ? '' : 's') + (avgDay >= DAY_TARGET ? ' · on target' : avgDay >= DAY_BREAKEVEN ? ' · above break-even' : ' · below break-even (' + money(DAY_BREAKEVEN, true) + ')') + '. ' : '') +
+      season.name + ' forecast: ' + money(forecast) + ' a week.</span></section>' +
       '<section class="card"><div class="card-head"><h3 class="heading">This week</h3><span class="caption">from Sunday ' + ws.getDate() + ' ' + MONTHS[ws.getMonth()].slice(0, 3) + '</span></div>' +
       bar('work', drive / WEEK_DRIVE_MIN, 'Hours driven', hm(drive) + ' / ' + hm(WEEK_DRIVE_MIN)) +
       '<div class="kv"><span>Normal-rate hours</span><span class="fig-sm">' + hm(normal) + '</span><span>Homeward hours</span><span class="fig-sm">' + hm(home) + '</span>' +
-      '<span>Earnings per normal-rate hour</span><span class="fig-sm">' + (perHour ? money(perHour, true) : '–') + '</span><span>Kilometres</span><span class="fig-sm">' + (km ? km.toLocaleString('en-AU') : '–') + '</span></div></section>' +
+      '<span>Earnings per normal-rate hour (target $38.46)</span><span class="fig-sm">' + (perHour ? money(perHour, true) : '–') + '</span><span>Gross fares (incl. GST)</span><span class="fig-sm">' + (gross ? money(gross, true) : '–') + '</span><span>Uber fees</span><span class="fig-sm">' + (fees ? money(fees, true) : '–') + '</span><span>Kilometres</span><span class="fig-sm">' + (km ? km.toLocaleString('en-AU') : '–') + '</span></div></section>' +
       '<button class="btn btn-primary" data-act="shift">' + icon('plus', 20) + 'Log shift</button>' +
       '<section class="card"><h3 class="heading">Shifts this week</h3><div class="list">' + rows + '</div></section>';
   }
@@ -582,27 +671,118 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
       '<section class="card"><h3 class="heading">Coming next</h3><p class="body" style="margin:0">Your gym routine for the 55-minute sessions, simple packable meals and a shopping list. We will build these in December.</p></section>';
   }
 
+  function setAsideBetween(a, b) {
+    return Object.keys(state.tax).reduce(function (t, k) { var w = k.slice(1); return w >= a && w < b ? t + (Number(state.tax[k].amount) || 0) : t; }, 0);
+  }
+  function kvRow(label, value, cls) { return '<span' + (cls ? ' class="' + cls + '"' : '') + '>' + label + '</span><span class="fig-sm' + (cls ? ' ' + cls : '') + '">' + value + '</span>'; }
+  function warnList(f) {
+    var w = [];
+    if (f.missing) w.push(f.missing + ' shift' + (f.missing === 1 ? '' : 's') + ' without gross fares — using earnings after fees instead, so GST on sales is understated.');
+    if (f.noReceipt) w.push(f.noReceipt + ' business expense' + (f.noReceipt === 1 ? '' : 's') + ' not marked "tax invoice kept" — you can only claim GST credits with a tax invoice.');
+    return w.length ? '<div class="notice">' + w.map(esc).join('<br>') + '</div>' : '';
+  }
+  function logbookSummary() {
+    var list = state.logbook.slice().sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+    var biz = 0, priv = 0;
+    list.forEach(function (l) { var k = Math.max(0, l.odoEnd - l.odoStart); if (l.kind === 'private') priv += k; else biz += k; });
+    var first = list.length ? list[0].date : null, weeks = 0;
+    if (first) weeks = Math.min(12, Math.floor((parseYmd(ymd(now())) - parseYmd(first)) / 864e5 / 7) + 1);
+    return { list: list, biz: biz, priv: priv, total: biz + priv, pct: biz + priv ? biz / (biz + priv) : 0, first: first, weeks: weeks };
+  }
+
   function viewMoney(d) {
-    var ws = weekStart(d), list = inWeek(state.expenses, ws).sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+    var key = ymd(d), ws = weekStart(d), list = inWeek(state.expenses, ws).sort(function (a, b) { return a.date < b.date ? 1 : -1; });
     var spent = sum(list, function (e) { return e.amount; });
-    var taxKey = 'w' + ymd(ws), taxDone = Number((state.tax[taxKey] || {}).amount) || 0;
+    var taxKey = 'w' + ymd(ws), taxDone = Number((state.tax[taxKey] || {}).amount) || 0, wr = weekReserve(ws);
+    var taxGoal = wr.days ? wr.target : TAX_WEEKLY;
+
+    var taxCard = '<section class="card a-money"><div style="display:flex;gap:16px;align-items:center">' +
+      ring(taxDone / taxGoal, 'money', 'Tax', Math.round(clamp(taxDone / taxGoal) * 100) + '%', true, 'Tax account ' + money(taxDone, true) + ' of ' + money(taxGoal, true)) +
+      '<div style="display:flex;flex-direction:column;gap:6px;min-width:0"><span class="eyebrow l-money">Tax account · this week</span><span class="fig">' + money(taxDone, true) + ' / ' + money(taxGoal, true) + '</span>' +
+      '<span class="caption">' + (wr.days ? money(wr.receipts, true) + ' earned over ' + wr.days + ' day' + (wr.days === 1 ? '' : 's') + '. ' : '') + 'Plan: ' + money(TAX_WEEKLY, true) + ' a week at ' + money(DAY_TARGET) + ' a day, plus 38.2% of anything above it.</span></div></div>' +
+      '<button class="btn btn-secondary btn-small" data-act="tax" style="background:var(--money-track)">Record set-aside</button></section>';
+
     var rows = list.length ? list.map(function (e) {
-      return '<div class="row"><div class="row-main"><span class="row-title">' + esc(e.category) + '</span><span class="row-sub">' + shortDate(e.date) + (e.note ? ' · ' + esc(e.note) : '') + '</span></div>' +
+      var pct = e.businessPct == null ? 100 : e.businessPct;
+      var sub = shortDate(e.date) + ' · ' + (pct > 0 ? pct + '% business' : 'personal') + (Number(e.gst) > 0 ? ' · GST ' + money(e.gst, true) : ' · no GST') +
+        (pct > 0 && Number(e.gst) > 0 ? (e.receiptKept ? ' · invoice kept' : ' · no invoice yet') : '') + (e.note ? ' · ' + esc(e.note) : '');
+      return '<div class="row"><div class="row-main"><span class="row-title">' + esc(e.category) + '</span><span class="row-sub">' + sub + '</span></div>' +
         '<span class="fig-sm">' + money(e.amount, true) + '</span><button class="link-btn" data-act="del" data-c="expenses" data-id="' + esc(e.id) + '" aria-label="Delete ' + esc(e.category) + ' expense">Delete</button></div>';
     }).join('') : '<p class="empty">No expenses logged this week yet.</p>';
-    var budgetRows = BUDGET.map(function (b) { return '<span>' + esc(b[0]) + '</span><span class="fig-sm">' + money(b[1], true) + '</span>'; }).join('');
-    var budgetTotal = BUDGET.reduce(function (t, b) { return t + b[1]; }, 0);
-    return notice() + '<h2 class="page-title">Money</h2>' +
-      '<section class="card a-money"><div style="display:flex;gap:16px;align-items:center">' +
-      ring(taxDone / TAX_WEEKLY, 'money', 'Tax', Math.round(clamp(taxDone / TAX_WEEKLY) * 100) + '%', true, 'Tax account ' + money(taxDone, true) + ' of ' + money(TAX_WEEKLY, true)) +
-      '<div style="display:flex;flex-direction:column;gap:6px"><span class="eyebrow l-money">Tax account · this week</span><span class="fig">' + money(taxDone, true) + ' / ' + money(TAX_WEEKLY, true) + '</span>' +
-      '<span class="caption">GST $108.14 · income tax $139.10 · Medicare $21.63</span></div></div>' +
-      '<button class="btn btn-secondary btn-small" data-act="tax" style="background:var(--money-track)">Record set-aside</button></section>' +
-      '<section class="card"><div class="card-head"><h3 class="heading">Expenses this week</h3><span class="fig-sm">' + money(spent, true) + '</span></div><div class="list">' + rows + '</div>' +
-      '<button class="btn btn-primary btn-small" data-act="expense">' + icon('plus', 18) + 'Log expense</button></section>' +
-      '<section class="card"><div class="card-head"><h3 class="heading">Weekly budget plan</h3><span class="caption">Base Plan v1.4</span></div>' +
-      '<div class="kv"><span>Receipts after fees (average week)</span><span class="fig-sm">$1,820.00</span>' + budgetRows +
-      '<span class="total">Left for other costs and savings</span><span class="fig-sm total">' + money(1820 - budgetTotal, true) + '</span></div></section>' +
+    var expCard = '<section class="card"><div class="card-head"><h3 class="heading">Expenses this week</h3><span class="fig-sm">' + money(spent, true) + '</span></div><div class="list">' + rows + '</div>' +
+      '<button class="btn btn-primary btn-small" data-act="expense">' + icon('plus', 18) + 'Log expense</button></section>';
+
+    // BAS — current quarter plus earlier quarters with entries
+    var cq = quarterOf(key), r = qRange(cq.fy, cq.q), f = taxFigures(r[0], r[1]), qSet = setAsideBetween(r[0], r[1]);
+    var basCard = '<section class="card"><div class="card-head"><h3 class="heading">BAS · ' + Q_NAMES[cq.q] + ' ' + (cq.q <= 2 ? cq.fy : cq.fy + 1) + '</h3><span class="caption">Due ' + qDue(cq.fy, cq.q) + '</span></div>' +
+      warnList(f) +
+      '<div class="kv">' +
+      kvRow('G1 Total sales (gross fares, incl. GST)', money(f.g1, true)) +
+      kvRow('1A GST on sales', money(f.a1, true)) +
+      kvRow('1B GST credits — Uber fees', money(f.fees / 11, true)) +
+      kvRow('1B GST credits — business expenses', money(f.b1 - f.fees / 11, true)) +
+      kvRow('1B GST credits — total', money(f.b1, true)) +
+      kvRow(f.gstOwing >= 0 ? 'GST to pay (1A − 1B)' : 'GST refund (1B − 1A)', money(Math.abs(f.gstOwing), true), 'total') +
+      '</div><span class="caption">' + f.shifts + ' shift' + (f.shifts === 1 ? '' : 's') + ' this quarter. Tax account set aside this quarter: ' + money(qSet, true) + '. Lodge with the real Uber tax summary and invoices.</span>';
+    var past = {};
+    state.shifts.concat(state.expenses).forEach(function (x) { var q = quarterOf(x.date); var k = q.fy + '-' + q.q; if (!(q.fy === cq.fy && q.q === cq.q)) past[k] = q; });
+    var pastKeys = Object.keys(past).sort().reverse();
+    if (pastKeys.length) {
+      basCard += '<div class="list">' + pastKeys.map(function (k) {
+        var q = past[k], rr = qRange(q.fy, q.q), ff = taxFigures(rr[0], rr[1]);
+        return '<div class="row"><div class="row-main"><span class="row-title">' + Q_NAMES[q.q] + ' ' + (q.q <= 2 ? q.fy : q.fy + 1) + '</span><span class="row-sub">G1 ' + money(ff.g1, true) + ' · 1A ' + money(ff.a1, true) + ' · 1B ' + money(ff.b1, true) + ' · due ' + qDue(q.fy, q.q) + '</span></div>' +
+          '<span class="fig-sm">' + (ff.gstOwing >= 0 ? '' : '−') + money(Math.abs(ff.gstOwing), true) + '</span><span></span></div>';
+      }).join('') + '</div>';
+    }
+    basCard += '</section>';
+
+    // Income tax — current financial year
+    var fy = fyStartYear(key), fa = fy + '-07-01', fb = (fy + 1) + '-07-01', t = taxFigures(fa, fb), it = incomeTax(t.profit, fy);
+    var daysLeft = Math.max(0, Math.round((parseYmd(fb) - parseYmd(key)) / 864e5) - 1);
+    var planDaily = 53621.97 / 364, projProfit = t.profit + daysLeft * planDaily, pit = incomeTax(projProfit, fy);
+    var fySet = setAsideBetween(fa, fb);
+    var itCard = '<section class="card"><div class="card-head"><h3 class="heading">Income tax · ' + fyLabel(fy) + '</h3><span class="caption">1 Jul – 30 Jun</span></div>' +
+      '<div class="kv">' +
+      kvRow('Business income (fares excl. GST)', money(t.income, true)) +
+      kvRow('Uber fees (excl. GST)', '−' + money(t.fees - t.fees / 11, true)) +
+      kvRow('Business expenses (excl. GST, business share)', '−' + money(t.deductions - (t.fees - t.fees / 11), true)) +
+      kvRow('Taxable profit so far', money(t.profit, true), 'total') +
+      kvRow('Income tax on that (after LITO ' + money(it.lito, true) + ')', money(it.net, true)) +
+      kvRow('Medicare levy', money(it.medicare, true)) +
+      kvRow('Tax so far', money(it.net + it.medicare, true), 'total') +
+      '</div>' +
+      '<div class="kv">' +
+      kvRow('Projected profit to 30 June (plan pace for ' + daysLeft + ' more days)', money(projProfit, 0)) +
+      kvRow('Projected income tax + Medicare', money(pit.net + pit.medicare, 0), 'total') +
+      '</div>' +
+      '<span class="caption">Tax account this financial year: ' + money(fySet, true) + ' (covers GST and income tax). Illustrative resident rates (' + (fy >= 2027 ? '14%' : '15%') + ' / 30%), tax-free threshold, no other income or study loan. Confirm with a registered tax agent.</span></section>';
+
+    // Logbook
+    var lb = logbookSummary();
+    var lbRows = lb.list.slice(-5).reverse().map(function (l) {
+      return '<div class="row"><div class="row-main"><span class="row-title">' + shortDate(l.date) + ' · ' + (l.kind === 'private' ? 'Private' : 'Business') + '</span><span class="row-sub">' +
+        l.odoStart.toLocaleString('en-AU') + ' → ' + l.odoEnd.toLocaleString('en-AU') + (l.purpose ? ' · ' + esc(l.purpose) : '') + '</span></div>' +
+        '<span class="fig-sm">' + Math.max(0, l.odoEnd - l.odoStart).toLocaleString('en-AU') + ' km</span><button class="link-btn" data-act="del" data-c="logbook" data-id="' + esc(l.id) + '" aria-label="Delete logbook entry">Delete</button></div>';
+    }).join('');
+    var lbCard = '<section class="card"><div class="card-head"><h3 class="heading">Vehicle logbook</h3><span class="caption">' + (lb.first ? 'Week ' + lb.weeks + ' of 12' : 'Not started') + '</span></div>' +
+      (state.dbV2 ? '' : '<div class="notice">Needs the one-off database update before entries can be saved.</div>') +
+      segBar('work', 12, lb.weeks, '12-week logbook period', lb.first ? 'from ' + shortDate(lb.first) : '0 / 12') +
+      '<div class="kv">' + kvRow('Business km', lb.biz.toLocaleString('en-AU')) + kvRow('Private km', lb.priv.toLocaleString('en-AU')) +
+      kvRow('Business use', lb.total ? Math.round(lb.pct * 1000) / 10 + '% (plan: 80%)' : '–', 'total') + '</div>' +
+      (lbRows ? '<div class="list">' + lbRows + '</div>' : '<p class="empty">Log each shift with odometer readings (from the shift form) and every private trip here.</p>') +
+      '<div class="btn-row"><button class="btn btn-secondary btn-small" data-act="trip" data-v="business">Business trip</button><button class="btn btn-secondary btn-small" data-act="trip" data-v="private">Private trip</button></div>' +
+      '<span class="caption">ATO logbook: 12 continuous weeks covering every trip, with date, odometer start and end, km and purpose. Keep it for 5 years; it stays valid for 5 years.</span></section>';
+
+    // Budget plan (Base Plan v1.5)
+    var bizT = BUDGET_BIZ.reduce(function (s, b) { return s + b[1]; }, 0), taxT = BUDGET_TAX.reduce(function (s, b) { return s + b[1]; }, 0), perT = BUDGET_PERSONAL.reduce(function (s, b) { return s + b[1]; }, 0);
+    function lines(arr) { return arr.map(function (b) { return kvRow(esc(b[0]), '−' + money(b[1], true)); }).join(''); }
+    var budgetCard = '<section class="card"><div class="card-head"><h3 class="heading">Weekly budget plan</h3><span class="caption">Base Plan v1.5</span></div>' +
+      '<div class="kv">' + kvRow('Receipts after fees (' + money(DAY_TARGET) + ' × 7)', money(WEEK_TARGET, true), 'total') +
+      lines(BUDGET_BIZ) + lines(BUDGET_TAX) + kvRow('Available after business costs and tax', money(WEEK_TARGET - bizT - taxT, true), 'total') +
+      lines(BUDGET_PERSONAL) + kvRow('Cash extra (unlisted costs and savings)', money(WEEK_TARGET - bizT - taxT - perT, true), 'total') + '</div>' +
+      '<span class="caption">Break-even: ' + money(DAY_BREAKEVEN, true) + ' a day.</span></section>';
+
+    return notice() + '<h2 class="page-title">Money</h2>' + taxCard + expCard + basCard + itCard + lbCard + budgetCard +
       '<section class="card"><div class="card-head"><h3 class="heading">Backup</h3><span class="caption">App version ' + APP_VERSION + '</span></div><p class="body" style="margin:0">Saves a copy of all your entries as a file. On iPhone, choose Save to Files and pick your Transition Year Plan folder in OneDrive, so Claude can read it.</p><button class="btn btn-secondary btn-small" data-act="export">Back up my data</button></section>' +
       (user ? '<button class="link-btn" data-act="signout" style="align-self:center">Sign out (' + esc(user.email) + ')</button>' : '');
   }
@@ -615,26 +795,41 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
   sheet.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSheet(); });
 
   function shiftSheet() {
-    var d = now();
+    var d = now(), lastOdo = state.logbook.reduce(function (m, l) { return Math.max(m, l.odoEnd || 0); }, 0);
     openSheet('<h2 class="title" id="sheet-title">Log shift</h2>' +
       '<form id="f-shift" style="display:flex;flex-direction:column;gap:14px" novalidate>' +
       '<div class="field"><label for="s-date">Date</label><input id="s-date" type="date" value="' + ymd(d) + '" required></div>' +
       '<div class="field"><label for="s-nh">Normal-rate driving</label><div class="two"><input id="s-nh" type="number" inputmode="numeric" min="0" max="16" value="5" aria-label="Hours"><input id="s-nm" type="number" inputmode="numeric" min="0" max="59" step="5" value="50" aria-label="Minutes"></div><span class="hint">Hours and minutes online, not counting the homeward hour. Plan: 5 h 50.</span></div>' +
       '<div class="field"><label for="s-hm">Homeward driving (minutes)</label><input id="s-hm" type="number" inputmode="numeric" min="0" max="180" step="5" value="60"></div>' +
-      '<div class="field"><label for="s-r">Receipts after fees ($)</label><input id="s-r" type="number" inputmode="decimal" min="0" step="0.01" placeholder="e.g. 260.00" required></div>' +
-      '<div class="two"><div class="field"><label for="s-km">Kilometres</label><input id="s-km" type="number" inputmode="numeric" min="0" step="1"></div>' +
-      '<div class="field"><label for="s-n">Note</label><input id="s-n" type="text" maxlength="80"></div></div>' +
+      '<div class="two"><div class="field"><label for="s-g">Gross fares ($)</label><input id="s-g" type="number" inputmode="decimal" min="0" step="0.01" placeholder="incl. GST"></div>' +
+      '<div class="field"><label for="s-f">Uber fees ($)</label><input id="s-f" type="number" inputmode="decimal" min="0" step="0.01" placeholder="service fee"></div></div>' +
+      '<div class="field"><label for="s-r">Earnings after fees ($)</label><input id="s-r" type="number" inputmode="decimal" min="0" step="0.01" placeholder="e.g. 250.00" required><span class="hint">Fills in from gross fares minus fees. Gross fares and fees are needed for the BAS — they are in the Uber app under the trip or weekly statement.</span></div>' +
+      '<div class="two"><div class="field"><label for="s-o1">Odometer start</label><input id="s-o1" type="number" inputmode="numeric" min="0" step="1"' + (lastOdo ? ' placeholder="last ' + lastOdo + '"' : '') + '></div>' +
+      '<div class="field"><label for="s-o2">Odometer end</label><input id="s-o2" type="number" inputmode="numeric" min="0" step="1"></div></div>' +
+      '<span class="hint" style="margin-top:-8px">Odometer readings add a business entry to the logbook and fill in the kilometres.</span>' +
+      '<div class="field"><label for="s-n">Note</label><input id="s-n" type="text" maxlength="80"></div>' +
       '<p class="caption" id="s-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
       '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save shift</button></div></form>');
+    var gEl = document.getElementById('s-g'), fEl = document.getElementById('s-f'), rEl = document.getElementById('s-r');
+    function autoNet() { var g = parseFloat(gEl.value), f = parseFloat(fEl.value); if (g >= 0 && f >= 0) rEl.value = (Math.round((g - f) * 100) / 100).toFixed(2); }
+    gEl.addEventListener('input', autoNet); fEl.addEventListener('input', autoNet);
     document.getElementById('f-shift').addEventListener('submit', function (e) {
       e.preventDefault();
-      var r = parseFloat(document.getElementById('s-r').value), date = document.getElementById('s-date').value;
+      var err = document.getElementById('s-err');
+      var r = parseFloat(rEl.value), date = document.getElementById('s-date').value;
+      var g = gEl.value === '' ? null : parseFloat(gEl.value), f = fEl.value === '' ? null : parseFloat(fEl.value);
+      var o1 = parseInt(document.getElementById('s-o1').value, 10), o2 = parseInt(document.getElementById('s-o2').value, 10);
       var nmin = (parseInt(document.getElementById('s-nh').value, 10) || 0) * 60 + (parseInt(document.getElementById('s-nm').value, 10) || 0);
-      if (!date) { document.getElementById('s-err').textContent = 'Pick a date.'; return; }
-      if (!(r >= 0)) { document.getElementById('s-err').textContent = 'Enter the receipts after fees, e.g. 260.'; return; }
+      if (!date) { err.textContent = 'Pick a date.'; return; }
+      if (!(r >= 0)) { err.textContent = 'Enter the earnings after fees, e.g. 250.'; return; }
+      if ((o1 >= 0) !== (o2 >= 0) || (o1 >= 0 && o2 < o1)) { err.textContent = 'Enter both odometer readings, with the end higher than the start.'; return; }
+      var hasOdo = o1 >= 0 && o2 >= o1;
       var data = { date: date, normalMin: nmin, homeMin: parseInt(document.getElementById('s-hm').value, 10) || 0, receipts: Math.round(r * 100) / 100,
-        km: parseInt(document.getElementById('s-km').value, 10) || 0, note: document.getElementById('s-n').value.trim(), createdAt: new Date().toISOString() };
-      save('shifts', null, data).then(function () { closeSheet(); toast('Shift saved'); });
+        grossFares: g == null || isNaN(g) ? null : Math.round(g * 100) / 100, uberFees: f == null || isNaN(f) ? null : Math.round(f * 100) / 100,
+        km: hasOdo ? o2 - o1 : 0, note: document.getElementById('s-n').value.trim(), createdAt: new Date().toISOString() };
+      save('shifts', null, data).then(function () {
+        if (hasOdo && (state.dbV2 || !sb)) return save('logbook', null, { date: date, odoStart: o1, odoEnd: o2, kind: 'business', purpose: 'Uber shift' });
+      }).then(function () { closeSheet(); toast('Shift saved'); });
     });
   }
 
@@ -643,24 +838,64 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
     openSheet('<h2 class="title" id="sheet-title">Log expense</h2>' +
       '<form id="f-exp" style="display:flex;flex-direction:column;gap:14px" novalidate>' +
       '<div class="field"><label for="e-date">Date</label><input id="e-date" type="date" value="' + ymd(d) + '" required></div>' +
-      '<div class="field"><label for="e-cat">What for</label><select id="e-cat">' + EXPENSE_CATS.map(function (c) { return '<option>' + c + '</option>'; }).join('') + '</select></div>' +
-      '<div class="field"><label for="e-amt">Amount ($, incl. GST)</label><input id="e-amt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="e.g. 35.00" required></div>' +
+      '<div class="field"><label for="e-cat">What for</label><select id="e-cat">' + EXPENSE_CATS.map(function (c) { return '<option>' + esc(c[0]) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field"><label for="e-amt">Amount paid ($, incl. GST)</label><input id="e-amt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="e.g. 35.00" required></div>' +
+      '<div class="two"><div class="field"><label for="e-pct">Business share (%)</label><input id="e-pct" type="number" inputmode="numeric" min="0" max="100" step="5" value="80"></div>' +
+      '<div class="field"><label for="e-gst">GST included ($)</label><input id="e-gst" type="number" inputmode="decimal" min="0" step="0.01"></div></div>' +
+      '<span class="hint" id="e-calc" style="margin-top:-8px"></span>' +
+      '<label class="chip" style="display:flex;align-items:center;gap:10px;justify-content:flex-start"><input id="e-rec" type="checkbox" style="width:20px;height:20px"> Tax invoice / receipt kept</label>' +
       '<div class="field"><label for="e-n">Note</label><input id="e-n" type="text" maxlength="80" placeholder="e.g. Evie charger, Rhodes"></div>' +
       '<p class="caption" id="e-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
       '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save expense</button></div></form>');
+    var cat = document.getElementById('e-cat'), amt = document.getElementById('e-amt'), pct = document.getElementById('e-pct'), gst = document.getElementById('e-gst'), calc = document.getElementById('e-calc');
+    var gstTouched = false;
+    function update() {
+      var info = catInfo(cat.value), a = parseFloat(amt.value) || 0;
+      if (!gstTouched) gst.value = info[2] && a > 0 ? (Math.round(a / 11 * 100) / 100).toFixed(2) : '';
+      var p = Math.max(0, Math.min(100, parseFloat(pct.value) || 0)) / 100, g = parseFloat(gst.value) || 0;
+      calc.textContent = a > 0 ? (p > 0 ? 'GST credit ' + money(g * p, true) + ' · tax deduction ' + money((a - g) * p, true) : 'Personal — not claimed.') : '';
+    }
+    cat.addEventListener('change', function () { pct.value = catInfo(cat.value)[1]; update(); });
+    amt.addEventListener('input', update); pct.addEventListener('input', update);
+    gst.addEventListener('input', function () { gstTouched = true; update(); });
     document.getElementById('f-exp').addEventListener('submit', function (e) {
       e.preventDefault();
-      var a = parseFloat(document.getElementById('e-amt').value), date = document.getElementById('e-date').value;
+      var a = parseFloat(amt.value), date = document.getElementById('e-date').value, p = parseInt(pct.value, 10), g = parseFloat(gst.value) || 0;
       if (!date || !(a > 0)) { document.getElementById('e-err').textContent = 'Enter a date and an amount above $0.'; return; }
-      save('expenses', null, { date: date, category: document.getElementById('e-cat').value, amount: Math.round(a * 100) / 100, note: document.getElementById('e-n').value.trim(), createdAt: new Date().toISOString() })
+      if (!(p >= 0 && p <= 100)) { document.getElementById('e-err').textContent = 'Business share must be between 0 and 100.'; return; }
+      if (g > a / 11 + 0.01) { document.getElementById('e-err').textContent = 'GST can be at most 1/11 of the amount (' + money(a / 11, true) + ').'; return; }
+      save('expenses', null, { date: date, category: cat.value, amount: Math.round(a * 100) / 100, businessPct: p, gst: Math.round(g * 100) / 100,
+        receiptKept: document.getElementById('e-rec').checked, note: document.getElementById('e-n').value.trim(), createdAt: new Date().toISOString() })
         .then(function () { closeSheet(); toast('Expense saved'); });
     });
   }
 
+  function tripSheet(kind) {
+    var d = now(), lastOdo = state.logbook.reduce(function (m, l) { return Math.max(m, l.odoEnd || 0); }, 0);
+    openSheet('<h2 class="title" id="sheet-title">' + (kind === 'private' ? 'Private trip' : 'Business trip') + '</h2>' +
+      '<form id="f-trip" style="display:flex;flex-direction:column;gap:14px" novalidate>' +
+      '<div class="field"><label for="tr-date">Date</label><input id="tr-date" type="date" value="' + ymd(d) + '" required></div>' +
+      '<div class="two"><div class="field"><label for="tr-o1">Odometer start</label><input id="tr-o1" type="number" inputmode="numeric" min="0" step="1" value="' + (lastOdo || '') + '"></div>' +
+      '<div class="field"><label for="tr-o2">Odometer end</label><input id="tr-o2" type="number" inputmode="numeric" min="0" step="1"></div></div>' +
+      '<div class="field"><label for="tr-p">Purpose</label><input id="tr-p" type="text" maxlength="80" placeholder="' + (kind === 'private' ? 'e.g. groceries, family visit' : 'e.g. Uber shift, car wash, charging') + '"></div>' +
+      '<p class="caption" id="tr-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
+      '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save trip</button></div></form>');
+    document.getElementById('f-trip').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var date = document.getElementById('tr-date').value, o1 = parseInt(document.getElementById('tr-o1').value, 10), o2 = parseInt(document.getElementById('tr-o2').value, 10);
+      if (!date || !(o1 >= 0) || !(o2 > o1)) { document.getElementById('tr-err').textContent = 'Enter a date and both odometer readings, with the end higher than the start.'; return; }
+      if (sb && !state.dbV2) { document.getElementById('tr-err').textContent = 'Run the one-off database update first (update-v0.3.sql).'; return; }
+      save('logbook', null, { date: date, odoStart: o1, odoEnd: o2, kind: kind, purpose: document.getElementById('tr-p').value.trim() || (kind === 'private' ? 'Private' : 'Business') })
+        .then(function () { closeSheet(); toast('Trip saved'); });
+    });
+  }
+
   function taxSheet() {
-    var ws = weekStart(now()), key = 'w' + ymd(ws), cur = Number((state.tax[key] || {}).amount) || 0;
-    openSheet('<h2 class="title" id="sheet-title">Tax account</h2><p class="body" style="margin:0">How much have you moved to the tax account for the week starting Sunday ' + ws.getDate() + ' ' + MONTHS[ws.getMonth()] + '? The weekly target is ' + money(TAX_WEEKLY, true) + '.</p>' +
-      '<form id="f-tax" style="display:flex;flex-direction:column;gap:14px" novalidate><div class="field"><label for="t-amt">Total set aside this week ($)</label><input id="t-amt" type="number" inputmode="decimal" min="0" step="0.01" value="' + (cur || TAX_WEEKLY) + '"></div>' +
+    var ws = weekStart(now()), key = 'w' + ymd(ws), cur = Number((state.tax[key] || {}).amount) || 0, wr = weekReserve(ws);
+    var goal = wr.days ? Math.round(wr.target * 100) / 100 : TAX_WEEKLY;
+    openSheet('<h2 class="title" id="sheet-title">Tax account</h2><p class="body" style="margin:0">How much have you moved to the tax account for the week starting Sunday ' + ws.getDate() + ' ' + MONTHS[ws.getMonth()] + '? ' +
+      (wr.days ? 'Based on ' + money(wr.receipts, true) + ' earned over ' + wr.days + ' day' + (wr.days === 1 ? '' : 's') + ', set aside ' + money(goal, true) + '.' : 'The plan figure for a full week is ' + money(TAX_WEEKLY, true) + '.') + '</p>' +
+      '<form id="f-tax" style="display:flex;flex-direction:column;gap:14px" novalidate><div class="field"><label for="t-amt">Total set aside this week ($)</label><input id="t-amt" type="number" inputmode="decimal" min="0" step="0.01" value="' + (cur || goal) + '"></div>' +
       '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div></form>');
     document.getElementById('f-tax').addEventListener('submit', function (e) {
       e.preventDefault(); var a = parseFloat(document.getElementById('t-amt').value) || 0;
@@ -686,12 +921,12 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
       toast('Backup saved: ' + name);
     };
     if (sb && user) {
-      Promise.all(['shifts', 'expenses', 'days', 'tax_weeks'].map(function (t) { return sb.from(t).select('*').limit(5000); })).then(function (res) {
-        if (res.some(function (r) { return r.error; })) { toast('Could not read your data for the backup'); return; }
-        pack({ shifts: res[0].data, expenses: res[1].data, days: res[2].data, tax_weeks: res[3].data });
+      Promise.all(['shifts', 'expenses', 'days', 'tax_weeks', 'logbook'].map(function (t) { return sb.from(t).select('*').limit(5000); })).then(function (res) {
+        if (res.slice(0, 4).some(function (r) { return r.error; })) { toast('Could not read your data for the backup'); return; }
+        pack({ shifts: res[0].data, expenses: res[1].data, days: res[2].data, tax_weeks: res[3].data, logbook: res[4].error ? [] : res[4].data });
       });
     } else {
-      pack({ shifts: state.shifts, expenses: state.expenses, days: state.days, tax_weeks: state.tax });
+      pack({ shifts: state.shifts, expenses: state.expenses, days: state.days, tax_weeks: state.tax, logbook: state.logbook });
     }
   }
 
@@ -708,6 +943,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
     if (act === 'shift') shiftSheet();
     else if (act === 'expense') expenseSheet();
     else if (act === 'tax') taxSheet();
+    else if (act === 'trip') tripSheet(b.getAttribute('data-v'));
     else if (act === 'close') closeSheet();
     else if (act === 'export') exportData();
     else if (act === 'signout') { if (sb) sb.auth.signOut(); }

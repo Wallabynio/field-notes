@@ -21,3 +21,7 @@ The app is a small website (hosted free on GitHub Pages) that you install on you
 ## Good to know
 - Supabase's free plan pauses a project after 7 days without any use; daily use keeps it awake. Data is kept while paused, and you can restore it from the Supabase dashboard.
 - The free plan has no automatic backups, so the app will get an export button that saves a backup file to this folder.
+
+## Update for version 0.3 (BAS, income tax, logbook)
+
+Run once: Supabase → SQL Editor → New query → paste `update-v0.3.sql` → Run. Until then the app works as before and shows a notice; the new fields (gross fares, Uber fees, business share, GST, invoice kept, logbook) are not saved.
