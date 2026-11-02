@@ -227,12 +227,13 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '0.5.1';
+  var APP_VERSION = '0.5.2';
   var PLAN_START = '2026-11-08';               // Sunday, week 1 day 1
-  var NORMAL_MIN = 350, HOMEWARD_MIN = 60;      // 5 h 50 + 1 h per day
+  var NORMAL_MIN = 340, HOMEWARD_MIN = 60;      // 5 h 40 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
+  var EQ_HOURS = (NORMAL_MIN + HOMEWARD_MIN * 2 / 3) / 60; // normal-rate-equivalent hours a day
   var WEEK_DRIVE_MIN = DRIVE_TARGET_MIN * 7;   // 47 h 50
-  var WEEK_STUDY_MIN = 1200;                    // 20 h
+  var WEEK_STUDY_MIN = 1190;                    // 19 h 50 (2 h 50 a day)
   var DAY_TARGET = 245, DAY_BREAKEVEN = 227.84;  // receipts after platform fees
   var WEEK_TARGET = DAY_TARGET * 7;              // $1,715
   var TAX_WEEKLY = 233.19;                       // at target: GST 99.94 + income tax 113.26 + Medicare 19.99
@@ -283,7 +284,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
   DINNERS.forEach(function (m) { m.serves = 'Makes 2 portions: tonight and tomorrow\'s lunch'; });
   var BREAKFASTS = [EGGS, EGGS, OATS, EGGS, OATS, EGGS, OATS];
   var SNACKS = { name: 'Coffee and snacks', desc: 'Coffee, Greek yoghurt and fruit, unsalted nuts', kcal: 421, protein: 26, time: '', photo: 'coffee', serves: 'Every day',
-    ingredients: [['1', 'coffee capsule (espresso, ≈ 40 mL)'], ['150 mL', 'lactose-free full cream milk'], ['170 g', 'plain Greek yoghurt (10:30 break)'], ['≈ 150 g', 'piece of fruit (10:30 break)'], ['20 g', 'unsalted mixed nuts (3:40 pm)']],
+    ingredients: [['1', 'coffee capsule (espresso, ≈ 40 mL)'], ['150 mL', 'lactose-free full cream milk'], ['170 g', 'plain Greek yoghurt (10:30 break)'], ['≈ 150 g', 'piece of fruit (10:30 break)'], ['20 g', 'unsalted mixed nuts (3:30 pm)']],
     steps: ['Coffee with breakfast: pull the capsule, add the milk.', 'Pack the yoghurt, fruit and nuts in the cooler bag the night before.'] };
   function mealsFor(d) { var i = d.getDay(); return { breakfast: BREAKFASTS[i], lunch: DINNERS[(i + 6) % 7], dinner: DINNERS[i], snacks: SNACKS }; }
   // Weekly shop. Aldi first; Coles for what Aldi doesn't stock.
@@ -371,15 +372,16 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
       [630, 650, 'neutral', 'Offline break'],
       [650, 720, 'work', 'Driving'],
       [720, 780, 'money', 'Midday stop: charge, lunch, rest'],
-      [780, 880, 'work', 'Driving'],
-      [880, 940, 'commute', 'Homeward driving'],
-      [940, 980, 'neutral', 'Unpack, shower, snack'],
-      [980, 1070, 'study', 'Study'],
-      [1070, 1130, 'money', 'Cook and eat dinner']
+      [780, 870, 'work', 'Driving'],
+      [870, 930, 'commute', 'Homeward driving'],
+      [930, 970, 'neutral', 'Unpack, shower, snack'],
+      [970, 1060, 'study', 'Study'],
+      [1060, 1120, 'money', 'Cook and eat dinner'],
+      [1120, 1200, 'study', 'Study'],
+      [1200, 1230, 'neutral', 'Pack lunch and gear'],
+      [1230, 1290, 'rest', 'Personal time, wind-down']
     ];
-    if (weekend) s.push([1130, 1190, 'study', 'Study'], [1190, 1220, 'neutral', 'Pack lunch and gear'], [1220, 1290, 'rest', 'Personal time, wind-down']);
-    else s.push([1130, 1220, 'study', 'Study'], [1220, 1250, 'neutral', 'Pack lunch and gear'], [1250, 1290, 'rest', 'Personal time, wind-down']);
-    return { blocks: s, studyTarget: weekend ? 150 : 180, gym: gym };
+    return { blocks: s, studyTarget: 170, gym: gym };
   }
 
   /* ---------------- helpers ---------------- */
@@ -647,7 +649,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
     var tl = '', legend = { health: 'Exercise', work: 'Driving', money: 'Charge + lunch', study: 'Study' };
     sch.blocks.forEach(function (b) { tl += '<div class="f-' + b[2] + '" style="flex:' + (b[1] - b[0]) + '"></div>'; });
     var timeline = '<section aria-label="Your day" style="display:flex;flex-direction:column;gap:8px"><div class="card-head"><h2 class="heading">Your day</h2><span class="caption">5:30 am – 9:30 pm</span></div>' +
-      '<div class="tl-wrap"><div class="tl" role="img" aria-label="Day timeline: exercise from 5:30, driving 7:30 am to 3:40 pm with a midday charging stop, study in the evening">' + tl + '</div>' +
+      '<div class="tl-wrap"><div class="tl" role="img" aria-label="Day timeline: exercise from 5:30, driving 7:30 am to 3:30 pm with a midday charging stop, study in the evening">' + tl + '</div>' +
       (nm >= DAY_START && nm <= DAY_END ? '<div class="tl-now" aria-hidden="true" style="left:' + (dayFrac * 100).toFixed(1) + '%"></div>' : '') + '</div>' +
       '<div class="tl-ends caption"><span>5:30</span><span>' + (nm >= DAY_START && nm <= DAY_END ? 'Now ' + clock(nm) : '') + '</span><span>9:30 pm</span></div>' +
       '<div class="legend-row caption">' + Object.keys(legend).map(function (k) { return '<span><span class="dot f-' + k + '"></span>' + legend[k] + '</span>'; }).join('') + '</div></section>';
@@ -659,7 +661,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
     var todayEarn = sum(shiftsOn(key), function (s) { return s.receipts; });
     var week = '<section class="card" aria-label="This week"><div class="card-head"><h2 class="heading">This week</h2><span class="caption">Day ' + dayIdx + ' of 7</span></div>' +
       bar('work', wDrive / WEEK_DRIVE_MIN, 'Driving', hm(wDrive) + ' / ' + hm(WEEK_DRIVE_MIN)) +
-      bar('study', wStudy / WEEK_STUDY_MIN, 'Study', hm(wStudy) + ' / 20:00') +
+      bar('study', wStudy / WEEK_STUDY_MIN, 'Study', hm(wStudy) + ' / ' + hm(WEEK_STUDY_MIN)) +
       segBar('health', 7, wEx, 'Exercise') +
       bar('money', wEarn / WEEK_TARGET, 'Earnings', money(wEarn) + ' / ' + money(WEEK_TARGET)) + '</section>';
 
@@ -696,7 +698,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
     var ws = weekStart(d), list = inWeek(state.shifts, ws).sort(function (a, b) { return a.date < b.date ? 1 : -1; });
     var drive = sum(list, driveMin), normal = sum(list, function (s) { return s.normalMin; }), home = sum(list, function (s) { return s.homeMin; });
     var earn = sum(list, function (s) { return s.receipts; }), km = sum(list, function (s) { return s.km; });
-    var season = seasonFor(d), forecast = 6.5 * season.rate * 7;
+    var season = seasonFor(d), forecast = EQ_HOURS * season.rate * 7;
     var equiv = (normal + home * 2 / 3) / 60, perHour = equiv > 0 ? earn / equiv : 0;
     var nDays = {}; list.forEach(function (s) { nDays[s.date] = 1; }); nDays = Object.keys(nDays).length;
     var avgDay = nDays ? earn / nDays : 0;
@@ -708,7 +710,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
         (s.km ? Number(s.km) + ' km · ' : '') + (s.note ? esc(s.note) : (Number(s.homeMin) ? 'incl. ' + hm(s.homeMin) + ' homeward' : '')) + '</span></div>' +
         '<span class="fig-sm">' + money(s.receipts, true) + '</span><button class="link-btn" data-act="del" data-c="shifts" data-id="' + esc(s.id) + '" aria-label="Delete shift on ' + shortDate(s.date) + '">Delete</button></div>';
     }).join('') : '<p class="empty">No shifts logged this week yet.</p>';
-    return hero('work', 'Work', 'One shift, 7:30 am to 3:40 pm. Target ' + money(DAY_TARGET) + ' a day.') + notice() +
+    return hero('work', 'Work', 'One shift, 7:30 am to 3:30 pm. Target ' + money(DAY_TARGET) + ' a day.') + notice() +
       '<section class="card a-work"><span class="eyebrow l-work">Target ' + money(DAY_TARGET) + ' a day · ' + money(WEEK_TARGET) + ' a week</span>' +
       '<span class="fig-lg">' + money(earn, true) + '</span><span class="body" style="color:var(--ink)">earned this week after fees</span>' +
       bar('work', earn / WEEK_TARGET, '', '', { onSoft: true }) +
@@ -717,7 +719,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
       '<section class="card"><div class="card-head"><h3 class="heading">This week</h3><span class="caption">from Sunday ' + ws.getDate() + ' ' + MONTHS[ws.getMonth()].slice(0, 3) + '</span></div>' +
       bar('work', drive / WEEK_DRIVE_MIN, 'Hours driven', hm(drive) + ' / ' + hm(WEEK_DRIVE_MIN)) +
       '<div class="kv"><span>Normal-rate hours</span><span class="fig-sm">' + hm(normal) + '</span><span>Homeward hours</span><span class="fig-sm">' + hm(home) + '</span>' +
-      '<span>Earnings per normal-rate hour (target ' + money(WEEK_TARGET / 45.5, true) + ')</span><span class="fig-sm">' + (perHour ? money(perHour, true) : '–') + '</span><span>Gross fares (incl. GST)</span><span class="fig-sm">' + (gross ? money(gross, true) : '–') + '</span><span>Uber fees</span><span class="fig-sm">' + (fees ? money(fees, true) : '–') + '</span><span>Kilometres</span><span class="fig-sm">' + (km ? km.toLocaleString('en-AU') : '–') + '</span></div></section>' +
+      '<span>Earnings per normal-rate hour (target ' + money(WEEK_TARGET / (EQ_HOURS * 7), true) + ')</span><span class="fig-sm">' + (perHour ? money(perHour, true) : '–') + '</span><span>Gross fares (incl. GST)</span><span class="fig-sm">' + (gross ? money(gross, true) : '–') + '</span><span>Uber fees</span><span class="fig-sm">' + (fees ? money(fees, true) : '–') + '</span><span>Kilometres</span><span class="fig-sm">' + (km ? km.toLocaleString('en-AU') : '–') + '</span></div></section>' +
       '<button class="btn btn-primary" data-act="shift">' + icon('plus', 20) + 'Log shift</button>' +
       '<section class="card"><h3 class="heading">Shifts this week</h3><div class="list">' + rows + '</div></section>';
   }
@@ -729,11 +731,11 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
       perDay += bar('study', m / tgt, DAYS[i].slice(0, 3) + ' ' + dt.getDate(), hm(m) + ' / ' + hm(tgt));
     }
     var key = ymd(d), today = Number(dayDoc(key).studyMin) || 0, tgtToday = schedule(d).studyTarget;
-    return hero('study', 'Study', 'Twenty focused hours a week, at home in the evening.') + notice() +
+    return hero('study', 'Study', 'Two hours fifty of focused study every evening, at home.') + notice() +
       '<section class="card a-study"><div style="display:flex;gap:16px;align-items:center">' + ring(today / tgtToday, 'study', hm(today), 'of ' + hm(tgtToday), true, 'Study today ' + hm(today) + ' of ' + hm(tgtToday)) +
-      '<div style="display:flex;flex-direction:column;gap:4px"><span class="eyebrow l-study">Today · at home, 4:20 pm</span><span class="title">' + (today >= tgtToday ? 'Target met' : hm(tgtToday - today) + ' to go') + '</span></div></div>' +
+      '<div style="display:flex;flex-direction:column;gap:4px"><span class="eyebrow l-study">Today, at home from 4:10 pm</span><span class="title">' + (today >= tgtToday ? 'Target met' : hm(tgtToday - today) + ' to go') + '</span></div></div>' +
       '<div class="chips"><button class="chip" data-act="study" data-v="30">+30 min</button><button class="chip" data-act="study" data-v="60">+1 h</button><button class="chip" data-act="study" data-v="90">+1 h 30</button><button class="chip" data-act="study" data-v="-30">−30 min</button></div></section>' +
-      '<section class="card"><div class="card-head"><h3 class="heading">This week</h3><span class="fig-sm">' + hm(total) + ' / 20:00</span></div>' + bar('study', total / WEEK_STUDY_MIN, '', '') + perDay + '</section>' +
+      '<section class="card"><div class="card-head"><h3 class="heading">This week</h3><span class="fig-sm">' + hm(total) + ' / ' + hm(WEEK_STUDY_MIN) + '</span></div>' + bar('study', total / WEEK_STUDY_MIN, '', '') + perDay + '</section>' +
       '<section class="card"><h3 class="heading">Coming next</h3><p class="body" style="margin:0">Subjects, assessment due dates and the countdown to the end of your Master of Planning. Tell me your subjects and due dates and I will add them.</p></section>';
   }
 
