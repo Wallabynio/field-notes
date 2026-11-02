@@ -7,7 +7,23 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Field Notes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#111214">
+<meta name="theme-color" content="#111214" id="meta-theme">
+<script>
+  /* Theme: Auto follows the iPhone's Light/Dark setting; Light or Dark can be fixed in the app. Set before first paint. */
+  (function () {
+    var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+    function apply() {
+      var m = 'auto'; try { m = localStorage.getItem('fn-theme') || 'auto'; } catch (x) {}
+      var t = m === 'auto' ? (mq && !mq.matches ? 'light' : 'dark') : m;
+      document.documentElement.setAttribute('data-theme', t);
+      var meta = document.getElementById('meta-theme'); if (meta) meta.setAttribute('content', t === 'light' ? '#F6F2EA' : '#111214');
+    }
+    window.fnApplyTheme = function (fade) { var h = document.documentElement; if (fade) { h.classList.add('theme-anim'); setTimeout(function () { h.classList.remove('theme-anim'); }, 700); } apply(); };
+    apply();
+    if (mq) { var on = function () { window.fnApplyTheme(true); };
+      if (mq.addEventListener) mq.addEventListener('change', on); else if (mq.addListener) mq.addListener(on); }
+  })();
+</script>
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -32,6 +48,8 @@
   --money:#C9A96E; --money-soft:rgba(201,169,110,.12); --money-label:#E3C68D; --money-track:rgba(201,169,110,.18);
   --rest:#8E887D; --rest-soft:rgba(142,136,125,.12); --rest-label:#B9B3A7; --rest-track:rgba(142,136,125,.18);
   --scrim: rgba(5,5,6,.72);
+  --ground-rgb: 17,18,20; --nav-bg: rgba(22,23,26,.82); --neutral-fill: #3A3832; --shadow: none; --on-gold: #1A1610;
+  --hero-fallback: linear-gradient(160deg, #23211d, #121315 70%); --thumb-fallback: linear-gradient(160deg,#2a2722,#17181b); --hero-photo: .78;
   --font-display: "Playfair Display", "Times New Roman", serif;
   --font-sans: Inter, system-ui, -apple-system, sans-serif;
   --ease: cubic-bezier(.2,.7,.2,1);
@@ -49,10 +67,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
 /* hero (every tab): photo with a deep gradient, serif title */
 .hero { position: relative; margin: 0 -18px 6px; min-height: calc(230px + env(safe-area-inset-top)); display: flex; flex-direction: column; justify-content: flex-end; padding: calc(24px + env(safe-area-inset-top)) 24px 22px; overflow: hidden; isolation: isolate; }
 .hero.tall { min-height: calc(330px + env(safe-area-inset-top)); }
-.hero-img { position: absolute; inset: 0; z-index: -2; background: radial-gradient(120% 90% at 85% 10%, rgba(201,169,110,.28), transparent 55%), radial-gradient(90% 80% at 0% 100%, rgba(111,147,207,.18), transparent 60%), linear-gradient(160deg, #23211d, #121315 70%); background-size: cover; background-position: center; }
+.hero-img { position: absolute; inset: 0; z-index: -2; background: radial-gradient(120% 90% at 85% 10%, rgba(201,169,110,.28), transparent 55%), radial-gradient(90% 80% at 0% 100%, rgba(111,147,207,.18), transparent 60%), var(--hero-fallback); background-size: cover; background-position: center; }
 .hero-img img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity 1.2s var(--ease); }
-.hero-img img.loaded { opacity: .78; }
-.hero::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(17,18,20,.15) 0%, rgba(17,18,20,.35) 45%, var(--ground) 100%); }
+.hero-img img.loaded { opacity: var(--hero-photo); }
+.hero::after { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--hero-fade, linear-gradient(180deg, rgba(var(--ground-rgb),.15) 0%, rgba(var(--ground-rgb),.35) 45%, var(--ground) 100%)); }
 .hero-date { font-size: 13px; font-weight: 500; color: var(--gold-bright); letter-spacing: .02em; }
 .hero-title { font-family: var(--font-display); font-size: 38px; line-height: 42px; font-weight: 500; letter-spacing: -.01em; margin-top: 4px; }
 .hero-sub { font-size: 14px; color: var(--ink-muted); margin-top: 6px; max-width: 34ch; }
@@ -71,7 +89,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
 .l-work { color: var(--work-label); } .l-study { color: var(--study-label); } .l-health { color: var(--health-label); } .l-money { color: var(--money-label); } .l-rest { color: var(--rest-label); }
 
 /* cards: graphite, gold hairline; tinted cards get a jewel wash in one corner */
-.card { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.card { position: relative; background: var(--surface); box-shadow: var(--shadow); border: 1px solid var(--line); border-radius: 22px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
 .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .a-work, .a-study, .a-health, .a-money, .a-rest { border-color: var(--hair); background-image: radial-gradient(140% 120% at 100% 0%, var(--wash), transparent 60%); }
 .a-work { --wash: rgba(111,147,207,.16); } .a-study { --wash: rgba(164,135,209,.16); } .a-health { --wash: rgba(93,176,140,.16); } .a-money { --wash: rgba(201,169,110,.16); } .a-rest { --wash: rgba(142,136,125,.14); }
@@ -99,7 +117,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
 .t-work, .t-study, .t-health, .t-money, .t-rest { background: var(--raised); }
 .on-soft.t-work { background: var(--work-track); } .on-soft.t-study { background: var(--study-track); } .on-soft.t-health { background: var(--health-track); } .on-soft.t-money { background: var(--money-track); } .on-soft.t-rest { background: var(--rest-track); }
 .f-work { background: linear-gradient(90deg, #4E6FA6, var(--work)); } .f-study { background: linear-gradient(90deg, #7C62A8, var(--study)); } .f-health { background: linear-gradient(90deg, #3F8466, var(--health)); }
-.f-money { background: linear-gradient(90deg, var(--gold-deep), var(--gold-bright)); } .f-rest { background: var(--rest); } .f-neutral { background: #3A3832; } .f-commute { background: #3F5578; }
+.f-money { background: linear-gradient(90deg, var(--gold-deep), var(--gold-bright)); } .f-rest { background: var(--rest); } .f-neutral { background: var(--neutral-fill); } .f-commute { background: #3F5578; }
 .intro .fill { animation: grow 1.2s var(--ease) both; } @keyframes grow { from { width: 0; } }
 .segs { display: grid; gap: 4px; }
 .seg { height: 6px; border-radius: 999px; }
@@ -115,13 +133,13 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
 /* buttons */
 .btn { min-height: 52px; padding: 0 22px; border: 1px solid transparent; border-radius: 999px; font-size: 15px; font-weight: 600; letter-spacing: .01em; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: transform .15s var(--ease), background .2s; }
 .btn:active { transform: scale(.97); }
-.btn-primary { background: linear-gradient(180deg, var(--gold-bright), var(--gold)); color: #1A1610; box-shadow: 0 6px 24px -10px rgba(201,169,110,.7); }
+.btn-primary { background: linear-gradient(180deg, var(--gold-bright), var(--gold)); color: var(--on-gold); box-shadow: 0 6px 24px -10px rgba(201,169,110,.7); }
 .btn-secondary { background: transparent; color: var(--ink); border-color: var(--hair); }
 .btn-small { min-height: 44px; padding: 0 18px; font-size: 14px; }
 .btn-row { display: flex; gap: 10px; } .btn-row .btn { flex: 1; }
 .btn:focus-visible, .nav button:focus-visible, .chip:focus-visible, .link-btn:focus-visible, .row-btn:focus-visible { outline: 2px solid var(--gold-bright); outline-offset: 2px; }
 .chip { min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--hair); background: transparent; color: var(--ink); font-weight: 500; font-size: 14px; cursor: pointer; transition: background .2s, color .2s; }
-.chip[aria-pressed="true"] { background: var(--gold); color: #1A1610; border-color: var(--gold); }
+.chip[aria-pressed="true"] { background: var(--gold); color: var(--on-gold); border-color: var(--gold); }
 .chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .link-btn { background: none; border: none; color: var(--ink-faint); font-weight: 500; font-size: 13px; cursor: pointer; min-height: 44px; padding: 0 4px; }
 
@@ -153,11 +171,11 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
 .ag-state { align-self: center; font-size: 12px; color: var(--ink-faint); white-space: nowrap; }
 .ag-row.past .ag-title, .ag-row.past .ag-time { color: var(--ink-faint); }
 .ag-row.past .ag-pill { opacity: .35; }
-.ag-badge { font-size: 11px; font-weight: 600; letter-spacing: .04em; padding: 3px 9px; border-radius: 999px; background: var(--gold); color: #1A1610; }
+.ag-badge { font-size: 11px; font-weight: 600; letter-spacing: .04em; padding: 3px 9px; border-radius: 999px; background: var(--gold); color: var(--on-gold); }
 
 /* nav: frosted bar, gold indicator */
 .nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; }
-.nav-inner { max-width: 480px; margin: 0 auto; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); background: rgba(22,23,26,.82); -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%); border-top: 1px solid var(--hair); padding: 8px 4px calc(12px + env(safe-area-inset-bottom)); }
+.nav-inner { max-width: 480px; margin: 0 auto; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); background: var(--nav-bg); -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%); border-top: 1px solid var(--hair); padding: 8px 4px calc(12px + env(safe-area-inset-bottom)); }
 .nav button { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: none; color: var(--ink-faint); font-size: 11px; font-weight: 500; letter-spacing: .02em; min-height: 52px; padding-top: 8px; cursor: pointer; transition: color .2s; }
 .nav button[aria-current="page"] { color: var(--gold-bright); }
 .nav button[aria-current="page"]::before { content: ""; position: absolute; top: -9px; width: 28px; height: 2px; border-radius: 2px; background: var(--gold-bright); box-shadow: 0 0 10px rgba(227,198,141,.8); }
@@ -196,7 +214,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
 .grade.hd { color: var(--gold-bright); border-color: var(--hair); background: var(--gold-soft); }
 .as-row { grid-template-columns: 40px minmax(0,1fr) auto; }
 .as-icon { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; border: 1px solid var(--line); color: var(--ink-muted); }
-.as-icon.done { color: #1A1610; background: var(--gold); border-color: var(--gold); }
+.as-icon.done { color: var(--on-gold); background: var(--gold); border-color: var(--gold); }
 .timeline { display: flex; flex-direction: column; position: relative; }
 .tl-year { font-family: var(--font-display); font-size: 17px; color: var(--gold-bright); padding: 14px 0 4px; }
 .tl-year:first-child { padding-top: 0; }
@@ -234,7 +252,37 @@ button.tl-row { cursor: pointer; }
 .intro .illo path, .intro .illo circle, .intro .illo rect { stroke-dasharray: 1; animation: ink 2.2s var(--ease) both; }
 .intro .illo .hot { animation-delay: .9s; }
 @keyframes ink { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } .hero-img img.loaded { opacity: .78; } }
+/* ---------- Day: warm ivory paper, white cards, deeper gold and jewel inks for contrast ---------- */
+:root[data-theme="light"] {
+  --ground:#F6F2EA; --surface:#FFFFFF; --raised:#EEE8DC; --sunken:#F3EEE5;
+  --ink:#1E1C19; --ink-muted:#655F55; --ink-faint:#9A9387; --on-ink:#F6F2EA;
+  --gold:#B48F52; --gold-bright:#8C6A2F; --gold-deep:#6E5428; --gold-soft:rgba(180,143,82,.12);
+  --line:rgba(30,28,25,.08); --hair:rgba(180,143,82,.38);
+  --work:#5A7FC0; --work-soft:rgba(90,127,192,.12); --work-label:#3B5E9C; --work-track:rgba(90,127,192,.18);
+  --study:#8D6FC2; --study-soft:rgba(141,111,194,.12); --study-label:#6A4CA0; --study-track:rgba(141,111,194,.18);
+  --health:#44A07A; --health-soft:rgba(68,160,122,.12); --health-label:#2B7A58; --health-track:rgba(68,160,122,.18);
+  --money:#B48F52; --money-soft:rgba(180,143,82,.12); --money-label:#8C6A2F; --money-track:rgba(180,143,82,.20);
+  --rest:#8E887D; --rest-soft:rgba(142,136,125,.12); --rest-label:#655F55; --rest-track:rgba(142,136,125,.18);
+  --scrim: rgba(40,34,26,.32);
+  --ground-rgb: 246,242,234; --nav-bg: rgba(255,253,248,.86); --neutral-fill: #D9D2C5; --on-gold: #1A1610;
+  --shadow: 0 1px 2px rgba(70,52,20,.05), 0 10px 28px -18px rgba(70,52,20,.28);
+  --hero-fallback: radial-gradient(120% 90% at 85% 10%, rgba(201,169,110,.35), transparent 55%), linear-gradient(160deg, #E9DFCC, #F6F2EA 70%);
+  --thumb-fallback: linear-gradient(160deg,#EFE6D6,#F8F4EC);
+  --hero-photo: .92;
+  --hero-fade: linear-gradient(180deg, rgba(246,242,234,0) 0%, rgba(246,242,234,.22) 22%, rgba(246,242,234,.9) 46%, var(--ground) 62%);
+  color-scheme: light;
+}
+:root[data-theme="light"] .btn-primary { background: linear-gradient(180deg, #E3C68D, #C9A96E); box-shadow: 0 6px 20px -10px rgba(140,106,47,.6); }
+:root[data-theme="light"] .chip[aria-pressed="true"], :root[data-theme="light"] .as-icon.done, :root[data-theme="light"] .ag-badge { background: #D4B77E; border-color: #C9A96E; }
+:root[data-theme="light"] .illo { opacity: .85; }
+:root[data-theme="light"] .illo.corner { opacity: .42; }
+:root[data-theme="light"] .illo .hot { filter: none; }
+:root[data-theme="light"] .glow .arc { filter: drop-shadow(0 0 4px rgba(180,143,82,.25)); }
+:root[data-theme="light"] .tl-now, :root[data-theme="light"] .nav button[aria-current="page"]::before { box-shadow: none; }
+:root[data-theme="light"] .sheet { box-shadow: 0 -12px 40px -20px rgba(70,52,20,.35); }
+:root[data-theme="light"] .field input, :root[data-theme="light"] .field select { background: #FBF8F2; border-color: rgba(30,28,25,.12); }
+.theme-anim, .theme-anim *, .theme-anim *::before, .theme-anim *::after { transition: background-color .6s var(--ease), color .6s var(--ease), border-color .6s var(--ease), fill .6s, stroke .6s !important; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } .hero-img img.loaded { opacity: var(--hero-photo); } }
 </style>
 </head>
 <body>
@@ -265,7 +313,7 @@ button.tl-row { cursor: pointer; }
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '0.7.0';
+  var APP_VERSION = '0.8.0';
   var PLAN_START = '2026-11-08';               // Sunday, week 1 day 1
   var NORMAL_MIN = 340, HOMEWARD_MIN = 60;      // 5 h 40 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
@@ -693,7 +741,7 @@ button.tl-row { cursor: pointer; }
   };
   var loadedImgs = {};
   function photoUrl(k, w) { var id = PHOTOS[k]; return id ? 'https://images.pexels.com/photos/' + id + '/pexels-photo-' + id + '.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=' + w : ''; }
-  function photoBg(k, w) { var u = photoUrl(k, w); return (u ? 'background-image:url(\'' + u + '\'), ' : 'background-image:') + 'radial-gradient(120% 120% at 80% 0%, rgba(201,169,110,.35), transparent 60%), linear-gradient(160deg,#2a2722,#17181b)'; }
+  function photoBg(k, w) { var u = photoUrl(k, w); return (u ? 'background-image:url(\'' + u + '\'), ' : 'background-image:') + 'radial-gradient(120% 120% at 80% 0%, rgba(201,169,110,.35), transparent 60%), var(--thumb-fallback)'; }
   window.fnImgLoaded = function (img) { loadedImgs[img.getAttribute('src')] = 1; img.classList.add('loaded'); };
 
   /* ---------------- illustrations: fine gold line drawings that draw themselves in when a tab opens ---------------- */
@@ -1019,6 +1067,13 @@ button.tl-row { cursor: pointer; }
       '<section class="card"><div class="card-head"><h3 class="heading">This week</h3><span class="fig-sm">' + hm(total) + ' / ' + hm(WEEK_STUDY_MIN) + '</span></div>' + bar('study', total / WEEK_STUDY_MIN, '', '') + perDay + '</section>' +
       progCard + tlCard;
   }
+  function themeMode() { try { return localStorage.getItem('fn-theme') || 'auto'; } catch (x) { return 'auto'; } }
+  function appearanceCard() {
+    var m = themeMode(), opts = [['auto', 'Auto', 'clock'], ['light', 'Day', 'sun'], ['dark', 'Night', 'moon']];
+    return '<section class="card"><div class="card-head"><h3 class="heading">Appearance</h3><span class="caption">' + (m === 'auto' ? 'Follows your iPhone' : m === 'light' ? 'Always day' : 'Always night') + '</span></div>' +
+      '<div class="tabs" role="group" aria-label="Appearance">' + opts.map(function (o) { return '<button type="button" data-act="theme" data-v="' + o[0] + '" aria-pressed="' + (m === o[0]) + '" style="display:inline-flex;align-items:center;justify-content:center;gap:6px">' + icon(o[2], 16) + o[1] + '</button>'; }).join('') + '</div>' +
+      '<span class="caption">Auto switches with your iPhone\'s Light and Dark setting. Set iPhone Settings → Display &amp; Brightness to Automatic and it changes at sunrise and sunset.</span></section>';
+  }
   function shortName(n) { return String(n).replace(/^\s*\[\d+\]\s*/, '').replace(/^Assessment\s+(\d+)\s*[—–-]\s*/i, 'A$1 · '); }
 
   function assessSheet(id, code) {
@@ -1341,6 +1396,7 @@ button.tl-row { cursor: pointer; }
       '<span class="caption">Break-even: ' + money(DAY_BREAKEVEN, true) + ' a day.</span></section>';
 
     return hero('money', 'Money', 'Earnings, tax, BAS and the weekly budget.') + notice() + taxCard + expCard + basCard + itCard + lbCard + budgetCard +
+      appearanceCard() +
       '<section class="card"><div class="card-head"><h3 class="heading">Backup</h3><span class="caption">App version ' + APP_VERSION + '</span></div><p class="body" style="margin:0">Saves a copy of every entry to a file on your phone, for safekeeping.</p><button class="btn btn-secondary btn-small" data-act="export">Back up my data</button></section>' +
       (user ? '<button class="link-btn" data-act="signout" style="align-self:center">Sign out (' + esc(user.email) + ')</button>' : '');
   }
@@ -1510,6 +1566,7 @@ button.tl-row { cursor: pointer; }
     else if (act === 'result') resultSheet(b.getAttribute('data-code'));
     else if (act === 'ms-done') { var as = state.assessments.filter(function (x) { return x.id === b.getAttribute('data-id'); })[0]; if (as) { var cp = JSON.parse(JSON.stringify(as)); cp.plan[+b.getAttribute('data-i')].done = true; if (cp.status === 'todo') cp.status = 'doing'; saveAssess(cp).then(function () { toast('Step done'); }); } }
     else if (act === 'close') closeSheet();
+    else if (act === 'theme') { try { localStorage.setItem('fn-theme', b.getAttribute('data-v')); } catch (x) {} if (window.fnApplyTheme) window.fnApplyTheme(true); render(); }
     else if (act === 'export') exportData();
     else if (act === 'signout') { if (sb) sb.auth.signOut(); }
     else if (act === 'ex') { var v = b.getAttribute('data-v'); setDay(key, { exercise: v || null }); toast(v ? (v === 'gym' ? 'Gym logged' : 'Walk logged') : 'Exercise cleared'); }
