@@ -219,14 +219,14 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 (function () {
   'use strict';
 
-  /* ---------------- Plan constants (from Base Plan v1.5) ---------------- */
-  var APP_VERSION = '0.3.0';
+  /* ---------------- Plan constants (from Base Plan v1.6 and Weight Loss Plan v1.0) ---------------- */
+  var APP_VERSION = '0.4.0';
   var PLAN_START = '2026-11-08';               // Sunday, week 1 day 1
   var NORMAL_MIN = 350, HOMEWARD_MIN = 60;      // 5 h 50 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
   var WEEK_DRIVE_MIN = DRIVE_TARGET_MIN * 7;   // 47 h 50
   var WEEK_STUDY_MIN = 1200;                    // 20 h
-  var DAY_TARGET = 250, DAY_BREAKEVEN = 238.48;  // receipts after platform fees
+  var DAY_TARGET = 250, DAY_BREAKEVEN = 224.30;  // receipts after platform fees
   var WEEK_TARGET = DAY_TARGET * 7;              // $1,750
   var TAX_WEEKLY = 247.03;                       // at target: GST 103.12 + income tax 123.29 + Medicare 20.62
   var TAX_DAILY = TAX_WEEKLY / 7;
@@ -237,9 +237,26 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
   ];
   var BUDGET_TAX = [['GST provision', 103.12], ['Income-tax provision', 123.29], ['Medicare provision', 20.62]];
   var BUDGET_PERSONAL = [
-    ['Rent', 310], ['Food ($30/day)', 210], ['Utilities', 40], ['Claude Max ($199.99/month)', 46.15], ['Anytime Fitness', 25.95],
+    ['Rent', 310], ['Food (Weight Loss Plan menu)', 150], ['Utilities', 40], ['Claude Max ($199.99/month)', 46.15], ['Anytime Fitness', 25.95],
     ['Higgsfield (≈ $93.94/month)', 21.68], ['Microsoft 365 ($48.51/month)', 11.19], ['Apple One ($24.95/month)', 5.76]
   ];
+  // Weekly menu (Weight Loss Plan v1.0). Index 0 = Sunday. Lunch = yesterday's dinner.
+  var EGGS = ['Eggs + toast', '3 eggs with spinach, tomato or mushrooms, 2 slices wholegrain', 466];
+  var OATS = ['Oats', '60 g oats, 250 ml light milk, 15 g chia, 100 g berries', 464];
+  var DINNERS = [
+    ['Lemon-oregano chicken tray bake', 'Chicken thigh, chickpeas, capsicum, zucchini, onion, tzatziki', 670],
+    ['Salmon and potato salad', 'Baked salmon, baby potatoes, beans, tomatoes, rocket, lemon dressing', 621],
+    ['Thai beef salad with brown rice', 'Lean rump, brown rice, cucumber, carrot, herbs, lime-chilli dressing', 632],
+    ['Lentil, pumpkin and baked tofu salad', 'Lentils, roast pumpkin, tofu, spinach, a little feta', 664],
+    ['Tuna pasta Niçoise', 'Tuna, wholemeal pasta, beans, tomatoes, onion, lemon dressing', 606],
+    ['Pork loin, apple-cabbage slaw, quinoa', 'Pork loin, quinoa, red cabbage, apple, yoghurt-mustard dressing', 641],
+    ['Turkey-zucchini meatballs with tabbouleh', 'Baked turkey meatballs, bulgur tabbouleh, yoghurt sauce', 694]
+  ];
+  var BREAKFASTS = [EGGS, EGGS, OATS, EGGS, OATS, EGGS, OATS];
+  var SNACKS = ['Snacks', '10:30 · 170 g Greek yoghurt + fruit; 3:40 · 20 g unsalted nuts', 323];
+  function mealsFor(d) { var i = d.getDay(); return { breakfast: BREAKFASTS[i], lunch: DINNERS[(i + 6) % 7], dinner: DINNERS[i], snacks: SNACKS }; }
+  var WL = { start: 120, kcal: 2100, stages: [[108, 'Stage 1', 'May 2027'], [100, 'Stage 2', 'Nov 2027'], [93.5, 'Stage 3', 'mid-2028']] };
+
   // Expense categories: [name, default business %, includes GST by default]
   var EXPENSE_CATS = [
     ['Charging', 80, true], ['Splend', 80, true], ['Car wash', 80, true], ['Vodafone', 50, true],
@@ -317,10 +334,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
       [880, 940, 'commute', 'Homeward driving'],
       [940, 980, 'neutral', 'Unpack, shower, snack'],
       [980, 1070, 'study', 'Study'],
-      [1070, 1130, 'neutral', 'Dinner and a proper break']
+      [1070, 1130, 'money', 'Cook and eat dinner']
     ];
-    if (weekend) s.push([1130, 1190, 'study', 'Study'], [1190, 1220, 'neutral', 'Prepare for tomorrow'], [1220, 1290, 'rest', 'Personal time, wind-down']);
-    else s.push([1130, 1220, 'study', 'Study'], [1220, 1250, 'neutral', 'Prepare for tomorrow'], [1250, 1290, 'rest', 'Personal time, wind-down']);
+    if (weekend) s.push([1130, 1190, 'study', 'Study'], [1190, 1220, 'neutral', 'Pack lunch and gear'], [1220, 1290, 'rest', 'Personal time, wind-down']);
+    else s.push([1130, 1220, 'study', 'Study'], [1220, 1250, 'neutral', 'Pack lunch and gear'], [1250, 1290, 'rest', 'Personal time, wind-down']);
     return { blocks: s, studyTarget: weekend ? 150 : 180, gym: gym };
   }
 
@@ -342,10 +359,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
   function shortDate(s) { var d = parseYmd(s); return DAYS[d.getDay()].slice(0, 3) + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()].slice(0, 3); }
 
   /* ---------------- state + storage ---------------- */
-  var state = { shifts: [], expenses: [], days: {}, tax: {}, logbook: [], tab: 'today', saving: true, ready: false, dbV2: true };
+  var state = { shifts: [], expenses: [], days: {}, tax: {}, logbook: [], body: {}, tab: 'today', saving: true, ready: false, dbV2: true, dbV3: true };
 
   var sb = null, user = null;
-  var TABLES = { shifts: 'shifts', expenses: 'expenses', days: 'days', tax: 'tax_weeks', logbook: 'logbook' };
+  var TABLES = { shifts: 'shifts', expenses: 'expenses', days: 'days', tax: 'tax_weeks', logbook: 'logbook', body: 'body' };
   function num(v) { return v == null ? null : Number(v); }
   function fromShift(r) { return { id: r.id, date: r.date, normalMin: r.normal_min, homeMin: r.home_min, receipts: Number(r.receipts), km: r.km, note: r.note, grossFares: num(r.gross_fares), uberFees: num(r.uber_fees) }; }
   function fromExpense(r) {
@@ -366,6 +383,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
       return e;
     }
     if (collection === 'logbook') return { date: d.date, odo_start: d.odoStart, odo_end: d.odoEnd, kind: d.kind, purpose: d.purpose };
+    if (collection === 'body') return { date: id, weight_kg: d.weight, waist_cm: d.waist, bp_sys: d.bpSys, bp_dia: d.bpDia, updated_at: new Date().toISOString() };
     if (collection === 'days') return { date: id, exercise: d.exercise || null, study_min: d.studyMin || 0, updated_at: new Date().toISOString() };
     return { week_start: id.slice(1), amount: d.amount, updated_at: new Date().toISOString() };
   }
@@ -383,7 +401,8 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
       sb.from('expenses').select('*').order('date', { ascending: false }).limit(1000),
       sb.from('days').select('*').limit(1000),
       sb.from('tax_weeks').select('*').limit(200),
-      sb.from('logbook').select('*').order('date', { ascending: false }).limit(2000)
+      sb.from('logbook').select('*').order('date', { ascending: false }).limit(2000),
+      sb.from('body').select('*').limit(2000)
     ]).then(function (res) {
       if (res.slice(0, 4).some(function (r) { return r.error; })) { toast('Could not load your data. Check your connection.'); return; }
       state.dbV2 = !res[4].error;
@@ -392,6 +411,8 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
       var dm = {}; res[2].data.forEach(function (r) { dm[r.date] = { exercise: r.exercise, studyMin: r.study_min }; }); state.days = dm;
       var tm = {}; res[3].data.forEach(function (r) { tm['w' + r.week_start] = { amount: Number(r.amount) }; }); state.tax = tm;
       state.logbook = state.dbV2 ? res[4].data.map(fromLog) : [];
+      state.dbV3 = !res[5].error;
+      var bm = {}; if (state.dbV3) res[5].data.forEach(function (r) { bm[r.date] = { weight: num(r.weight_kg), waist: num(r.waist_cm), bpSys: num(r.bp_sys), bpDia: num(r.bp_dia) }; }); state.body = bm;
       state.ready = true; render();
     });
   }
@@ -433,6 +454,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
       var row = toRow(collection, id, data), q;
       if (collection === 'days') q = sb.from('days').upsert(row, { onConflict: 'user_id,date' });
       else if (collection === 'tax') q = sb.from('tax_weeks').upsert(row, { onConflict: 'user_id,week_start' });
+      else if (collection === 'body') q = sb.from('body').upsert(row, { onConflict: 'user_id,date' });
       else q = sb.from(TABLES[collection]).insert(row);
       return q.then(function (r) { if (r.error) { toast('Could not save, try again'); throw r.error; } return loadAll(); });
     }
@@ -506,6 +528,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 
   /* ---------------- views ---------------- */
   function notice() {
+    if (state.saving && state.dbV2 && !state.dbV3) return '<div class="notice">One-off database update needed for weigh-ins. In Supabase, open SQL Editor, paste update-v0.4.sql and press Run.</div>';
     if (state.saving) return state.dbV2 ? '' : '<div class="notice">One-off database update needed for the BAS, tax and logbook sections. In Supabase, open SQL Editor, paste update-v0.3.sql and press Run. Until then, new fields are not saved.</div>';
     return '<div class="notice">Not connected to your database yet, so entries are not saved. Finish the setup steps to switch saving on.</div>';
   }
@@ -520,7 +543,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
     'Driving': 'Normal rate', 'Homeward driving': 'Two-thirds rate, heading home', 'Offline break': 'App off, rest',
     'Midday stop: charge, lunch, rest': 'Charge the car, eat, rest', 'Study': 'Focused study at home',
     'Shower': 'After exercise', 'Breakfast, get ready': 'Pack food and laptop', 'Unpack, shower, snack': 'Reset before study',
-    'Dinner and a proper break': 'Away from the desk', 'Prepare for tomorrow': 'Food, laptop, exercise gear',
+    'Pack lunch and gear': 'Lunch box, snacks, laptop, exercise gear',
     'Personal time, wind-down': 'Screens down, bed at 9:30'
   };
   function dur(min) { var h = Math.floor(min / 60), m = min % 60; return (h ? h + ' h' : '') + (h && m ? ' ' : '') + (m ? m + ' min' : ''); }
@@ -529,7 +552,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
     var blocks = sch.blocks.concat([[DAY_END, DAY_END + 480, 'rest', 'Sleep']]);
     return '<div class="agenda" role="list">' + blocks.map(function (b) {
       var past = isToday && nm >= b[1], cur = isToday && nm >= b[0] && nm < b[1];
-      var info = b[2] === 'health' ? (sch.gym ? '55 min session, 10 min walk each way' : 'Door to door, 1 h 15') : b[3] === 'Sleep' ? 'Up at 5:30 am' : (BLOCK_INFO[b[3]] || '');
+      var info = b[3] === 'Cook and eat dinner' ? 'Cook ×2: ' + mealsFor(d).dinner[0] : b[3] === 'Midday stop: charge, lunch, rest' ? 'Lunch: ' + mealsFor(d).lunch[0] : b[2] === 'health' ? (sch.gym ? '55 min session, 10 min walk each way' : 'Door to door, 1 h 15') : b[3] === 'Sleep' ? 'Up at 5:30 am' : (BLOCK_INFO[b[3]] || '');
       var state = cur ? '<span class="ag-badge">Now</span>' : past ? 'Done' : '';
       return '<div class="ag-row' + (cur ? ' now' : '') + (past ? ' past' : '') + '" role="listitem"' + (cur ? ' aria-current="time"' : '') + '>' +
         '<span class="ag-time">' + clock(b[0] % 1440) + '</span><span class="ag-pill f-' + b[2] + '" aria-hidden="true"></span>' +
@@ -659,16 +682,91 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
       '<section class="card"><h3 class="heading">Coming next</h3><p class="body" style="margin:0">Subjects, assessment due dates and the countdown to the end of your Master of Planning. Tell me your subjects and due dates and I will add them.</p></section>';
   }
 
+  function bodySeries() {
+    return Object.keys(state.body).sort().map(function (k) { return Object.assign({ date: k }, state.body[k]); });
+  }
   function viewHealth(d) {
-    var ws = weekStart(d), segs = '', count = 0, key = ymd(d), doc = dayDoc(key), sch = schedule(d);
+    var ws = weekStart(d), segs = '', count = 0, key = ymd(d), doc = dayDoc(key), sch = schedule(d), m = mealsFor(d);
     for (var i = 0; i < 7; i++) { var dt = addDays(ws, i), dd = dayDoc(ymd(dt)), g = schedule(dt).gym; if (dd.exercise) count++;
       segs += '<div class="row"><div class="row-main"><span class="row-title">' + DAYS[i] + '</span><span class="row-sub">Planned: ' + (g ? 'gym' : 'Homebush Bay walk') + '</span></div><span class="fig-sm">' + (dd.exercise ? (dd.exercise === 'gym' ? 'Gym · done' : 'Walk · done') : '–') + '</span><span></span></div>'; }
-    return notice() + '<h2 class="page-title">Health</h2>' +
-      '<section class="card a-health"><span class="eyebrow l-health">Today · 5:30 am</span><span class="title">' + (doc.exercise ? (doc.exercise === 'gym' ? 'Gym done' : 'Walk done') : (sch.gym ? 'Gym day' : 'Bay walk day')) + '</span>' +
+
+    var exCard = '<section class="card a-health"><span class="eyebrow l-health">Today · 5:30 am</span><span class="title">' + (doc.exercise ? (doc.exercise === 'gym' ? 'Gym done' : 'Walk done') : (sch.gym ? 'Gym day' : 'Bay walk day')) + '</span>' +
       '<div class="chips"><button class="chip" data-act="ex" data-v="gym" aria-pressed="' + (doc.exercise === 'gym') + '">Gym done</button><button class="chip" data-act="ex" data-v="walk" aria-pressed="' + (doc.exercise === 'walk') + '">Walk done</button>' +
-      (doc.exercise ? '<button class="chip" data-act="ex" data-v="">Undo</button>' : '') + '</div></section>' +
-      '<section class="card"><h3 class="heading">This week</h3>' + segBar('health', 7, count, 'Exercise days') + '<div class="list">' + segs + '</div></section>' +
-      '<section class="card"><h3 class="heading">Coming next</h3><p class="body" style="margin:0">Your gym routine for the 55-minute sessions, simple packable meals and a shopping list. We will build these in December.</p></section>';
+      (doc.exercise ? '<button class="chip" data-act="ex" data-v="">Undo</button>' : '') + '</div></section>';
+
+    function mealRow(label, meal, when) {
+      return '<div class="row"><div class="row-main"><span class="row-title">' + label + (meal[0] === label ? '' : ' · ' + esc(meal[0])) + '</span><span class="row-sub">' + (when ? when + ' · ' : '') + esc(meal[1]) + '</span></div><span class="fig-sm">' + meal[2] + '</span><span></span></div>';
+    }
+    var kcal = m.breakfast[2] + m.lunch[2] + m.dinner[2] + m.snacks[2];
+    var mealsCard = '<section class="card"><div class="card-head"><h3 class="heading">Today\'s meals</h3><span class="fig-sm">' + kcal.toLocaleString('en-AU') + ' kcal</span></div><div class="list">' +
+      mealRow('Breakfast', m.breakfast, '7:00') + mealRow('Lunch', m.lunch, '12:00 · last night\'s dinner, cold') + mealRow('Dinner', m.dinner, 'cook ×2 at 5:50') + mealRow('Snacks', m.snacks, '') +
+      '</div><span class="caption">Target ' + WL.kcal.toLocaleString('en-AU') + ' kcal. Pack the second dinner portion for tomorrow\'s lunch at 8:20 pm.</span></section>';
+
+    var series = bodySeries(), weights = series.filter(function (r) { return r.weight > 0; });
+    var startW = weights.length ? weights[0].weight : WL.start, cur = weights.length ? weights[weights.length - 1].weight : null;
+    var stage = WL.stages[0]; for (var s = 0; s < WL.stages.length; s++) { stage = WL.stages[s]; if (cur == null || cur > WL.stages[s][0]) break; }
+    if (s >= WL.stages.length) s = WL.stages.length - 1;
+    var prevTarget = s === 0 ? startW : WL.stages[s - 1][0];
+    var rate = null;
+    if (weights.length >= 2) {
+      var last = weights[weights.length - 1], cutoff = ymd(addDays(parseYmd(last.date), -28)), base = weights[0];
+      for (var j = weights.length - 1; j >= 0; j--) { if (weights[j].date <= cutoff) { base = weights[j]; break; } base = weights[j]; }
+      var wks = (parseYmd(last.date) - parseYmd(base.date)) / 864e5 / 7; if (wks > 0) rate = (base.weight - last.weight) / wks;
+    }
+    var waists = series.filter(function (r) { return r.waist > 0; }), bps = series.filter(function (r) { return r.bpSys > 0; });
+    var lastWaist = waists.length ? waists[waists.length - 1] : null, lastBp = bps.length ? bps[bps.length - 1] : null;
+    var weighDay = d.getDay() === 0 && !(state.body[key] && state.body[key].weight);
+    var weightCard = '<section class="card a-health"><div class="card-head"><span class="eyebrow l-health">Weight</span><span class="caption">' + esc(stage[1]) + ': ' + stage[0] + ' kg by ' + esc(stage[2]) + '</span></div>' +
+      '<span class="fig-lg">' + (cur != null ? cur.toFixed(1) + ' kg' : 'No weigh-in yet') + '</span>' +
+      (cur != null ? '<span class="body" style="color:var(--ink)">' + (startW - cur >= 0 ? (startW - cur).toFixed(1) + ' kg lost' : (cur - startW).toFixed(1) + ' kg up') + ' since ' + shortDate(weights[0].date) + ' · ' + Math.max(0, cur - stage[0]).toFixed(1) + ' kg to ' + stage[1].toLowerCase() + '</span>' : '<span class="body" style="color:var(--ink)">Weigh in on Sunday 8 November, before breakfast.</span>') +
+      bar('health', cur != null ? (prevTarget - cur) / (prevTarget - stage[0]) : 0, '', '', { lg: true, onSoft: true }) +
+      '<div class="kv">' +
+      '<span>Average loss (last 4 weeks)</span><span class="fig-sm">' + (rate != null ? rate.toFixed(2) + ' kg/week' : '–') + '</span>' +
+      '<span>Waist</span><span class="fig-sm">' + (lastWaist ? lastWaist.waist.toFixed(1) + ' cm (' + shortDate(lastWaist.date) + ')' : '–') + '</span>' +
+      '<span>Blood pressure</span><span class="fig-sm">' + (lastBp ? lastBp.bpSys + '/' + (lastBp.bpDia || '–') + ' (' + shortDate(lastBp.date) + ')' : '–') + '</span></div>' +
+      (rate != null && weights.length >= 4 ? '<span class="caption">' + (rate < 0.3 ? 'Under 0.3 kg/week: if this holds for 3 weeks, trim ≈ 150 kcal or add walking.' : rate > 1 ? 'Over 1 kg/week: if you feel tired or faint on shift, add a piece of fruit and yoghurt.' : 'On track: 0.3–1 kg a week.') + '</span>' : '') +
+      '<button class="btn btn-primary btn-small" data-act="weigh">' + icon('plus', 18) + (weighDay ? 'Sunday weigh-in' : 'Log weight, waist or BP') + '</button></section>';
+
+    var hist = weights.slice(-8).reverse().map(function (r) {
+      return '<div class="row"><div class="row-main"><span class="row-title">' + shortDate(r.date) + '</span><span class="row-sub">' + (r.waist ? 'waist ' + r.waist + ' cm' : '') + (r.bpSys ? (r.waist ? ' · ' : '') + 'BP ' + r.bpSys + '/' + (r.bpDia || '–') : '') + '</span></div><span class="fig-sm">' + r.weight.toFixed(1) + ' kg</span><span></span></div>';
+    }).join('');
+    var histCard = hist ? '<section class="card"><h3 class="heading">Recent weigh-ins</h3><div class="list">' + hist + '</div></section>' : '';
+
+    var week = '';
+    for (var k2 = 0; k2 < 7; k2++) {
+      var isToday = k2 === d.getDay();
+      week += '<div class="row" style="grid-template-columns:minmax(0,1fr)' + (isToday ? ';background:var(--sunken);border-radius:12px;padding-left:10px;padding-right:10px' : '') + '"><div class="row-main"><span class="row-title">' + DAYS[k2] + (isToday ? ' · today' : '') + ' — ' + esc(DINNERS[k2][0]) + '</span><span class="row-sub">' +
+        'Breakfast: ' + esc(BREAKFASTS[k2][0].toLowerCase()) + ' · lunch: ' + esc(DINNERS[(k2 + 6) % 7][0]) + '</span></div></div>';
+    }
+    var menuCard = '<section class="card"><div class="card-head"><h3 class="heading">Weekly menu</h3><span class="caption">Repeats every week</span></div><div class="list">' + week + '</div>' +
+      '<span class="caption">Recipes and the shopping list (Aldi, Coles, Woolworths, about $150 a week) are in Weight Loss Plan.md.</span></section>';
+
+    return notice() + '<h2 class="page-title">Health</h2>' + exCard + mealsCard + weightCard + histCard + menuCard +
+      '<section class="card"><h3 class="heading">This week</h3>' + segBar('health', 7, count, 'Exercise days') + '<div class="list">' + segs + '</div></section>';
+  }
+
+  function bodySheet() {
+    var d = now(), key = ymd(d), cur = state.body[key] || {};
+    openSheet('<h2 class="title" id="sheet-title">Weigh-in</h2><p class="body" style="margin:0">Sunday mornings, before breakfast, same scales. Waist on the first Sunday of the month, at navel level.</p>' +
+      '<form id="f-body" style="display:flex;flex-direction:column;gap:14px" novalidate>' +
+      '<div class="field"><label for="b-date">Date</label><input id="b-date" type="date" value="' + key + '" required></div>' +
+      '<div class="two"><div class="field"><label for="b-w">Weight (kg)</label><input id="b-w" type="number" inputmode="decimal" min="40" max="250" step="0.1" value="' + (cur.weight || '') + '"></div>' +
+      '<div class="field"><label for="b-waist">Waist (cm)</label><input id="b-waist" type="number" inputmode="decimal" min="50" max="200" step="0.5" value="' + (cur.waist || '') + '"></div></div>' +
+      '<div class="two"><div class="field"><label for="b-sys">BP top number</label><input id="b-sys" type="number" inputmode="numeric" min="70" max="250" value="' + (cur.bpSys || '') + '"></div>' +
+      '<div class="field"><label for="b-dia">BP bottom number</label><input id="b-dia" type="number" inputmode="numeric" min="40" max="150" value="' + (cur.bpDia || '') + '"></div></div>' +
+      '<p class="caption" id="b-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
+      '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div></form>');
+    document.getElementById('f-body').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var date = document.getElementById('b-date').value;
+      function v(id) { var x = parseFloat(document.getElementById(id).value); return isFinite(x) && x > 0 ? x : null; }
+      var data = { weight: v('b-w'), waist: v('b-waist'), bpSys: v('b-sys'), bpDia: v('b-dia') };
+      if (!date || (data.weight == null && data.waist == null && data.bpSys == null)) { document.getElementById('b-err').textContent = 'Enter a date and at least one measurement.'; return; }
+      if (sb && !state.dbV3) { document.getElementById('b-err').textContent = 'Run the one-off database update first (update-v0.4.sql).'; return; }
+      var prev = state.body[date] || {};
+      ['weight', 'waist', 'bpSys', 'bpDia'].forEach(function (k) { if (data[k] == null && prev[k] != null) data[k] = prev[k]; });
+      save('body', date, data).then(function () { closeSheet(); toast('Saved'); });
+    });
   }
 
   function setAsideBetween(a, b) {
@@ -921,12 +1019,12 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
       toast('Backup saved: ' + name);
     };
     if (sb && user) {
-      Promise.all(['shifts', 'expenses', 'days', 'tax_weeks', 'logbook'].map(function (t) { return sb.from(t).select('*').limit(5000); })).then(function (res) {
+      Promise.all(['shifts', 'expenses', 'days', 'tax_weeks', 'logbook', 'body'].map(function (t) { return sb.from(t).select('*').limit(5000); })).then(function (res) {
         if (res.slice(0, 4).some(function (r) { return r.error; })) { toast('Could not read your data for the backup'); return; }
-        pack({ shifts: res[0].data, expenses: res[1].data, days: res[2].data, tax_weeks: res[3].data, logbook: res[4].error ? [] : res[4].data });
+        pack({ shifts: res[0].data, expenses: res[1].data, days: res[2].data, tax_weeks: res[3].data, logbook: res[4].error ? [] : res[4].data, body: res[5].error ? [] : res[5].data });
       });
     } else {
-      pack({ shifts: state.shifts, expenses: state.expenses, days: state.days, tax_weeks: state.tax, logbook: state.logbook });
+      pack({ shifts: state.shifts, expenses: state.expenses, days: state.days, tax_weeks: state.tax, logbook: state.logbook, body: state.body });
     }
   }
 
@@ -944,6 +1042,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
     else if (act === 'expense') expenseSheet();
     else if (act === 'tax') taxSheet();
     else if (act === 'trip') tripSheet(b.getAttribute('data-v'));
+    else if (act === 'weigh') bodySheet();
     else if (act === 'close') closeSheet();
     else if (act === 'export') exportData();
     else if (act === 'signout') { if (sb) sb.auth.signOut(); }

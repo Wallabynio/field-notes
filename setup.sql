@@ -74,3 +74,17 @@ create table if not exists public.logbook (
 alter table public.logbook enable row level security;
 drop policy if exists "own logbook" on public.logbook;
 create policy "own logbook" on public.logbook for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create table if not exists public.body (
+  user_id uuid not null default auth.uid() references auth.users on delete cascade,
+  date date not null,
+  weight_kg numeric(5,1),
+  waist_cm numeric(5,1),
+  bp_sys int,
+  bp_dia int,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, date)
+);
+alter table public.body enable row level security;
+drop policy if exists "own body" on public.body;
+create policy "own body" on public.body for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

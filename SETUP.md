@@ -25,3 +25,7 @@ The app is a small website (hosted free on GitHub Pages) that you install on you
 ## Update for version 0.3 (BAS, income tax, logbook)
 
 Run once: Supabase → SQL Editor → New query → paste `update-v0.3.sql` → Run. Until then the app works as before and shows a notice; the new fields (gross fares, Uber fees, business share, GST, invoice kept, logbook) are not saved.
+
+## Update for version 0.4 (weigh-ins)
+
+Run once: Supabase → SQL Editor → New query → paste `update-v0.4.sql` → Run (accept the "destructive operations" warning — it only refers to the privacy rule on the new table).
