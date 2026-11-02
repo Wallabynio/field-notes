@@ -248,7 +248,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '0.6.1';
+  var APP_VERSION = '0.6.2';
   var PLAN_START = '2026-11-08';               // Sunday, week 1 day 1
   var NORMAL_MIN = 340, HOMEWARD_MIN = 60;      // 5 h 40 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
@@ -271,20 +271,30 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
   ];
   // Weekly menu. Index 0 = Sunday. Lunch = yesterday's dinner. All quantities in g and mL.
   // Dinner quantities make 2 portions (tonight + tomorrow's lunch); kcal and protein are per portion.
-  var EGGS = { name: 'Eggs and toast', desc: '3 eggs, greens, 1 slice wholegrain', kcal: 366, protein: 25, time: '10 min', photo: 'eggs',
-    serves: 'Makes 1 breakfast',
-    ingredients: [['3 (≈ 150 g)', 'eggs'], ['100 g', 'spinach, tomato or mushrooms'], ['3 mL', 'olive oil'], ['40 g', 'wholegrain bread (1 slice)'], ['', 'pepper and herbs, no salt']],
-    steps: ['Heat the oil in a small non-stick pan over medium heat.', 'Wilt the greens or soften the mushrooms, 2 min.', 'Add the eggs as an omelette or scramble, or boil or poach them instead.', 'Toast the bread. No butter.'] };
-  var OATS = { name: 'Oats with berries', desc: 'Oats, light milk, chia, berries', kcal: 464, protein: 20, time: '5 min', photo: 'oats',
-    serves: 'Makes 1 breakfast',
+  function eggs(day, name, desc, ingr, steps) { return { name: name, desc: desc, kcal: 366, protein: 25, time: '10 min', photo: 'eggs', serves: day + ' breakfast',
+    ingredients: [['3 (≈ 150 g)', 'eggs']].concat(ingr, [['40 g', 'wholegrain bread (1 slice)'], ['', 'black pepper, no salt']]), steps: steps.concat(['Toast the bread. No butter.']) }; }
+  var EGGS_SUN = eggs('Sunday', 'Scrambled eggs with spinach', '3 eggs scrambled, wilted spinach, 1 slice wholegrain',
+    [['100 g', 'baby spinach'], ['3 mL', 'olive oil']],
+    ['Heat the oil in a non-stick pan over medium heat. Wilt the spinach, 1 min, and push it to one side.', 'Beat the eggs with pepper, pour into the pan and stir gently with a spatula for 2 min until just set. Take off the heat while still soft.']);
+  var EGGS_MON = eggs('Monday', 'Boiled eggs with tomatoes', '3 boiled eggs, cherry tomatoes, 1 slice wholegrain',
+    [['100 g', 'cherry tomatoes'], ['3 mL', 'olive oil']],
+    ['Bring a small pot of water to the boil. Lower the eggs in with a spoon and boil 8 min.', 'Move the eggs to cold water for 1 min, then peel.', 'Halve the tomatoes and drizzle with the oil and pepper.']);
+  var EGGS_WED = eggs('Wednesday', 'Poached eggs with mushrooms', '3 poached eggs, pan-fried mushrooms, 1 slice wholegrain',
+    [['100 g', 'button mushrooms'], ['3 mL', 'olive oil']],
+    ['Slice the mushrooms and cook in the oil in a non-stick pan over medium-high heat, 4 min.', 'Bring 1.5 L water to a gentle simmer in a wide pot: small bubbles only, not a rolling boil.', 'Crack each egg into a cup, then slide it gently into the water. Cook 3 min.', 'Lift out with a slotted spoon and drain on paper towel.']);
+  var EGGS_FRI = eggs('Friday', 'Fried eggs with grilled tomato', '3 fried eggs, pan-grilled tomato, 1 slice wholegrain',
+    [['100 g', 'tomato (1 medium), halved'], ['3 mL', 'olive oil']],
+    ['Heat the oil in a non-stick pan over medium heat.', 'Put the tomato halves in cut side down, 2 min.', 'Crack the eggs into the pan beside them. Cover with a lid and cook 3 min until the whites are set.']);
+  var OATS = { name: 'Overnight oats with berries', desc: 'Oats, light milk, chia, berries, soaked overnight', kcal: 464, protein: 20, time: '5 min the night before', photo: 'oats',
+    serves: 'Breakfast. Make it at 8:00 pm the night before, while packing',
     ingredients: [['60 g', 'rolled oats'], ['250 mL', 'light milk'], ['15 g', 'chia seeds'], ['100 g', 'frozen mixed berries']],
-    steps: ['Mix oats, chia and milk in a bowl.', 'Microwave 2–3 min, stirring once — or soak overnight in the fridge.', 'Top with the berries.'] };
+    steps: ['At 8:00 pm the night before: mix the oats, chia and milk in a lidded container.', 'Put the frozen berries on top, close the lid and refrigerate overnight.', 'Eat cold at 7:00 am. Stir first.'] };
   var DINNERS = [
     { name: 'Lemon-oregano chicken tray bake', desc: 'Chicken thigh, chickpeas, roast vegetables, tzatziki', kcal: 670, protein: 69, time: '40 min', photo: 'chicken',
-      ingredients: [['500 g', 'skinless chicken thigh fillets'], ['240 g', 'no-added-salt chickpeas, drained (1 × 400 g can)'], ['150 g', 'red capsicum'], ['250 g', 'zucchini'], ['100 g', 'red onion'], ['100 g', 'cherry tomatoes'], ['15 mL', 'olive oil'], ['1 (≈ 100 g)', 'lemon, zest and juice'], ['6 g', 'garlic (2 cloves)'], ['2 g', 'dried oregano'], ['150 g', 'Greek yoghurt (tzatziki)'], ['75 g', 'cucumber, grated (tzatziki)'], ['3 g', 'garlic (tzatziki)'], ['10 mL', 'lemon juice (tzatziki)'], ['2 g', 'dill or mint (tzatziki)']],
+      ingredients: [['500 g', 'skinless chicken thigh fillets'], ['240 g', 'no-added-salt chickpeas, drained (1 × 400 g can)'], ['150 g', 'red capsicum'], ['250 g', 'zucchini'], ['100 g', 'red onion'], ['100 g', 'cherry tomatoes'], ['15 mL', 'olive oil'], ['1 (≈ 100 g)', 'lemon, zest and juice'], ['6 g', 'garlic (2 cloves)'], ['2 g', 'dried oregano'], ['150 g', 'Greek yoghurt (tzatziki)'], ['75 g', 'cucumber, grated (tzatziki)'], ['3 g', 'garlic (tzatziki)'], ['10 mL', 'lemon juice (tzatziki)'], ['2 g', 'fresh dill (tzatziki)']],
       steps: ['Heat the oven to 220 °C and line a large tray.', 'Cut the chicken into ≈ 40 g pieces and the vegetables to a similar size.', 'Toss chicken, chickpeas and vegetables with the oil, lemon zest and juice, garlic, oregano and pepper. Spread in one layer.', 'Roast 30–35 min, turning once, until the chicken is cooked through and the juices run clear.', 'Squeeze the grated cucumber dry and mix the tzatziki.', 'Split into 2 portions. Pack the tzatziki for lunch in a separate pot.'] },
     { name: 'Salmon and potato salad', desc: 'Baked salmon, baby potatoes, beans, lemon dressing', kcal: 621, protein: 38, time: '35 min', photo: 'salmon',
-      ingredients: [['300 g', 'salmon (2 portions)'], ['500 g', 'baby potatoes'], ['200 g', 'green beans'], ['150 g', 'cherry tomatoes'], ['50 g', 'cucumber'], ['50 g', 'rocket'], ['15 mL', 'olive oil'], ['30 mL', 'lemon juice'], ['5 g', 'Dijon mustard'], ['2 g', 'dill or parsley']],
+      ingredients: [['300 g', 'salmon (2 portions)'], ['500 g', 'baby potatoes'], ['200 g', 'green beans'], ['150 g', 'cherry tomatoes'], ['50 g', 'cucumber'], ['50 g', 'rocket'], ['15 mL', 'olive oil'], ['30 mL', 'lemon juice'], ['5 g', 'Dijon mustard'], ['2 g', 'fresh dill']],
       steps: ['Halve the potatoes and boil 15 min. Add the beans for the last 4 min, then drain and cool.', 'Bake the salmon on a lined tray at 200 °C for 12–14 min.', 'Whisk the oil, lemon juice and mustard.', 'Halve the tomatoes and slice the cucumber; combine with potatoes, beans and rocket.', 'Flake the salmon over the top. Pack the dressing for lunch in a separate pot.'] },
     { name: 'Thai beef salad with brown rice', desc: 'Seared rump, herbs, lime-chilli dressing', kcal: 632, protein: 54, time: '35 min', photo: 'beef',
       ingredients: [['400 g', 'lean rump steak, fat trimmed'], ['120 g', 'brown rice (dry)'], ['150 g', 'cucumber'], ['100 g', 'carrot'], ['50 g', 'red onion'], ['100 g', 'cherry tomatoes'], ['50 g', 'cos lettuce'], ['10 g', 'fresh mint'], ['10 g', 'fresh coriander'], ['20 g', 'unsalted peanuts, crushed'], ['40 mL', 'lime juice (2 limes)'], ['5 mL', 'fish sauce'], ['5 g', 'fresh chilli'], ['5 mL', 'olive oil'], ['3 g', 'sugar']],
@@ -303,20 +313,26 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
       steps: ['Heat the oven to 200 °C and line a tray.', 'Mix the mince, zucchini, garlic, cumin, parsley and pepper. Roll ≈ 16 balls of ≈ 40 g.', 'Bake 20 min until cooked through.', 'Pour the boiling water over the bulgur, cover for 15 min, then fluff with a fork.', 'Dice the tomatoes, cucumber and spring onion, chop the herbs, and mix into the bulgur with the oil and lemon.', 'Mix the yoghurt sauce. Pack it for lunch in a separate pot.'] }
   ];
   DINNERS.forEach(function (m) { m.serves = 'Makes 2 portions: tonight and tomorrow\'s lunch'; });
-  var BREAKFASTS = [EGGS, EGGS, OATS, EGGS, OATS, EGGS, OATS];
-  var SNACKS = { name: 'Coffee and snacks', desc: 'Coffee, Greek yoghurt and fruit, unsalted nuts', kcal: 421, protein: 26, time: '', photo: 'coffee', serves: 'Every day',
-    ingredients: [['1', 'coffee capsule (espresso, ≈ 40 mL)'], ['150 mL', 'lactose-free full cream milk'], ['170 g', 'plain Greek yoghurt (10:30 break)'], ['≈ 150 g', 'piece of fruit (10:30 break)'], ['20 g', 'unsalted mixed nuts (3:30 pm)']],
-    steps: ['Coffee with breakfast: pull the capsule, add the milk.', 'Pack the yoghurt, fruit and nuts in the cooler bag the night before.'] };
-  function mealsFor(d) { var i = d.getDay(); return { breakfast: BREAKFASTS[i], lunch: DINNERS[(i + 6) % 7], dinner: DINNERS[i], snacks: SNACKS }; }
+  var BREAKFASTS = [EGGS_SUN, EGGS_MON, OATS, EGGS_WED, OATS, EGGS_FRI, OATS];
+  // 10:30 fruit: apple Sun/Tue/Thu/Sat, orange Mon/Wed, banana Fri.
+  var FRUIT = [['150 g', 'apple, 1 medium'], ['150 g', 'orange, 1 medium, peeled'], ['150 g', 'apple, 1 medium'], ['150 g', 'orange, 1 medium, peeled'], ['150 g', 'apple, 1 medium'], ['120 g', 'banana, 1 medium, peeled'], ['150 g', 'apple, 1 medium']];
+  var SNACKS = [0, 1, 2, 3, 4, 5, 6].map(function (i) { return { name: 'Coffee and snacks', desc: 'Coffee, Greek yoghurt and ' + FRUIT[i][1].split(',')[0] + ', unsalted nuts', kcal: i === 5 ? 450 : 421, protein: 26, time: '', photo: 'coffee', serves: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][i],
+    ingredients: [['1', 'coffee capsule (espresso, ≈ 40 mL)'], ['150 mL', 'lactose-free full cream milk'], ['170 g', 'plain Greek yoghurt (10:30 break)'], [FRUIT[i][0], FRUIT[i][1] + ' (10:30 break)'], ['20 g', 'unsalted mixed nuts (3:30 pm)']],
+    steps: ['Coffee with breakfast: pull the capsule, add the milk.', 'Pack the yoghurt, ' + FRUIT[i][1].split(',')[0] + ' and nuts in the cooler bag at 8:00 pm the night before.'] }; });
+  function mealsFor(d) { var i = d.getDay(); return { breakfast: BREAKFASTS[i], lunch: DINNERS[(i + 6) % 7], dinner: DINNERS[i], snacks: SNACKS[i] }; }
   // Weekly shop. Aldi first; Coles for what Aldi doesn't stock.
   var SHOP = {
-    Aldi: ['500 g chicken thigh fillets', '300 g salmon portions', '400 g lean rump steak', '400 g pork loin steaks', '12 eggs', '425 g can tuna in springwater',
-      '2 × 1 kg plain Greek yoghurt', '1 L light milk', '2 L lactose-free full cream milk', '1 kg baby potatoes', '500 g pumpkin', '550 g zucchini', '150 g red capsicum',
-      '400 g red onions', '500 g cherry tomatoes', '300 g tomatoes', '600 g cucumbers', '300 g carrots', '400 g green beans', '250 g baby spinach', '50 g rocket',
-      '250 g red cabbage', '1 cos lettuce', '200 g mushrooms', '6 lemons', '2 limes', '≈ 1 kg fruit (7 pieces) + 1 apple', 'garlic, chilli, spring onions',
-      'Every few weeks: wholegrain bread, rolled oats, chia, frozen berries, unsalted nuts, olive oil, brown rice, wholemeal pasta, quinoa, Dijon mustard, reduced-fat feta'],
-    Coles: ['500 g turkey mince', '300 g firm tofu', '2 × 400 g no-added-salt lentils', '400 g no-added-salt chickpeas', 'fresh mint, coriander, parsley, dill', '20 g olives',
-      '14 coffee capsules (cheapest range)', 'Every few weeks: bulgur, unsalted peanuts, fish sauce, cumin, smoked paprika, dried oregano']
+    Aldi: ['500 g skinless chicken thigh fillets', '300 g salmon (2 portions)', '400 g lean rump steak', '400 g pork loin steaks', '12 eggs', '425 g can tuna in springwater',
+      '2 × 1 kg plain Greek yoghurt (1,540 g used)', '1 L light milk (750 mL used)', '3 × 1 L lactose-free full cream milk (2,100 mL used: 2 coffees a day)',
+      '500 g baby potatoes', '500 g pumpkin', '400 g zucchini', '150 g red capsicum', '250 g red onion', '600 g cherry tomatoes', '250 g tomatoes (2–3)',
+      '425 g cucumber (2 Lebanese)', '200 g carrots', '400 g green beans', '250 g baby spinach', '100 g button mushrooms', '50 g rocket', '250 g red cabbage', '50 g cos lettuce (1 small heart)',
+      '6 lemons', '2 limes', '5 apples (4 snacks, 1 slaw)', '2 oranges', '1 banana', '1 bulb garlic (18 g used)', '1 small red chilli (5 g)', '1 bunch spring onions (100 g used)',
+      '40 g olives', '50 g reduced-fat feta'],
+    Coles: ['500 g turkey mince', '300 g firm tofu', '2 × 400 g cans no-added-salt lentils', '1 × 400 g can no-added-salt chickpeas',
+      '1 bunch mint (20 g used)', '1 bunch coriander (10 g used)', '1 bunch flat-leaf parsley (30 g used)', '1 bunch dill (4 g used)', '14 coffee capsules (cheapest range)'],
+    Pantry: ['Wholegrain bread (160 g: 4 slices)', 'Rolled oats (180 g)', 'Chia seeds (45 g)', 'Frozen mixed berries (300 g)',
+      'Unsalted mixed nuts (140 g)', 'Olive oil (112 mL)', 'Brown rice (120 g)', 'Wholemeal pasta (160 g)', 'Quinoa (120 g)', 'Bulgur (100 g)',
+      'Dijon mustard (15 g)', 'Unsalted peanuts (20 g)', 'Fish sauce (5 mL)', 'Ground cumin (4 g)', 'Smoked paprika (2 g)', 'Dried oregano (2 g)', 'Sugar (3 g)']
   };
   var WL = { start: 120, kcal: 2100, stages: [[108, 'Stage 1', 'May 2027'], [100, 'Stage 2', 'Nov 2027'], [93.5, 'Stage 3', 'mid-2028']] };
 
@@ -837,10 +853,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
         '<span class="row-main"><span class="eyebrow">' + esc(label) + (when ? ', ' + esc(when) : '') + '</span><span class="row-title">' + esc(meal.name) + '</span><span class="row-sub">' + meal.kcal + ' kcal, ' + meal.protein + ' g protein</span></span>' +
         '<span class="chev" aria-hidden="true">' + icon('chev', 18) + '</span></button>';
     }
-    var bKey = BREAKFASTS[di] === EGGS ? 'eggs' : 'oats';
+    var bKey = 'b' + di;
     var kcal = m.breakfast.kcal + m.lunch.kcal + m.dinner.kcal + m.snacks.kcal;
     var mealsCard = '<section class="card"><div class="card-head"><h3 class="heading">Today\'s meals</h3><span class="fig-sm l-health">' + kcal.toLocaleString('en-AU') + ' kcal</span></div><div class="list">' +
-      mealBtn('Breakfast', m.breakfast, bKey, '7:00') + mealBtn('Lunch', m.lunch, 'd' + ((di + 6) % 7), 'last night\'s dinner') + mealBtn('Dinner', m.dinner, 'd' + di, 'cook two portions') + mealBtn('Every day', m.snacks, 'snacks', '') +
+      mealBtn('Breakfast', m.breakfast, bKey, '7:00') + mealBtn('Lunch', m.lunch, 'd' + ((di + 6) % 7), 'last night\'s dinner') + mealBtn('Dinner', m.dinner, 'd' + di, 'cook two portions') + mealBtn('Through the day', m.snacks, 's' + di, '') +
       '</div><button class="btn btn-secondary btn-small" data-act="shop">' + icon('bag', 18) + 'Weekly shopping list</button></section>';
 
     var series = bodySeries(), weights = series.filter(function (r) { return r.weight > 0; });
@@ -881,13 +897,22 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
         '<span class="row-main"><span class="eyebrow' + (k2 === di ? ' l-money' : '') + '">' + DAYS[k2] + (k2 === di ? ', today' : '') + '</span><span class="row-title">' + esc(dn.name) + '</span><span class="row-sub">' + dn.time + ', ' + dn.kcal + ' kcal a portion</span></span>' +
         '<span class="chev" aria-hidden="true">' + icon('chev', 18) + '</span></button>';
     }
+    var bweek = '';
+    for (var k3 = 0; k3 < 7; k3++) {
+      var bf = BREAKFASTS[k3];
+      bweek += '<button type="button" class="row-btn" data-act="recipe" data-k="b' + k3 + '"' + (k3 === di ? ' aria-current="date"' : '') + '>' +
+        '<span class="thumb" style="' + photoBg(bf.photo, 200) + '"></span>' +
+        '<span class="row-main"><span class="eyebrow' + (k3 === di ? ' l-money' : '') + '">' + DAYS[k3] + (k3 === di ? ', today' : '') + '</span><span class="row-title">' + esc(bf.name) + '</span><span class="row-sub">' + esc(FRUIT[k3][1].split(',')[0].replace(/^./, function (c) { return c.toUpperCase(); })) + ' at 10:30, ' + bf.kcal + ' kcal breakfast</span></span>' +
+        '<span class="chev" aria-hidden="true">' + icon('chev', 18) + '</span></button>';
+    }
+    var bfCard = '<section class="card"><div class="card-head"><h3 class="heading">Breakfasts this week</h3><span class="caption">Same every week</span></div><div class="list">' + bweek + '</div></section>';
     var menuCard = '<section class="card"><div class="card-head"><h3 class="heading">Dinners this week</h3><span class="caption">Same every week</span></div><div class="list">' + week + '</div></section>';
 
-    return hero('health', 'Health', 'Eating well, moving daily, ' + WL.kcal.toLocaleString('en-AU') + ' kcal a day.') + notice() + mealsCard + exCard + weightCard + histCard + menuCard +
+    return hero('health', 'Health', 'Eating well, moving daily, ' + WL.kcal.toLocaleString('en-AU') + ' kcal a day.') + notice() + mealsCard + exCard + weightCard + histCard + menuCard + bfCard +
       '<section class="card"><h3 class="heading">Exercise this week</h3>' + segBar('health', 7, count, 'Days done') + '<div class="list">' + segs + '</div></section>';
   }
 
-  function mealByKey(k) { return k === 'eggs' ? EGGS : k === 'oats' ? OATS : k === 'snacks' ? SNACKS : DINNERS[+k.slice(1)]; }
+  function mealByKey(k) { var n = +k.slice(1); return k[0] === 'b' ? BREAKFASTS[n] : k[0] === 's' ? SNACKS[n] : DINNERS[n]; }
   function recipeSheet(k) {
     var m = mealByKey(k); if (!m) return;
     openSheet('<div class="sheet-photo" style="' + photoBg(m.photo, 900) + '"></div>' +
@@ -897,22 +922,22 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
       '<h3 class="heading">Method</h3><ol class="steps">' + m.steps.map(function (s) { return '<li><span>' + esc(s) + '</span></li>'; }).join('') + '</ol>' +
       '<button type="button" class="btn btn-secondary" data-act="close">Close</button>');
   }
-  var shopState = {}; try { shopState = JSON.parse(localStorage.getItem('fn-shop') || '{}'); } catch (x) { shopState = {}; }
+  var shopState = {}; try { shopState = JSON.parse(localStorage.getItem('fn-shop2') || '{}'); } catch (x) { shopState = {}; }
   var shopStore = 'Aldi';
   function shopSheet() {
     function body() {
       var list = SHOP[shopStore];
-      return '<h2 class="title" id="sheet-title">Weekly shop</h2><p class="body" style="margin:0">Aldi first. Coles for the few things Aldi doesn\'t stock.</p>' +
+      return '<h2 class="title" id="sheet-title">Weekly shop</h2><p class="body" style="margin:0">Aldi first, then Coles. Pantry: buy only when it runs low (weekly use in brackets).</p>' +
         '<div class="tabs" role="group" aria-label="Store">' + Object.keys(SHOP).map(function (s) { return '<button type="button" data-shop-store="' + s + '" aria-pressed="' + (s === shopStore) + '">' + s + '</button>'; }).join('') + '</div>' +
         '<div class="list">' + list.map(function (it, i) { var id = shopStore + i, done = !!shopState[id];
           return '<label class="check' + (done ? ' done' : '') + '"><input type="checkbox" data-shop-item="' + id + '"' + (done ? ' checked' : '') + '><span class="row-title">' + esc(it) + '</span><span></span></label>'; }).join('') + '</div>' +
         '<div class="btn-row"><button type="button" class="btn btn-secondary btn-small" data-shop-clear="1">Clear ticks</button><button type="button" class="btn btn-primary btn-small" data-act="close">Done</button></div>';
     }
     openSheet(body());
-    sheet.onchange = function (e) { var id = e.target.getAttribute && e.target.getAttribute('data-shop-item'); if (!id) return; shopState[id] = e.target.checked; try { localStorage.setItem('fn-shop', JSON.stringify(shopState)); } catch (x) {} e.target.closest('.check').classList.toggle('done', e.target.checked); };
+    sheet.onchange = function (e) { var id = e.target.getAttribute && e.target.getAttribute('data-shop-item'); if (!id) return; shopState[id] = e.target.checked; try { localStorage.setItem('fn-shop2', JSON.stringify(shopState)); } catch (x) {} e.target.closest('.check').classList.toggle('done', e.target.checked); };
     sheet.onclick = function (e) {
       var st = e.target.closest('[data-shop-store]'); if (st) { shopStore = st.getAttribute('data-shop-store'); sheet.innerHTML = body(); return; }
-      if (e.target.closest('[data-shop-clear]')) { shopState = {}; try { localStorage.removeItem('fn-shop'); } catch (x) {} sheet.innerHTML = body(); }
+      if (e.target.closest('[data-shop-clear]')) { shopState = {}; try { localStorage.removeItem('fn-shop2'); } catch (x) {} sheet.innerHTML = body(); }
     };
   }
 
