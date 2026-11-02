@@ -16,6 +16,8 @@
       var m = 'auto'; try { m = localStorage.getItem('fn-theme') || 'auto'; } catch (x) {}
       var t = m === 'auto' ? (mq && !mq.matches ? 'light' : 'dark') : m;
       document.documentElement.setAttribute('data-theme', t);
+      var sk = 'ledger'; try { sk = localStorage.getItem('fn-skin') || 'ledger'; } catch (x) {}
+      document.documentElement.setAttribute('data-skin', sk);
       var meta = document.getElementById('meta-theme'); if (meta) meta.setAttribute('content', t === 'light' ? '#F6F2EA' : '#111214');
     }
     window.fnApplyTheme = function (fade) { var h = document.documentElement; if (fade) { h.classList.add('theme-anim'); setTimeout(function () { h.classList.remove('theme-anim'); }, 700); } apply(); };
@@ -282,10 +284,82 @@ button.tl-row { cursor: pointer; }
 :root[data-theme="light"] .sheet { box-shadow: 0 -12px 40px -20px rgba(70,52,20,.35); }
 :root[data-theme="light"] .field input, :root[data-theme="light"] .field select { background: #FBF8F2; border-color: rgba(30,28,25,.12); }
 .theme-anim, .theme-anim *, .theme-anim *::before, .theme-anim *::after { transition: background-color .6s var(--ease), color .6s var(--ease), border-color .6s var(--ease), fill .6s, stroke .6s !important; }
+
+/* ================= v0.9 shared: crisp photo cover, readable rings, quiet notices ================= */
+.hero { margin: 0 -18px 4px; border-radius: 0 0 30px 30px; min-height: calc(250px + env(safe-area-inset-top)); padding: calc(24px + env(safe-area-inset-top)) 24px 24px; }
+.hero.tall { min-height: calc(340px + env(safe-area-inset-top)); }
+.hero-img { background: linear-gradient(160deg, #2a2722, #121315 70%); }
+.hero-img img.loaded { opacity: 1; }
+.hero::after { background: linear-gradient(180deg, rgba(0,0,0,.28) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 42%, rgba(0,0,0,.72) 100%) !important; }
+.hero-date { color: #F3DFAF !important; text-shadow: 0 1px 8px rgba(0,0,0,.35); }
+.hero-title { color: #FFFFFF; text-shadow: 0 2px 18px rgba(0,0,0,.35); }
+.hero-sub { color: rgba(255,255,255,.86) !important; }
+.notice { font-size: 13px; line-height: 19px; color: var(--ink-muted); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px 10px 30px; position: relative; box-shadow: none; }
+.notice::before { content: ""; position: absolute; left: 13px; top: 16px; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); }
+svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][stroke$="-track)"] { opacity: 1; }
+
+/* the iPhone status bar text is always white: in the day look a soft dark veil keeps it readable once the photo scrolls away */
+.status-veil { position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top); z-index: 6; pointer-events: none; display: none; }
+:root[data-theme="light"] .status-veil { display: block; background: rgba(28,24,18,.55); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+/* ---------- Style 1: Ledger (refined private bank) ---------- */
+:root[data-skin="ledger"] { --ground:#16171A; --surface:#202125; --raised:#2B2C31; --sunken:#111215; --line:rgba(236,230,218,.09); --hair:rgba(201,169,110,.30);
+  --work-soft:rgba(111,147,207,.22); --study-soft:rgba(164,135,209,.22); --health-soft:rgba(93,176,140,.22); --money-soft:rgba(201,169,110,.22); }
+:root[data-skin="ledger"] .card { box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 12px 30px -20px rgba(0,0,0,.6); }
+:root[data-skin="ledger"][data-theme="light"] { --ground:#F1ECE3; --surface:#FFFDF9; --raised:#E8E1D4; --sunken:#F6F2EB; --line:rgba(30,28,25,.10); --hair:rgba(168,132,74,.40);
+  --work-soft:rgba(90,127,192,.20); --study-soft:rgba(141,111,194,.20); --health-soft:rgba(68,160,122,.20); --money-soft:rgba(180,143,82,.22); }
+:root[data-skin="ledger"][data-theme="light"] .card { box-shadow: 0 1px 2px rgba(70,52,20,.06), 0 14px 30px -18px rgba(70,52,20,.32); }
+
+/* ---------- Style 2: Pulse (bold and crisp, Apple Fitness feel) ---------- */
+:root[data-skin="pulse"] { --font-display: Inter, system-ui, -apple-system, sans-serif;
+  --ground:#000000; --surface:#1C1C1E; --raised:#2C2C2E; --sunken:#0E0E10; --ink:#FFFFFF; --ink-muted:#AEAEB2; --ink-faint:#7C7C80; --line:rgba(255,255,255,.08); --hair:rgba(255,255,255,.14);
+  --gold:#F2B84B; --gold-bright:#FFCF70; --gold-deep:#C98A1E; --gold-soft:rgba(242,184,75,.14);
+  --work:#4F8DFF; --work-label:#8DB4FF; --work-soft:rgba(79,141,255,.26); --work-track:rgba(79,141,255,.26);
+  --study:#B072FF; --study-label:#CDA6FF; --study-soft:rgba(176,114,255,.26); --study-track:rgba(176,114,255,.26);
+  --health:#34D17A; --health-label:#7EE3A9; --health-soft:rgba(52,209,122,.26); --health-track:rgba(52,209,122,.26);
+  --money:#F2B84B; --money-label:#FFCF70; --money-soft:rgba(242,184,75,.24); --money-track:rgba(242,184,75,.24); }
+:root[data-skin="pulse"][data-theme="light"] { --ground:#F2F2F7; --surface:#FFFFFF; --raised:#E5E5EA; --sunken:#F2F2F7; --ink:#000000; --ink-muted:#5C5C61; --ink-faint:#86868B; --line:rgba(0,0,0,.08); --hair:rgba(0,0,0,.10);
+  --gold:#C98A1E; --gold-bright:#9A6608; --gold-deep:#8A5A00; --gold-soft:rgba(201,138,30,.12);
+  --work:#2F6FEB; --work-label:#1F56C4; --work-soft:rgba(47,111,235,.18); --study:#8E44E8; --study-label:#6F2CC4; --study-soft:rgba(142,68,232,.18);
+  --health:#1FAF5E; --health-label:#13804A; --health-soft:rgba(31,175,94,.18); --money:#C98A1E; --money-label:#9A6608; --money-soft:rgba(201,138,30,.18); }
+:root[data-skin="pulse"] .hero-title, :root[data-skin="pulse"] .title, :root[data-skin="pulse"] .heading, :root[data-skin="pulse"] .fig-lg, :root[data-skin="pulse"] .page-title { font-weight: 700; letter-spacing: -.025em; }
+:root[data-skin="pulse"] .hero-title { font-size: 36px; }
+:root[data-skin="pulse"] .heading { font-size: 19px; }
+:root[data-skin="pulse"] .card { border: none; border-radius: 20px; box-shadow: none; background-image: none !important; }
+:root[data-skin="pulse"][data-theme="light"] .card { box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+:root[data-skin="pulse"] .ringstack svg circle, :root[data-skin="pulse"] svg[role="img"] circle { stroke-width: 15px; }
+:root[data-skin="pulse"] .btn-primary { background: var(--gold); color: #1A1200; box-shadow: none; }
+:root[data-skin="pulse"] .chip { border-color: transparent; background: var(--raised); }
+:root[data-skin="pulse"] .illo.corner { opacity: .18; }
+:root[data-skin="pulse"] .steps li::before, :root[data-skin="pulse"] .tl-year, :root[data-skin="pulse"] .ring-c { font-weight: 700; }
+
+/* ---------- Style 3: Atlas (editorial, travel-magazine calm) ---------- */
+:root[data-skin="atlas"] { --ground:#121212; --surface:#1C1B1A; --raised:#2A2826; --sunken:#0E0E0E; --ink:#F5F1EA; --ink-muted:#B3ADA3; --ink-faint:#7F7A72; --line:rgba(245,241,234,.08); --hair:rgba(245,241,234,.12);
+  --gold:#D2B07A; --gold-bright:#E9CD9B; --gold-soft:rgba(210,176,122,.12);
+  --work:#7FA0D6; --work-label:#A9C0E6; --work-soft:rgba(127,160,214,.22); --study:#B49AD8; --study-label:#D0BFEA; --study-soft:rgba(180,154,216,.22);
+  --health:#7BBF9E; --health-label:#A6D8BF; --health-soft:rgba(123,191,158,.22); --money-soft:rgba(210,176,122,.22); }
+:root[data-skin="atlas"][data-theme="light"] { --ground:#FFFFFF; --surface:#F6F3EE; --raised:#ECE7DF; --sunken:#FFFFFF; --ink:#151413; --ink-muted:#5E5A54; --ink-faint:#8A857D; --line:rgba(21,20,19,.08); --hair:rgba(21,20,19,.12);
+  --gold:#A5803F; --gold-bright:#7E5F27; --gold-soft:rgba(165,128,63,.10);
+  --work:#4F74B5; --work-label:#33558F; --work-soft:rgba(79,116,181,.18); --study:#8162B5; --study-label:#5E4392; --study-soft:rgba(129,98,181,.18);
+  --health:#3E9670; --health-label:#2A7253; --health-soft:rgba(62,150,112,.18); --money-soft:rgba(165,128,63,.18); }
+:root[data-skin="atlas"] .card { border: none; border-radius: 26px; box-shadow: none; background-image: none !important; padding: 22px; }
+:root[data-skin="atlas"] main { gap: 18px; }
+:root[data-skin="atlas"] .hero { border-radius: 0 0 36px 36px; min-height: calc(280px + env(safe-area-inset-top)); }
+:root[data-skin="atlas"] .hero.tall { min-height: calc(380px + env(safe-area-inset-top)); }
+:root[data-skin="atlas"] .hero::after { background: linear-gradient(180deg, rgba(0,0,0,0) 35%, rgba(0,0,0,.68) 100%) !important; }
+:root[data-skin="atlas"] .hero-title { font-size: 40px; line-height: 44px; font-weight: 400; }
+:root[data-skin="atlas"] .heading { font-size: 22px; font-weight: 400; }
+:root[data-skin="atlas"] .title { font-weight: 400; }
+:root[data-skin="atlas"] .btn-primary { background: var(--ink); color: var(--ground); box-shadow: none; }
+:root[data-skin="atlas"] .chip { border-color: var(--hair); }
+:root[data-skin="atlas"] .chip[aria-pressed="true"] { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+:root[data-skin="atlas"] .illo.corner { opacity: .22; }
+:root[data-skin="atlas"] .thumb { border-radius: 18px; border: none; }
+:root[data-skin="atlas"] .nav-inner { border-top: 1px solid var(--line); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } .hero-img img.loaded { opacity: var(--hero-photo); } }
 </style>
 </head>
 <body>
+<div class="status-veil" aria-hidden="true"></div>
 <div class="app">
   <section class="login" id="login" hidden aria-labelledby="login-title">
     <h2 class="page-title" id="login-title" style="margin-top:48px">Field Notes</h2>
@@ -313,7 +387,7 @@ button.tl-row { cursor: pointer; }
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '0.8.0';
+  var APP_VERSION = '0.9.0';
   var PLAN_START = '2026-11-08';               // Sunday, week 1 day 1
   var NORMAL_MIN = 340, HOMEWARD_MIN = 60;      // 5 h 40 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
@@ -1067,11 +1141,13 @@ button.tl-row { cursor: pointer; }
       '<section class="card"><div class="card-head"><h3 class="heading">This week</h3><span class="fig-sm">' + hm(total) + ' / ' + hm(WEEK_STUDY_MIN) + '</span></div>' + bar('study', total / WEEK_STUDY_MIN, '', '') + perDay + '</section>' +
       progCard + tlCard;
   }
+  function skinMode() { try { return localStorage.getItem('fn-skin') || 'ledger'; } catch (x) { return 'ledger'; } }
   function themeMode() { try { return localStorage.getItem('fn-theme') || 'auto'; } catch (x) { return 'auto'; } }
   function appearanceCard() {
     var m = themeMode(), opts = [['auto', 'Auto', 'clock'], ['light', 'Day', 'sun'], ['dark', 'Night', 'moon']];
     return '<section class="card"><div class="card-head"><h3 class="heading">Appearance</h3><span class="caption">' + (m === 'auto' ? 'Follows your iPhone' : m === 'light' ? 'Always day' : 'Always night') + '</span></div>' +
       '<div class="tabs" role="group" aria-label="Appearance">' + opts.map(function (o) { return '<button type="button" data-act="theme" data-v="' + o[0] + '" aria-pressed="' + (m === o[0]) + '" style="display:inline-flex;align-items:center;justify-content:center;gap:6px">' + icon(o[2], 16) + o[1] + '</button>'; }).join('') + '</div>' +
+      '<span class="eyebrow">Style</span><div class="tabs" role="group" aria-label="Style">' + [['ledger', 'Ledger'], ['pulse', 'Pulse'], ['atlas', 'Atlas']].map(function (o) { return '<button type="button" data-act="skin" data-v="' + o[0] + '" aria-pressed="' + (skinMode() === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>' +
       '<span class="caption">Auto switches with your iPhone\'s Light and Dark setting. Set iPhone Settings → Display &amp; Brightness to Automatic and it changes at sunrise and sunset.</span></section>';
   }
   function shortName(n) { return String(n).replace(/^\s*\[\d+\]\s*/, '').replace(/^Assessment\s+(\d+)\s*[—–-]\s*/i, 'A$1 · '); }
@@ -1566,6 +1642,7 @@ button.tl-row { cursor: pointer; }
     else if (act === 'result') resultSheet(b.getAttribute('data-code'));
     else if (act === 'ms-done') { var as = state.assessments.filter(function (x) { return x.id === b.getAttribute('data-id'); })[0]; if (as) { var cp = JSON.parse(JSON.stringify(as)); cp.plan[+b.getAttribute('data-i')].done = true; if (cp.status === 'todo') cp.status = 'doing'; saveAssess(cp).then(function () { toast('Step done'); }); } }
     else if (act === 'close') closeSheet();
+    else if (act === 'skin') { try { localStorage.setItem('fn-skin', b.getAttribute('data-v')); } catch (x) {} if (window.fnApplyTheme) window.fnApplyTheme(true); render(); }
     else if (act === 'theme') { try { localStorage.setItem('fn-theme', b.getAttribute('data-v')); } catch (x) {} if (window.fnApplyTheme) window.fnApplyTheme(true); render(); }
     else if (act === 'export') exportData();
     else if (act === 'signout') { if (sb) sb.auth.signOut(); }
