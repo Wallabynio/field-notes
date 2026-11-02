@@ -227,22 +227,22 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '0.5.0';
+  var APP_VERSION = '0.5.1';
   var PLAN_START = '2026-11-08';               // Sunday, week 1 day 1
   var NORMAL_MIN = 350, HOMEWARD_MIN = 60;      // 5 h 50 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
   var WEEK_DRIVE_MIN = DRIVE_TARGET_MIN * 7;   // 47 h 50
   var WEEK_STUDY_MIN = 1200;                    // 20 h
-  var DAY_TARGET = 250, DAY_BREAKEVEN = 227.84;  // receipts after platform fees
-  var WEEK_TARGET = DAY_TARGET * 7;              // $1,750
-  var TAX_WEEKLY = 247.03;                       // at target: GST 103.12 + income tax 123.29 + Medicare 20.62
+  var DAY_TARGET = 245, DAY_BREAKEVEN = 227.84;  // receipts after platform fees
+  var WEEK_TARGET = DAY_TARGET * 7;              // $1,715
+  var TAX_WEEKLY = 233.19;                       // at target: GST 99.94 + income tax 113.26 + Medicare 19.99
   var TAX_DAILY = TAX_WEEKLY / 7;
   var TAX_MARGINAL = 1 / 11 + 0.30 / 1.1 + 0.02 / 1.1; // 38.2% of each dollar above (or below) target
   var DAY_START = 330, DAY_END = 1290;          // 5:30 am – 9:30 pm
   var BUDGET_BIZ = [
     ['Splend', 449.01], ['Charging ($35 × 7)', 245], ['Car washes (White Diamond, IMO + vacuum)', 52.50], ['Vodafone ($160.17/month)', 36.96]
   ];
-  var BUDGET_TAX = [['GST provision', 103.12], ['Income-tax provision', 123.29], ['Medicare provision', 20.62]];
+  var BUDGET_TAX = [['GST provision', 99.94], ['Income-tax provision', 113.26], ['Medicare provision', 19.99]];
   var BUDGET_PERSONAL = [
     ['Rent', 310], ['Food and coffee', 165], ['Utilities', 40], ['Claude Max ($199.99/month)', 46.15], ['Anytime Fitness', 25.95],
     ['Higgsfield (≈ $93.94/month)', 21.68], ['Microsoft 365 ($48.51/month)', 11.19], ['Apple One ($24.95/month)', 5.76]
@@ -708,7 +708,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
         (s.km ? Number(s.km) + ' km · ' : '') + (s.note ? esc(s.note) : (Number(s.homeMin) ? 'incl. ' + hm(s.homeMin) + ' homeward' : '')) + '</span></div>' +
         '<span class="fig-sm">' + money(s.receipts, true) + '</span><button class="link-btn" data-act="del" data-c="shifts" data-id="' + esc(s.id) + '" aria-label="Delete shift on ' + shortDate(s.date) + '">Delete</button></div>';
     }).join('') : '<p class="empty">No shifts logged this week yet.</p>';
-    return hero('work', 'Work', 'One shift, 7:30 am to 3:40 pm. Target $250 a day.') + notice() +
+    return hero('work', 'Work', 'One shift, 7:30 am to 3:40 pm. Target ' + money(DAY_TARGET) + ' a day.') + notice() +
       '<section class="card a-work"><span class="eyebrow l-work">Target ' + money(DAY_TARGET) + ' a day · ' + money(WEEK_TARGET) + ' a week</span>' +
       '<span class="fig-lg">' + money(earn, true) + '</span><span class="body" style="color:var(--ink)">earned this week after fees</span>' +
       bar('work', earn / WEEK_TARGET, '', '', { onSoft: true }) +
@@ -717,7 +717,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
       '<section class="card"><div class="card-head"><h3 class="heading">This week</h3><span class="caption">from Sunday ' + ws.getDate() + ' ' + MONTHS[ws.getMonth()].slice(0, 3) + '</span></div>' +
       bar('work', drive / WEEK_DRIVE_MIN, 'Hours driven', hm(drive) + ' / ' + hm(WEEK_DRIVE_MIN)) +
       '<div class="kv"><span>Normal-rate hours</span><span class="fig-sm">' + hm(normal) + '</span><span>Homeward hours</span><span class="fig-sm">' + hm(home) + '</span>' +
-      '<span>Earnings per normal-rate hour (target $38.46)</span><span class="fig-sm">' + (perHour ? money(perHour, true) : '–') + '</span><span>Gross fares (incl. GST)</span><span class="fig-sm">' + (gross ? money(gross, true) : '–') + '</span><span>Uber fees</span><span class="fig-sm">' + (fees ? money(fees, true) : '–') + '</span><span>Kilometres</span><span class="fig-sm">' + (km ? km.toLocaleString('en-AU') : '–') + '</span></div></section>' +
+      '<span>Earnings per normal-rate hour (target ' + money(WEEK_TARGET / 45.5, true) + ')</span><span class="fig-sm">' + (perHour ? money(perHour, true) : '–') + '</span><span>Gross fares (incl. GST)</span><span class="fig-sm">' + (gross ? money(gross, true) : '–') + '</span><span>Uber fees</span><span class="fig-sm">' + (fees ? money(fees, true) : '–') + '</span><span>Kilometres</span><span class="fig-sm">' + (km ? km.toLocaleString('en-AU') : '–') + '</span></div></section>' +
       '<button class="btn btn-primary" data-act="shift">' + icon('plus', 20) + 'Log shift</button>' +
       '<section class="card"><h3 class="heading">Shifts this week</h3><div class="list">' + rows + '</div></section>';
   }
@@ -926,7 +926,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
     // Income tax — current financial year
     var fy = fyStartYear(key), fa = fy + '-07-01', fb = (fy + 1) + '-07-01', t = taxFigures(fa, fb), it = incomeTax(t.profit, fy);
     var daysLeft = Math.max(0, Math.round((parseYmd(fb) - parseYmd(key)) / 864e5) - 1);
-    var planDaily = 53621.97 / 364, projProfit = t.profit + daysLeft * planDaily, pit = incomeTax(projProfit, fy);
+    var planDaily = 51967.42 / 364, projProfit = t.profit + daysLeft * planDaily, pit = incomeTax(projProfit, fy);
     var fySet = setAsideBetween(fa, fb);
     var itCard = '<section class="card"><div class="card-head"><h3 class="heading">Income tax · ' + fyLabel(fy) + '</h3><span class="caption">1 Jul – 30 Jun</span></div>' +
       '<div class="kv">' +
@@ -963,7 +963,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
     // Budget plan
     var bizT = BUDGET_BIZ.reduce(function (s, b) { return s + b[1]; }, 0), taxT = BUDGET_TAX.reduce(function (s, b) { return s + b[1]; }, 0), perT = BUDGET_PERSONAL.reduce(function (s, b) { return s + b[1]; }, 0);
     function lines(arr) { return arr.map(function (b) { return kvRow(esc(b[0]), '−' + money(b[1], true)); }).join(''); }
-    var budgetCard = '<section class="card"><div class="card-head"><h3 class="heading">Weekly budget</h3><span class="caption">At $250 a day</span></div>' +
+    var budgetCard = '<section class="card"><div class="card-head"><h3 class="heading">Weekly budget</h3><span class="caption">At ' + money(DAY_TARGET) + ' a day</span></div>' +
       '<div class="kv">' + kvRow('Receipts after fees (' + money(DAY_TARGET) + ' × 7)', money(WEEK_TARGET, true), 'total') +
       lines(BUDGET_BIZ) + lines(BUDGET_TAX) + kvRow('Available after business costs and tax', money(WEEK_TARGET - bizT - taxT, true), 'total') +
       lines(BUDGET_PERSONAL) + kvRow('Cash extra (unlisted costs and savings)', money(WEEK_TARGET - bizT - taxT - perT, true), 'total') + '</div>' +
@@ -990,7 +990,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
       '<div class="field"><label for="s-hm">Homeward driving (minutes)</label><input id="s-hm" type="number" inputmode="numeric" min="0" max="180" step="5" value="60"></div>' +
       '<div class="two"><div class="field"><label for="s-g">Gross fares ($)</label><input id="s-g" type="number" inputmode="decimal" min="0" step="0.01" placeholder="incl. GST"></div>' +
       '<div class="field"><label for="s-f">Uber fees ($)</label><input id="s-f" type="number" inputmode="decimal" min="0" step="0.01" placeholder="service fee"></div></div>' +
-      '<div class="field"><label for="s-r">Earnings after fees ($)</label><input id="s-r" type="number" inputmode="decimal" min="0" step="0.01" placeholder="e.g. 250.00" required><span class="hint">Fills in from gross fares minus fees. Gross fares and fees are needed for the BAS — they are in the Uber app under the trip or weekly statement.</span></div>' +
+      '<div class="field"><label for="s-r">Earnings after fees ($)</label><input id="s-r" type="number" inputmode="decimal" min="0" step="0.01" placeholder="e.g. 245.00" required><span class="hint">Fills in from gross fares minus fees. Gross fares and fees are needed for the BAS — they are in the Uber app under the trip or weekly statement.</span></div>' +
       '<div class="two"><div class="field"><label for="s-o1">Odometer start</label><input id="s-o1" type="number" inputmode="numeric" min="0" step="1"' + (lastOdo ? ' placeholder="last ' + lastOdo + '"' : '') + '></div>' +
       '<div class="field"><label for="s-o2">Odometer end</label><input id="s-o2" type="number" inputmode="numeric" min="0" step="1"></div></div>' +
       '<span class="hint" style="margin-top:-8px">Odometer readings add a business entry to the logbook and fill in the kilometres.</span>' +
@@ -1008,7 +1008,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
       var o1 = parseInt(document.getElementById('s-o1').value, 10), o2 = parseInt(document.getElementById('s-o2').value, 10);
       var nmin = (parseInt(document.getElementById('s-nh').value, 10) || 0) * 60 + (parseInt(document.getElementById('s-nm').value, 10) || 0);
       if (!date) { err.textContent = 'Pick a date.'; return; }
-      if (!(r >= 0)) { err.textContent = 'Enter the earnings after fees, e.g. 250.'; return; }
+      if (!(r >= 0)) { err.textContent = 'Enter the earnings after fees, e.g. 245.'; return; }
       if ((o1 >= 0) !== (o2 >= 0) || (o1 >= 0 && o2 < o1)) { err.textContent = 'Enter both odometer readings, with the end higher than the start.'; return; }
       var hasOdo = o1 >= 0 && o2 >= o1;
       var data = { date: date, normalMin: nmin, homeMin: parseInt(document.getElementById('s-hm').value, 10) || 0, receipts: Math.round(r * 100) / 100,
