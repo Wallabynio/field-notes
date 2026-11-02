@@ -196,6 +196,27 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
 .tabs button { flex: 1; min-height: 40px; border: none; border-radius: 999px; background: none; color: var(--ink-muted); font-weight: 500; cursor: pointer; }
 .tabs button[aria-pressed="true"] { background: var(--raised); color: var(--gold-bright); box-shadow: inset 0 0 0 1px var(--hair); }
 
+
+/* day-plan icons */
+.ag-row { grid-template-columns: 50px 30px minmax(0, 1fr) auto; }
+.ag-ico { width: 30px; height: 30px; border-radius: 999px; display: grid; place-items: center; background: var(--raised); color: var(--ink-muted); border: 1px solid var(--line); align-self: start; }
+.i-work { color: var(--work-label); background: var(--work-soft); } .i-study { color: var(--study-label); background: var(--study-soft); }
+.i-health { color: var(--health-label); background: var(--health-soft); } .i-money { color: var(--gold-bright); background: var(--money-soft); }
+.i-commute { color: var(--work-label); background: var(--work-soft); } .i-rest { color: var(--rest-label); background: var(--rest-soft); }
+.ag-row.past .ag-ico { opacity: .45; }
+.ag-row.now .ag-ico { border-color: var(--gold); box-shadow: 0 0 12px rgba(201,169,110,.35); }
+
+/* illustrations: hairline gold drawings */
+.illo { display: block; width: 120px; height: 80px; fill: none; stroke: var(--gold); stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; opacity: .75; }
+.illo .hot { stroke: var(--gold-bright); stroke-width: 1.3; filter: drop-shadow(0 0 4px rgba(227,198,141,.6)); }
+.has-illo { overflow: hidden; }
+.has-illo > *:not(.illo) { position: relative; z-index: 1; }
+.illo.corner { position: absolute; right: -6px; top: 38px; width: 140px; height: 94px; opacity: .3; z-index: 0; }
+.empty-state { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0 4px; text-align: center; }
+.empty-state .empty { max-width: 30ch; }
+.intro .illo path, .intro .illo circle, .intro .illo rect { stroke-dasharray: 1; animation: ink 2.2s var(--ease) both; }
+.intro .illo .hot { animation-delay: .9s; }
+@keyframes ink { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } .hero-img img.loaded { opacity: .78; } }
 </style>
 </head>
@@ -227,7 +248,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '0.5.2';
+  var APP_VERSION = '0.6.0';
   var PLAN_START = '2026-11-08';               // Sunday, week 1 day 1
   var NORMAL_MIN = 340, HOMEWARD_MIN = 60;      // 5 h 40 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
@@ -560,23 +581,81 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
   function figure(area, label, value) { return '<div class="figure"><span class="eyebrow l-' + area + '">' + esc(label) + '</span><span class="fig">' + esc(value) + '</span></div>'; }
 
   var ICONS = {
-    home: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1Z"/>',
-    car: '<path d="M5 17h14l-1.5-6.5A2 2 0 0 0 15.6 9H8.4a2 2 0 0 0-1.9 1.5Z"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="16.5" cy="17.5" r="1.5"/>',
-    book: '<path d="M2 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H2Z"/><path d="M22 4h-7a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h8Z"/>',
-    heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/>',
-    wallet: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/>',
+    home: '<path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1Z"/>',
+    car: '<path d="M4 16v-3.2c0-.9.6-1.6 1.4-1.8l1.8-.5 2-3.3c.4-.7 1.1-1.2 2-1.2h3.6c.8 0 1.5.4 1.9 1l2.3 3.4 1.5.4c.9.2 1.5 1 1.5 1.9V16"/><path d="M3 16h18"/><circle cx="7.5" cy="16.5" r="1.8"/><circle cx="16.5" cy="16.5" r="1.8"/><path d="M8.2 10.4h7.6"/>',
+    book: '<path d="M12 6.5C10.5 5.2 8.2 4.5 4 4.5v13c4.2 0 6.5.7 8 2 1.5-1.3 3.8-2 8-2v-13c-4.2 0-6.5.7-8 2Z"/><path d="M12 6.5v13"/>',
+    heart: '<path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.3a4.3 4.3 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20Z"/>',
+    wallet: '<path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3"/><rect x="4" y="8" width="16" height="11" rx="2"/><path d="M15.5 13.5h1.5"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
-    chev: '<path d="M9 6l6 6-6 6"/>',
-    bag: '<path d="M5 8h14l-1.2 12H6.2Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>'
+    chev: '<path d="M9.5 6l6 6-6 6"/>',
+    bag: '<path d="M5.5 8.5h13l-1 11h-11Z"/><path d="M9 8.5V7a3 3 0 0 1 6 0v1.5"/>',
+    dumbbell: '<path d="M7.5 12h9"/><rect x="4.5" y="8" width="3" height="8" rx="1"/><rect x="16.5" y="8" width="3" height="8" rx="1"/><path d="M2.5 10.5v3M21.5 10.5v3"/>',
+    walk: '<circle cx="13" cy="4.8" r="1.6"/><path d="M10 21l2.2-6.2L14.5 17v4"/><path d="M8.5 11.5 11 8.8c.6-.6 1.5-.7 2.2-.2l1.8 1.4 2 2.5"/><path d="M12.2 14.8 11 9"/>',
+    drop: '<path d="M12 3.5s6 6.4 6 10.5a6 6 0 0 1-12 0c0-4.1 6-10.5 6-10.5Z"/>',
+    cup: '<path d="M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5Z"/><path d="M16 10.5h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M9 3.5c-.8 1 .8 2 0 3M12 3.5c-.8 1 .8 2 0 3"/>',
+    pause: '<circle cx="12" cy="12" r="8.5"/><path d="M10 9v6M14 9v6"/>',
+    bolt: '<path d="M13 3 5.5 13.5H11L10 21l7.5-10.5H12Z"/>',
+    route: '<circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M8 18h7.5a3.5 3.5 0 0 0 0-7h-7a3.5 3.5 0 0 1 0-7H16"/>',
+    pan: '<path d="M3.5 11.5h13v1.5a5 5 0 0 1-5 5h-3a5 5 0 0 1-5-5Z"/><path d="M16.5 12h4"/><path d="M8 8.5c-.6-.8.6-1.6 0-2.5M11 8.5c-.6-.8.6-1.6 0-2.5"/>',
+    moon: '<path d="M19 14.5A7.5 7.5 0 1 1 9.5 5a6 6 0 0 0 9.5 9.5Z"/>',
+    leaf: '<path d="M5 19c0-8 5-13 14-14 0 9-5 14-13 14"/><path d="M5 19 13 11"/>',
+    scale: '<rect x="4" y="5" width="16" height="15" rx="3.5"/><path d="M8.5 10a3.5 3.5 0 0 1 7 0"/><path d="M12 10l1.5-1.5"/>',
+    receipt: '<path d="M6 3.5h12v17l-2-1.2-2 1.2-2-1.2-2 1.2-2-1.2-2 1.2Z"/><path d="M9 8h6M9 11.5h6M9 15h3"/>',
+    gauge: '<path d="M4 17a8 8 0 1 1 16 0"/><path d="M12 17l4-5"/><circle cx="12" cy="17" r="1"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/>',
+    clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+    check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    shield: '<path d="M12 3.5 19 6v5.5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6Z"/><path d="M9 12l2 2 4-4"/>'
   };
+  // Icon for each block of the day plan
+  function blockIcon(name) {
+    return /Gym/.test(name) ? 'dumbbell' : /walk/.test(name) ? 'walk' : /Shower|Unpack/.test(name) ? 'drop' : /Breakfast/.test(name) ? 'cup' :
+      /Offline/.test(name) ? 'pause' : /Midday/.test(name) ? 'bolt' : /Homeward/.test(name) ? 'route' : /Driving/.test(name) ? 'car' :
+      /Study/.test(name) ? 'book' : /Cook/.test(name) ? 'pan' : /Pack/.test(name) ? 'bag' : /Personal/.test(name) ? 'leaf' : /Sleep/.test(name) ? 'moon' : 'clock';
+  }
+
   function icon(n, size) { return '<svg aria-hidden="true" width="' + (size || 24) + '" height="' + (size || 24) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' + ICONS[n] + '</svg>'; }
 
-  /* ---------------- photos and hero ---------------- */
-  var PHOTOS = {}; // filled with licensed photo URLs; falls back to a gold-on-charcoal gradient
+  /* ---------------- photography (Pexels licence, hot-linked at the size shown) ---------------- */
+  var PHOTOS = {
+    today: 6262898, work: 17865569, study: 16026769, money: 372748, health: 35763746,
+    chicken: 19615783, salmon: 4013723, beef: 2059153, lentil: 10281067, tuna: 19572488, pork: 8862767, turkey: 5191816,
+    eggs: 19402319, oats: 27850094, coffee: 312418
+  };
   var loadedImgs = {};
-  function photoUrl(k, w) { var u = PHOTOS[k]; return u ? u + (u.indexOf('?') >= 0 ? '&' : '?') + 'auto=format&fit=crop&q=70&w=' + w : ''; }
-  function photoBg(k, w) { var u = photoUrl(k, w); return u ? 'background-image:url(\'' + u + '\')' : 'background-image:radial-gradient(120% 120% at 80% 0%, rgba(201,169,110,.35), transparent 60%), linear-gradient(160deg,#2a2722,#17181b)'; }
+  function photoUrl(k, w) { var id = PHOTOS[k]; return id ? 'https://images.pexels.com/photos/' + id + '/pexels-photo-' + id + '.jpeg?auto=compress&cs=tinysrgb&dpr=2&w=' + w : ''; }
+  function photoBg(k, w) { var u = photoUrl(k, w); return (u ? 'background-image:url(\'' + u + '\'), ' : 'background-image:') + 'radial-gradient(120% 120% at 80% 0%, rgba(201,169,110,.35), transparent 60%), linear-gradient(160deg,#2a2722,#17181b)'; }
   window.fnImgLoaded = function (img) { loadedImgs[img.getAttribute('src')] = 1; img.classList.add('loaded'); };
+
+  /* ---------------- illustrations: fine gold line drawings that draw themselves in when a tab opens ---------------- */
+  var ILLOS = {
+    car: '<path d="M4 66H116"/><path d="M14 58V55c0-5 4-8 10-9l16-2 12-12c3-3 7-4 11-4h19c5 0 9 2 12 6l8 10c6 1 10 4 10 10v4"/><path d="M54 44l8-10h14v10Z"/><path d="M80 34h6c2 0 4 1 5 3l5 7H80Z"/><circle cx="34" cy="58" r="8"/><circle cx="34" cy="58" r="3"/><circle cx="92" cy="58" r="8"/><circle cx="92" cy="58" r="3"/><path d="M42 58h42"/><path d="M66 6l-6 10h6l-4 9" class="hot"/>',
+    study: '<path d="M6 70H114"/><path d="M22 64c10-6 22-6 30-2 8-4 20-4 30 2V40c-10-6-22-6-30-2-8-4-20-4-30 2Z"/><path d="M52 38v24"/><path d="M28 46c7-3 15-3 20 0M28 52c7-3 15-3 20 0M56 46c7-3 15-3 20 0M56 52c7-3 15-3 20 0"/><path d="M92 70h18M101 70V50l-8-16 12-10"/><path d="M100 22l14-4 4 12-14 4Z" class="hot"/><path d="M110 34l-6 14M114 33l2 10" class="hot"/>',
+    cook: '<path d="M10 74H110"/><path d="M20 46h80c0 15-16 24-40 24S20 61 20 46Z"/><path d="M14 46h92"/><path d="M46 38c-4-6 4-10 0-18M60 38c-4-6 4-10 0-18M74 38c-4-6 4-10 0-18" class="hot"/>',
+    sleep: '<path d="M74 12a28 28 0 1 0 30 38 23 23 0 1 1-30-38Z"/><path d="M28 18l2 5 5 2-5 2-2 5-2-5-5-2 5-2Z" class="hot"/><path d="M46 40l1 3 3 1-3 1-1 3-1-3-3-1 3-1Z" class="hot"/><path d="M8 70H112"/>',
+    sunrise: '<path d="M6 56H114"/><path d="M40 56a20 20 0 0 1 40 0" class="hot"/><path d="M60 26v-8M38 34l-5-5M82 34l5-5M28 50h-7M92 50h7" class="hot"/><path d="M14 64h36M62 64h44M28 72h66"/><path d="M98 56V44M92 48l6-8 6 8M108 56v-8M104 50l4-6 4 6"/>',
+    gym: '<path d="M8 70H112"/><path d="M30 40h60"/><rect x="20" y="26" width="10" height="28" rx="2"/><rect x="11" y="31" width="9" height="18" rx="2"/><rect x="90" y="26" width="10" height="28" rx="2"/><rect x="100" y="31" width="9" height="18" rx="2"/><path d="M52 40h16" class="hot"/>',
+    scale: '<rect x="18" y="28" width="84" height="44" rx="10"/><circle cx="60" cy="46" r="11"/><path d="M60 46l6-6" class="hot"/><path d="M49 46h3M68 46h3M60 35v3"/><path d="M34 64h52"/><path d="M40 20c6-8 14-10 20-10s14 2 20 10" class="hot"/>',
+    receipt: '<path d="M38 8h44v62l-6-4-6 4-6-4-6 4-6-4-6 4-6-4-2 4Z"/><path d="M46 22h28M46 30h22M46 38h28M46 50h14"/><path d="M66 50h8" class="hot"/><path d="M46 58h28"/>',
+    gauge: '<path d="M22 62a38 38 0 0 1 76 0"/><path d="M28 46l5 3M40 33l3 5M60 26v6M80 33l-3 5M92 46l-5 3"/><path d="M60 62l20-24" class="hot"/><circle cx="60" cy="62" r="4"/><path d="M14 70H106"/>',
+    coffee: '<path d="M36 34h44v18c0 10-8 16-22 16s-22-6-22-16Z"/><path d="M80 40c10 0 10 14 0 14"/><path d="M24 72h68"/><path d="M50 26c-3-5 3-8 0-14M62 26c-3-5 3-8 0-14" class="hot"/>',
+    ledger: '<path d="M30 10h56c4 0 6 2 6 6v52c0 2-2 4-4 4H30Z"/><path d="M38 10v62"/><path d="M46 26h36M46 34h30M46 42h36M46 50h24"/><path d="M78 72v8l-4-3-4 3v-8" class="hot"/>'
+  };
+  function illo(k, cls) {
+    return '<svg class="illo' + (cls ? ' ' + cls : '') + '" viewBox="0 0 120 80" aria-hidden="true">' + ILLOS[k].replace(/<(path|circle|rect)\b/g, '<$1 pathLength="1"') + '</svg>';
+  }
+  function blockIllo(name) {
+    if (/Driving|Offline/.test(name)) return 'car';
+    if (/Study/.test(name)) return 'study';
+    if (/Cook|Pack lunch/.test(name)) return 'cook';
+    if (/Midday/.test(name)) return 'car';
+    if (/Sleep|Personal/.test(name)) return 'sleep';
+    if (/Gym/.test(name)) return 'gym';
+    if (/walk/.test(name)) return 'sunrise';
+    if (/Breakfast|Shower|Unpack/.test(name)) return 'coffee';
+    return null;
+  }
+
   function hero(k, title, sub, opts) {
     opts = opts || {}; var u = photoUrl(k, 1000), d = now();
     return '<header class="hero' + (opts.tall ? ' tall' : '') + '"><div class="hero-img" aria-hidden="true">' + (u ? '<img src="' + u + '" alt=""' + (loadedImgs[u] ? ' class="loaded"' : ' onload="fnImgLoaded(this)"') + '>' : '') + '</div>' +
@@ -612,7 +691,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
       var info = b[3] === 'Cook and eat dinner' ? 'Cook two portions: ' + mealsFor(d).dinner.name : b[3] === 'Midday stop: charge, lunch, rest' ? 'Lunch: ' + mealsFor(d).lunch.name : b[2] === 'health' ? (sch.gym ? '55 min session, 10 min walk each way' : 'Door to door, 1 h 15') : b[3] === 'Sleep' ? 'Up at 5:30 am' : (BLOCK_INFO[b[3]] || '');
       var state = cur ? '<span class="ag-badge">Now</span>' : past ? 'Done' : '';
       return '<div class="ag-row' + (cur ? ' now' : '') + (past ? ' past' : '') + '" role="listitem"' + (cur ? ' aria-current="time"' : '') + '>' +
-        '<span class="ag-time">' + clock(b[0] % 1440) + '</span><span class="ag-pill f-' + b[2] + '" aria-hidden="true"></span>' +
+        '<span class="ag-time">' + clock(b[0] % 1440) + '</span><span class="ag-ico i-' + b[2] + '" aria-hidden="true">' + icon(blockIcon(b[3]), 16) + '</span>' +
         '<span class="ag-main"><span class="ag-title">' + esc(b[3]) + '</span><span class="ag-sub">' + clock(b[0] % 1440) + '–' + clockAp(b[1] % 1440) + ' · ' + dur(b[1] - b[0]) + (info ? ' · ' + esc(info) : '') + '</span></span>' +
         '<span class="ag-state">' + state + '</span></div>';
     }).join('') + '</div>';
@@ -638,12 +717,13 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
     if (cur) {
       var area = cur[2] === 'commute' ? 'work' : (cur[2] === 'neutral' ? 'rest' : cur[2]);
       var left = cur[1] - nm, frac = (nm - cur[0]) / (cur[1] - cur[0]);
-      nowCard = '<section class="card a-' + area + '" aria-label="Now"><div class="card-head"><span class="eyebrow l-' + area + '">Now · ' + clock(cur[0]) + ' – ' + clock(cur[1]) + '</span><span class="eyebrow l-' + area + '" style="text-transform:none;font-size:13px">' + hm(left).replace(/^0:/, '') + (left < 60 ? ' min' : ' h') + ' left</span></div>' +
+      var nk = blockIllo(cur[3]);
+      nowCard = '<section class="card a-' + area + ' has-illo" aria-label="Now">' + (nk ? illo(nk, 'corner') : '') + '<div class="card-head"><span class="eyebrow l-' + area + '">Now · ' + clock(cur[0]) + ' – ' + clock(cur[1]) + '</span><span class="eyebrow l-' + area + '" style="text-transform:none;font-size:13px">' + hm(left).replace(/^0:/, '') + (left < 60 ? ' min' : ' h') + ' left</span></div>' +
         '<span class="title">' + esc(cur[3]) + '</span>' + bar(area, frac, '', '', { lg: true, onSoft: true }) +
         (next ? '<span class="body" style="color:var(--ink)">Next: ' + esc(next[3].toLowerCase()) + ' at ' + clock(next[0]) + '</span>' : '<span class="body" style="color:var(--ink)">Next: sleep at 9:30 pm</span>') + '</section>';
     } else {
       var asleep = nm >= DAY_END || nm < DAY_START;
-      nowCard = '<section class="card a-rest" aria-label="Now"><span class="eyebrow l-rest">Now · 9:30 pm – 5:30 am</span><span class="title">' + (asleep ? 'Sleep' : 'Rest') + '</span><span class="body" style="color:var(--ink)">Next: ' + (sch.gym ? 'gym' : 'Homebush Bay walk') + ' at 5:30 am</span></section>';
+      nowCard = '<section class="card a-rest has-illo" aria-label="Now">' + illo('sleep', 'corner') + '<span class="eyebrow l-rest">Now · 9:30 pm – 5:30 am</span><span class="title">' + (asleep ? 'Sleep' : 'Rest') + '</span><span class="body" style="color:var(--ink)">Next: ' + (sch.gym ? 'gym' : 'Homebush Bay walk') + ' at 5:30 am</span></section>';
     }
 
     var tl = '', legend = { health: 'Exercise', work: 'Driving', money: 'Charge + lunch', study: 'Study' };
@@ -709,7 +789,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
         (g != null ? 'Gross ' + money(g, true) + ' · fees ' + money(shiftFees(s), true) + ' · ' : 'Gross fares not entered · ') +
         (s.km ? Number(s.km) + ' km · ' : '') + (s.note ? esc(s.note) : (Number(s.homeMin) ? 'incl. ' + hm(s.homeMin) + ' homeward' : '')) + '</span></div>' +
         '<span class="fig-sm">' + money(s.receipts, true) + '</span><button class="link-btn" data-act="del" data-c="shifts" data-id="' + esc(s.id) + '" aria-label="Delete shift on ' + shortDate(s.date) + '">Delete</button></div>';
-    }).join('') : '<p class="empty">No shifts logged this week yet.</p>';
+    }).join('') : '<div class="empty-state">' + illo('car') + '<p class="empty">No shifts logged this week yet. Log one after you get home.</p></div>';
     return hero('work', 'Work', 'One shift, 7:30 am to 3:30 pm. Target ' + money(DAY_TARGET) + ' a day.') + notice() +
       '<section class="card a-work"><span class="eyebrow l-work">Target ' + money(DAY_TARGET) + ' a day · ' + money(WEEK_TARGET) + ' a week</span>' +
       '<span class="fig-lg">' + money(earn, true) + '</span><span class="body" style="color:var(--ink)">earned this week after fees</span>' +
@@ -736,7 +816,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
       '<div style="display:flex;flex-direction:column;gap:4px"><span class="eyebrow l-study">Today, at home from 4:10 pm</span><span class="title">' + (today >= tgtToday ? 'Target met' : hm(tgtToday - today) + ' to go') + '</span></div></div>' +
       '<div class="chips"><button class="chip" data-act="study" data-v="30">+30 min</button><button class="chip" data-act="study" data-v="60">+1 h</button><button class="chip" data-act="study" data-v="90">+1 h 30</button><button class="chip" data-act="study" data-v="-30">−30 min</button></div></section>' +
       '<section class="card"><div class="card-head"><h3 class="heading">This week</h3><span class="fig-sm">' + hm(total) + ' / ' + hm(WEEK_STUDY_MIN) + '</span></div>' + bar('study', total / WEEK_STUDY_MIN, '', '') + perDay + '</section>' +
-      '<section class="card"><h3 class="heading">Coming next</h3><p class="body" style="margin:0">Subjects, assessment due dates and the countdown to the end of your Master of Planning. Tell me your subjects and due dates and I will add them.</p></section>';
+      '<section class="card has-illo">' + illo('study', 'corner') + '<h3 class="heading">Master of Planning</h3><p class="body" style="margin:0;max-width:24ch">Subjects and assessment due dates will appear here, with a countdown to May 2027.</p></section>';
   }
 
   function bodySeries() {
@@ -747,7 +827,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
     for (var i = 0; i < 7; i++) { var dt = addDays(ws, i), dd = dayDoc(ymd(dt)), g = schedule(dt).gym; if (dd.exercise) count++;
       segs += '<div class="row"><div class="row-main"><span class="row-title">' + DAYS[i] + '</span><span class="row-sub">Planned: ' + (g ? 'gym' : 'Homebush Bay walk') + '</span></div><span class="fig-sm">' + (dd.exercise ? (dd.exercise === 'gym' ? 'Gym done' : 'Walk done') : '–') + '</span><span></span></div>'; }
 
-    var exCard = '<section class="card a-health"><span class="eyebrow l-health">This morning, 5:30</span><span class="title">' + (doc.exercise ? (doc.exercise === 'gym' ? 'Gym done' : 'Walk done') : (sch.gym ? 'Gym day' : 'Bay walk day')) + '</span>' +
+    var exCard = '<section class="card a-health has-illo">' + illo(sch.gym ? 'gym' : 'sunrise', 'corner') + '<span class="eyebrow l-health">This morning, 5:30</span><span class="title">' + (doc.exercise ? (doc.exercise === 'gym' ? 'Gym done' : 'Walk done') : (sch.gym ? 'Gym day' : 'Bay walk day')) + '</span>' +
       '<div class="chips"><button class="chip" data-act="ex" data-v="gym" aria-pressed="' + (doc.exercise === 'gym') + '">Gym done</button><button class="chip" data-act="ex" data-v="walk" aria-pressed="' + (doc.exercise === 'walk') + '">Walk done</button>' +
       (doc.exercise ? '<button class="chip" data-act="ex" data-v="">Undo</button>' : '') + '</div></section>';
 
@@ -777,7 +857,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
     var waists = series.filter(function (r) { return r.waist > 0; }), bps = series.filter(function (r) { return r.bpSys > 0; });
     var lastWaist = waists.length ? waists[waists.length - 1] : null, lastBp = bps.length ? bps[bps.length - 1] : null;
     var weighDay = d.getDay() === 0 && !(state.body[key] && state.body[key].weight);
-    var weightCard = '<section class="card a-health"><div class="card-head"><span class="eyebrow l-health">Weight</span><span class="caption">' + esc(stage[1]) + ': ' + stage[0] + ' kg by ' + esc(stage[2]) + '</span></div>' +
+    var weightCard = '<section class="card a-health has-illo">' + illo('scale', 'corner') + '<div class="card-head"><span class="eyebrow l-health">Weight</span><span class="caption">' + esc(stage[1]) + ': ' + stage[0] + ' kg by ' + esc(stage[2]) + '</span></div>' +
       '<span class="fig-lg">' + (cur != null ? cur.toFixed(1) + ' kg' : 'Not weighed yet') + '</span>' +
       (cur != null ? '<span class="body">' + (startW - cur >= 0 ? (startW - cur).toFixed(1) + ' kg lost' : (cur - startW).toFixed(1) + ' kg up') + ' since ' + shortDate(weights[0].date) + '. ' + Math.max(0, cur - stage[0]).toFixed(1) + ' kg to ' + stage[1].toLowerCase() + '.</span>' : '<span class="body">First weigh-in: Sunday 8 November, before breakfast.</span>') +
       bar('health', cur != null ? (prevTarget - cur) / (prevTarget - stage[0]) : 0, '', '', { lg: true, onSoft: true }) +
@@ -897,7 +977,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
         (pct > 0 && Number(e.gst) > 0 ? (e.receiptKept ? ' · invoice kept' : ' · no invoice yet') : '') + (e.note ? ' · ' + esc(e.note) : '');
       return '<div class="row"><div class="row-main"><span class="row-title">' + esc(e.category) + '</span><span class="row-sub">' + sub + '</span></div>' +
         '<span class="fig-sm">' + money(e.amount, true) + '</span><button class="link-btn" data-act="del" data-c="expenses" data-id="' + esc(e.id) + '" aria-label="Delete ' + esc(e.category) + ' expense">Delete</button></div>';
-    }).join('') : '<p class="empty">No expenses logged this week yet.</p>';
+    }).join('') : '<div class="empty-state">' + illo('receipt') + '<p class="empty">No expenses this week yet. Charging, washes and Splend go here.</p></div>';
     var expCard = '<section class="card"><div class="card-head"><h3 class="heading">Expenses this week</h3><span class="fig-sm">' + money(spent, true) + '</span></div><div class="list">' + rows + '</div>' +
       '<button class="btn btn-primary btn-small" data-act="expense">' + icon('plus', 18) + 'Log expense</button></section>';
 
@@ -958,7 +1038,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
       segBar('work', 12, lb.weeks, '12-week logbook period', lb.first ? 'from ' + shortDate(lb.first) : '0 / 12') +
       '<div class="kv">' + kvRow('Business km', lb.biz.toLocaleString('en-AU')) + kvRow('Private km', lb.priv.toLocaleString('en-AU')) +
       kvRow('Business use', lb.total ? Math.round(lb.pct * 1000) / 10 + '% (plan: 80%)' : '–', 'total') + '</div>' +
-      (lbRows ? '<div class="list">' + lbRows + '</div>' : '<p class="empty">Log each shift with odometer readings (from the shift form) and every private trip here.</p>') +
+      (lbRows ? '<div class="list">' + lbRows + '</div>' : '<div class="empty-state">' + illo('gauge') + '<p class="empty">Add odometer readings when you log a shift, and log every private trip here.</p></div>') +
       '<div class="btn-row"><button class="btn btn-secondary btn-small" data-act="trip" data-v="business">Business trip</button><button class="btn btn-secondary btn-small" data-act="trip" data-v="private">Private trip</button></div>' +
       '<span class="caption">ATO logbook: 12 continuous weeks covering every trip, with date, odometer start and end, km and purpose. Keep it for 5 years; it stays valid for 5 years.</span></section>';
 
