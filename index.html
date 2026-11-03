@@ -356,7 +356,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '1.2.1';
+  var APP_VERSION = '1.2.2';
   var PLAN_START = '2026-11-08';               // Sunday, week 1 day 1
   var NORMAL_MIN = 340, HOMEWARD_MIN = 60;      // 5 h 40 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
@@ -451,8 +451,10 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     ['elliptical', 'Elliptical cross-trainer', 'cardio'], ['treadmill', 'Treadmill', 'cardio'], ['bike', 'Exercise bike', 'cardio'], ['rower', 'Rowing machine', 'cardio'], ['stairs', 'Stair climber', 'cardio'],
     ['legpress', 'Leg press', 'weights'], ['legext', 'Leg extension', 'weights'], ['legcurl', 'Seated leg curl', 'weights'], ['chestpress', 'Chest press', 'weights'],
     ['shoulderpress', 'Shoulder press', 'weights'], ['pulldown', 'Lat pulldown', 'weights'], ['row', 'Seated cable row', 'weights'], ['cable', 'Cable crossover station', 'weights'],
-    ['pecdeck', 'Pec deck / rear delt', 'weights'], ['smith', 'Smith machine', 'weights'], ['assist', 'Assisted pull-up / dip', 'weights'], ['dumbbells', 'Dumbbells', 'weights'], ['mat', 'Mat (bodyweight)', 'body']
+    ['pecdeck', 'Pec deck / rear delt', 'weights'], ['abcrunch', 'Ab crunch machine', 'weights'], ['abductor', 'Hip abductor', 'weights'], ['adductor', 'Hip adductor', 'weights'],
+    ['assist', 'Assisted pull-up / dip', 'weights'], ['smith', 'Smith machine', 'weights']
   ];
+  // Machines only, no free weights. Leg press and seated leg curl are in both workouts, so they progress twice a week.
   // Programme exercises. Weights: double progression in the rep range; step = kg added once every set reaches the top of the range.
   var EX = {
     warm: { m: 'elliptical', name: 'Warm-up', type: 'cardio', min: 8, note: 'Easy pace, you can still talk' },
@@ -460,15 +462,13 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     chestpress: { m: 'chestpress', sets: 3, lo: 10, hi: 12, step: 2.5 },
     pulldown: { m: 'pulldown', sets: 3, lo: 10, hi: 12, step: 2.5 },
     legcurl: { m: 'legcurl', sets: 2, lo: 12, hi: 15, step: 2.5 },
-    plank: { m: 'mat', name: 'Plank', type: 'hold', sets: 2, lo: 20, hi: 60 },
-    goblet: { m: 'dumbbells', name: 'Goblet squat (one dumbbell)', sets: 3, lo: 10, hi: 12, step: 2 },
+    abcrunch: { m: 'abcrunch', sets: 2, lo: 12, hi: 15, step: 2.5 },
     row: { m: 'row', sets: 3, lo: 10, hi: 12, step: 2.5 },
     shoulderpress: { m: 'shoulderpress', sets: 3, lo: 10, hi: 12, step: 2.5 },
-    dbrdl: { m: 'dumbbells', name: 'Romanian deadlift (dumbbells, kg each)', sets: 3, lo: 10, hi: 12, step: 2 },
     legext: { m: 'legext', sets: 2, lo: 12, hi: 15, step: 2.5 },
     finish: { m: 'elliptical', name: 'Elliptical', type: 'cardio', min: 15, note: 'Steady, a little breathless' }
   };
-  var WORKOUTS = { A: ['warm', 'legpress', 'chestpress', 'pulldown', 'legcurl', 'plank', 'finish'], B: ['warm', 'goblet', 'row', 'shoulderpress', 'dbrdl', 'legext', 'finish'] };
+  var WORKOUTS = { A: ['warm', 'legpress', 'chestpress', 'pulldown', 'legcurl', 'abcrunch', 'finish'], B: ['warm', 'legpress', 'row', 'shoulderpress', 'legcurl', 'legext', 'finish'] };
   var WORKOUT_DAYS = { 1: 'A', 2: 'B', 4: 'A', 5: 'B' };
   function workoutFor(d) { return WORKOUT_DAYS[d.getDay()] || null; }
   function machine(key) {
