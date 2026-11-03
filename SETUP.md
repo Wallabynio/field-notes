@@ -34,6 +34,6 @@ Run once: Supabase → SQL Editor → New query → paste `update-v0.4.sql` → 
 
 Run once: Supabase → SQL Editor → New query → paste `update-v0.5.sql` → Run (accept the "destructive operations" warning — it only refers to the privacy rules on the new tables). Until then the Study tab shows Urban Project Part A read-only with a notice. On the first load after the update, the three Part A assessments are added automatically, with study plans.
 
-## Update for version 1.1 (driving stints, Uber balance, statements, bills, gym, walks, check-in, offline)
+## Update for versions 1.1–1.2 (driving stints, Uber balance, statements, bills, food prices, bank accounts, gym, walks, check-in, offline)
 
-Run once: Supabase → SQL Editor → New query → paste `update-v1.1.sql` → Run. Until then the app shows a notice and the new entries are not saved. Older shifts stay and keep counting. The app now also keeps a copy on the phone (`sw.js`), so it opens and saves without signal and syncs later.
+Run once: Supabase → SQL Editor → New query → paste `update-v1.1.sql` → Run. One script covers versions 1.1 to 1.2. Until then the app shows a notice and the new entries are not saved. After it runs: Money → Bank accounts → Start, once for each account, with the balance at the start of the first day. Older shifts stay and keep counting. The app now also keeps a copy on the phone (`sw.js`), so it opens and saves without signal and syncs later.

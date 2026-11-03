@@ -136,3 +136,21 @@ create table if not exists public.food_buys (
 alter table public.food_buys enable row level security;
 drop policy if exists "own food buys" on public.food_buys;
 create policy "own food buys" on public.food_buys for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Bank accounts: ANZ Plus Everyday and Savings (tax). Opening balances, money in, transfers, ATO payments and bank-match corrections.
+-- Expenses say which account paid them (Everyday unless chosen).
+create table if not exists public.ledger (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users on delete cascade,
+  date date not null,
+  account text not null default 'everyday' check (account in ('everyday', 'savings')),
+  kind text not null check (kind in ('opening', 'in', 'transfer', 'ato', 'adjust')),
+  amount numeric(12,2) not null,
+  to_account text check (to_account in ('everyday', 'savings')),
+  note text default '',
+  created_at timestamptz not null default now()
+);
+alter table public.ledger enable row level security;
+drop policy if exists "own ledger" on public.ledger;
+create policy "own ledger" on public.ledger for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+alter table public.expenses add column if not exists account text not null default 'everyday';

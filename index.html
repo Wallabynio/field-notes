@@ -355,7 +355,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '1.1.1';
+  var APP_VERSION = '1.2.0';
   var PLAN_START = '2026-11-08';               // Sunday, week 1 day 1
   var NORMAL_MIN = 340, HOMEWARD_MIN = 60;      // 5 h 40 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
@@ -498,7 +498,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
     ['Charging', 80, true], ['Splend', 80, true], ['Car wash', 80, true], ['Vodafone', 50, true],
     ['Parking (on shift)', 100, true], ['Tolls (on shift)', 100, true], ['Car supplies', 80, true],
     ['Other business', 100, true], ['Food on shift', 0, true], ['Rent', 0, false], ['Utilities', 0, true], ['Gym membership', 0, true],
-    ['Subscriptions', 0, true], ['Personal', 0, true]
+    ['Subscriptions', 0, true], ['Clothing', 0, true], ['Healthcare', 0, false], ['Study costs', 0, true], ['Household', 0, true], ['Gifts', 0, true], ['Personal', 0, true]
   ];
   function catInfo(name) { for (var i = 0; i < EXPENSE_CATS.length; i++) if (EXPENSE_CATS[i][0] === name) return EXPENSE_CATS[i]; return [name, 100, true]; }
 
@@ -558,7 +558,8 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
     var list = inWeek(state.shifts, ws), days = {}, r = 0;
     list.forEach(function (s) { days[s.date] = 1; r += Number(s.receipts) || 0; });
     var n = Object.keys(days).length;
-    return { days: n, receipts: r, target: Math.max(0, n * TAX_DAILY + TAX_MARGINAL * (r - n * DAY_TARGET)) };
+    var end = addDays(ws, 7); // tax follows the real week: earnings, charging, fees and costs so far
+    return { days: n, receipts: r, target: liveWeek(ymd(now()) < ymd(end) ? now() : end).setAside };
   }
 
   function seasonFor(d) {
@@ -597,7 +598,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
   function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
   function parseYmd(s) { var p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
   function addDays(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
-  function weekStart(d) { return addDays(new Date(d.getFullYear(), d.getMonth(), d.getDate()), -d.getDay()); } // Sunday
+  function weekStart(d) { return addDays(new Date(d.getFullYear(), d.getMonth(), d.getDate()), -((d.getDay() + 6) % 7)); } // Monday
   function hm(min) { min = Math.max(0, Math.round(min)); return Math.floor(min / 60) + ':' + pad(min % 60); }
   function clock(min) { var h = Math.floor(min / 60) % 24, m = min % 60, ap = h < 12 ? 'am' : 'pm'; var h12 = h % 12 === 0 ? 12 : h % 12; return h12 + ':' + pad(m) + (min === 720 || min === 0 ? '' : ''); }
   function clockAp(min) { var h = Math.floor(min / 60) % 24; return clock(min) + ' ' + (h < 12 ? 'am' : 'pm'); }
@@ -613,9 +614,9 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
   // raw = the rows exactly as stored in the database, per table. Everything on screen is derived from raw.
   // Writes change raw on the phone at once, then go to a queue that syncs to the database (and waits when there is no signal).
   var state = { shifts: [], oldShifts: [], stints: [], expenses: [], days: {}, tax: {}, logbook: [], body: {}, assessments: [], results: {},
-    cashouts: [], months: {}, bills: [], machines: {}, gymSets: [], walks: [], foodBuys: [],
+    cashouts: [], months: {}, bills: [], machines: {}, gymSets: [], walks: [], foodBuys: [], ledger: [],
     tab: 'today', saving: true, ready: false, dbV2: true, dbV3: true, dbV4: true, dbV5: true, offline: false };
-  var TABLE_LIST = ['shifts', 'expenses', 'days', 'tax_weeks', 'logbook', 'body', 'assessments', 'subject_results', 'stints', 'cashouts', 'uber_months', 'bills', 'machines', 'gym_sets', 'walks', 'food_buys'];
+  var TABLE_LIST = ['shifts', 'expenses', 'days', 'tax_weeks', 'logbook', 'body', 'assessments', 'subject_results', 'stints', 'cashouts', 'uber_months', 'bills', 'machines', 'gym_sets', 'walks', 'food_buys', 'ledger'];
   var PK = { days: ['date'], tax_weeks: ['week_start'], body: ['date'], subject_results: ['code'], uber_months: ['month'], machines: ['key'] };
   var raw = {}; TABLE_LIST.forEach(function (t) { raw[t] = []; });
 
@@ -629,7 +630,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
   function fromShift(r) { return { id: r.id, date: r.date, normalMin: r.normal_min, homeMin: r.home_min, receipts: Number(r.receipts), km: r.km, note: r.note, grossFares: num(r.gross_fares), uberFees: num(r.uber_fees) }; }
   function fromExpense(r) {
     var legacy = r.business_pct === undefined;
-    return { id: r.id, date: r.date, category: r.category, amount: Number(r.amount), note: r.note, billId: r.bill_id || null, kwh: num(r.kwh),
+    return { id: r.id, date: r.date, category: r.category, amount: Number(r.amount), note: r.note, billId: r.bill_id || null, kwh: num(r.kwh), account: r.account || 'everyday',
       businessPct: legacy ? catInfo(r.category)[1] : Number(r.business_pct), gst: legacy ? Number(r.amount) / 11 : Number(r.gst), receiptKept: !!r.receipt_kept };
   }
   function fromAssess(r) { return { id: r.id, code: r.subject_code, name: r.name, due: r.due, weight: num(r.weight), status: r.status || 'todo', mark: num(r.mark), plan: Array.isArray(r.plan) ? r.plan : [] }; }
@@ -651,7 +652,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
     if (collection === 'expenses') {
       var e = { date: d.date, category: d.category, amount: d.amount, note: d.note };
       if (state.dbV2) { e.business_pct = d.businessPct; e.gst = d.gst; e.receipt_kept = d.receiptKept; }
-      if (state.dbV5) { if (d.billId) e.bill_id = d.billId; if (d.kwh != null) e.kwh = d.kwh; }
+      if (state.dbV5) { if (d.billId) e.bill_id = d.billId; if (d.kwh != null) e.kwh = d.kwh; e.account = d.account || 'everyday'; }
       return e;
     }
     if (collection === 'logbook') return { date: d.date, odo_start: d.odoStart, odo_end: d.odoEnd, kind: d.kind, purpose: d.purpose };
@@ -681,6 +682,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
     state.gymSets = raw.gym_sets.map(function (r) { return { id: r.id, date: r.date, ex: r.exercise, set: Number(r.set_no) || 1, kg: num(r.kg), reps: num(r.reps), minutes: num(r.minutes), level: num(r.level), km: num(r.km), createdAt: r.created_at }; });
     state.walks = raw.walks.map(function (r) { return { id: r.id, date: r.date, minutes: Number(r.minutes) || 0, km: num(r.km), hr: num(r.avg_hr), note: r.note || '' }; });
     state.foodBuys = raw.food_buys.map(function (r) { return { id: r.id, date: r.date, store: r.store || 'Aldi', item: r.item, qty: num(r.qty), unit: r.unit || 'each', price: Number(r.price) || 0, onList: !!r.on_list, createdAt: r.created_at || '' }; });
+    state.ledger = raw.ledger.map(function (r) { return { id: r.id, date: r.date, account: r.account || 'everyday', kind: r.kind, amount: Number(r.amount) || 0, to: r.to_account || null, note: r.note || '', createdAt: r.created_at || '' }; });
     // Completed work stints count as driving: normal rate or homeward; earnings exclude tolls (they are only paid back).
     var fromStints = state.stints.filter(function (s) { return s.endedAt && (s.kind === 'uber' || s.kind === 'homeward'); }).map(function (s) {
       var m = stintMin(s);
@@ -862,7 +864,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
   function inWeek(list, ws) { var a = ymd(ws), b = ymd(addDays(ws, 7)); return list.filter(function (r) { return r.date >= a && r.date < b; }); }
   function driveMin(s) { return (Number(s.normalMin) || 0) + (Number(s.homeMin) || 0); }
   function sum(list, f) { return list.reduce(function (t, r) { return t + (Number(f(r)) || 0); }, 0); }
-  function weekNumber(d) { var start = parseYmd(PLAN_START); var diff = Math.floor((weekStart(d) - start) / 864e5 / 7); return diff + 1; }
+  function weekNumber(d) { var start = parseYmd('2026-11-09'); /* week 1 starts Monday 9 Nov; the plan's first day is Sunday 8 Nov */ var diff = Math.floor((weekStart(d) - start) / 864e5 / 7); return diff + 1; }
 
   /* ---------------- graphics ---------------- */
   var STROKE = { work: 'var(--work)', study: 'var(--study)', health: 'var(--health)', money: 'var(--money)', rest: 'var(--rest)' };
@@ -989,7 +991,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
   /* ---------------- views ---------------- */
   function notice() {
     if (state.offline || queue.length) return '<div class="notice">' + (queue.length ? 'No signal: ' + queue.length + ' change' + (queue.length === 1 ? '' : 's') + ' saved on this phone. They sync by themselves when you are back online.' : 'No signal: showing what is saved on this phone.') + '</div>';
-    if (state.saving && state.dbV4 && !state.dbV5) return '<div class="notice">Driving stints, the Uber balance, bills, food prices, gym sets, walks and check-ins can\'t be saved yet. The database needs its one-time update for version 1.1.</div>';
+    if (state.saving && state.dbV4 && !state.dbV5) return '<div class="notice">Driving stints, the Uber balance, bank accounts, bills, food prices, gym sets, walks and check-ins can\'t be saved yet. The database needs its one-time update for version 1.1.</div>';
     if (state.saving && state.dbV2 && !state.dbV3) return '<div class="notice">Weigh-ins can\'t be saved yet. The database needs its one-time update for this version.</div>';
     if (state.saving) return state.dbV2 ? '' : '<div class="notice">Tax, BAS and logbook details can\'t be saved yet. The database needs its one-time update.</div>';
     return '<div class="notice">Not connected to your database yet, so entries are not saved. Finish the setup steps to switch saving on.</div>';
@@ -1062,7 +1064,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
 
     var ws = weekStart(d), wShifts = inWeek(state.shifts, ws);
     var wDrive = sum(wShifts, driveMin), wEarn = sum(wShifts, function (s) { return s.receipts; });
-    var wStudy = 0, wEx = 0, dayIdx = d.getDay() + 1;
+    var wStudy = 0, wEx = 0, dayIdx = (d.getDay() + 6) % 7 + 1;
     for (var i = 0; i < 7; i++) { var k = ymd(addDays(ws, i)); var dd = dayDoc(k); wStudy += Number(dd.studyMin) || 0; if (dd.exercise) wEx++; }
     var todayEarn = sum(shiftsOn(key), function (s) { return s.receipts; });
     var week = '<section class="card" aria-label="This week"><div class="card-head"><h2 class="heading">This week</h2><span class="caption">Day ' + dayIdx + ' of 7</span></div>' +
@@ -1088,11 +1090,12 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
       bar('study', COURSE.filter(function (c) { return finalMark(c) != null; }).length / COURSE.length, 'Master of Urban Planning', COURSE.filter(function (c) { return finalMark(c) != null; }).length + ' / ' + COURSE.length + ' subjects · ends May 2027') + bar('work', 0, 'Splend term', 'Ends December 2027') + '</section>';
 
     var dueSoon = billsDue(key, 3), act = activeStint();
-    var alerts = (lighterDay(d) ? '<section class="card a-rest"><span class="eyebrow l-rest">Take it easier tomorrow</span><span class="body" style="color:var(--ink)">Two of your last three check-ins were low. ' + LIGHT_DAY + '</span></section>' : '') +
+    var reds = ACCOUNTS.filter(function (a) { var b = balance(a[0]); return b != null && b < 0; });
+    var alerts = (reds.length ? '<section class="card a-money"><span class="eyebrow l-money">In the red</span>' + reds.map(function (a) { return '<span class="body" style="color:var(--ink)">' + a[1] + ': −' + money(-balance(a[0]), true) + '</span>'; }).join('') + '</section>' : '') + (lighterDay(d) ? '<section class="card a-rest"><span class="eyebrow l-rest">Take it easier tomorrow</span><span class="body" style="color:var(--ink)">Two of your last three check-ins were low. ' + LIGHT_DAY + '</span></section>' : '') +
       (dueSoon.length ? '<section class="card a-money"><span class="eyebrow l-money">Bills due</span>' + dueSoon.map(function (b) { return '<span class="body" style="color:var(--ink)">' + esc(b.name) + ' · ' + money(b.amount, true) + ' · ' + dueLabel(b.nextDue, key) + '</span>'; }).join('') + '</section>' : '') +
       (act ? '<section class="card a-work"><span class="eyebrow l-work">' + esc(KIND_LABEL[act.kind]) + ' since ' + timeOf(act.startedAt) + '</span><span class="body" style="color:var(--ink)">Stop it on the Work tab with the odometer' + (act.kind === 'private' || act.kind === 'business' ? '.' : ' and what you were paid.') + '</span></section>' : '');
     return hero('today', (d.getHours() < 12 ? 'Good morning' : d.getHours() < 17 ? 'Good afternoon' : 'Good evening') + ', Istvan', '', { tall: true }) + notice() + startNote(d) + alerts + rings + nowCard + timeline +
-      '<section class="card" aria-label="Today\'s plan"><div class="card-head"><h2 class="heading">Today\'s plan</h2><span class="caption">' + DAYS[d.getDay()] + '</span></div>' + agenda(d) + '</section>' + week + moneyCard + longView;
+      liveCard(d, true) + '<section class="card" aria-label="Today\'s plan"><div class="card-head"><h2 class="heading">Today\'s plan</h2><span class="caption">' + DAYS[d.getDay()] + '</span></div>' + agenda(d) + '</section>' + week + moneyCard + longView;
   }
 
   /* ---------------- work: driving stints, charging, real profit ---------------- */
@@ -1201,7 +1204,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
       '<div class="kv">' + kvRow('Energy', kwh ? kwh.toFixed(1) + ' kWh' : '–') + kvRow('Average price', kwh ? money(chT / kwh, true) + '/kWh' : '–') + kvRow('Per 100 km driven', km ? money(chT / km * 100, true) : '–') + '</div>' +
       (chRows ? '<div class="list">' + chRows + '</div>' : '') + '<button class="btn btn-secondary btn-small" data-act="charge">' + icon('bolt', 18) + 'Log a charge</button></section>';
 
-    var stats = '<section class="card"><div class="card-head"><h3 class="heading">Hours and kilometres</h3><span class="caption">from Sunday ' + ws.getDate() + ' ' + MONTHS[ws.getMonth()].slice(0, 3) + '</span></div>' +
+    var stats = '<section class="card"><div class="card-head"><h3 class="heading">Hours and kilometres</h3><span class="caption">from Monday ' + ws.getDate() + ' ' + MONTHS[ws.getMonth()].slice(0, 3) + '</span></div>' +
       bar('work', drive / WEEK_DRIVE_MIN, 'Hours driven', hm(drive) + ' / ' + hm(WEEK_DRIVE_MIN)) +
       '<div class="kv">' + kvRow('Normal-rate hours', hm(normal)) + kvRow('Homeward hours', hm(home)) + kvRow('Kilometres on Uber', km ? km.toLocaleString('en-AU') : '–') + '</div></section>';
 
@@ -1212,7 +1215,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
     }).join('');
     var listCard = rows ? '<section class="card"><h3 class="heading">Earlier this week</h3><div class="list">' + rows + '</div></section>' : '';
 
-    return hero('work', 'Work', 'One shift, 7:30 am to 3:30 pm. Target ' + money(DAY_TARGET) + ' a day.') + notice() + live + todayCard + weekCard + profitCard + chargeCard + stats + listCard;
+    return hero('work', 'Work', 'One shift, 7:30 am to 3:30 pm. Target ' + money(DAY_TARGET) + ' a day.') + notice() + live + todayCard + liveCard(d, true) + profitCard + chargeCard + stats + listCard;
   }
 
   function kindChips(cur, name) {
@@ -1378,7 +1381,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
     var ws = weekStart(d), total = 0, perDay = '';
     for (var i = 0; i < 7; i++) {
       var dt = addDays(ws, i), k = ymd(dt), m = Number(dayDoc(k).studyMin) || 0, tgt = schedule(dt).studyTarget; total += m;
-      perDay += bar('study', m / tgt, DAYS[i].slice(0, 3) + ' ' + dt.getDate(), hm(m) + ' / ' + hm(tgt));
+      perDay += bar('study', m / tgt, DAYS[dt.getDay()].slice(0, 3) + ' ' + dt.getDate(), hm(m) + ' / ' + hm(tgt));
     }
     var key = ymd(d), today = Number(dayDoc(key).studyMin) || 0, tgtToday = schedule(d).studyTarget;
     var cur = currentSubject(key);
@@ -1503,7 +1506,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
   function viewHealth(d) {
     var ws = weekStart(d), segs = '', count = 0, key = ymd(d), doc = dayDoc(key), sch = schedule(d), m = mealsFor(d), di = d.getDay();
     for (var i = 0; i < 7; i++) { var dt = addDays(ws, i), dd = dayDoc(ymd(dt)), g = schedule(dt).gym; if (dd.exercise) count++;
-      segs += '<div class="row"><div class="row-main"><span class="row-title">' + DAYS[i] + '</span><span class="row-sub">Planned: ' + (g ? 'gym, workout ' + workoutFor(dt) : 'Homebush Bay walk') + '</span></div><span class="fig-sm">' + (dd.exercise ? (dd.exercise === 'gym' ? 'Gym done' : 'Walk done') : '–') + '</span><span></span></div>'; }
+      segs += '<div class="row"><div class="row-main"><span class="row-title">' + DAYS[dt.getDay()] + '</span><span class="row-sub">Planned: ' + (g ? 'gym, workout ' + workoutFor(dt) : 'Homebush Bay walk') + '</span></div><span class="fig-sm">' + (dd.exercise ? (dd.exercise === 'gym' ? 'Gym done' : 'Walk done') : '–') + '</span><span></span></div>'; }
 
     var exCard = (sch.gym ? gymCard(d) + walkCard(d) : walkCard(d) + gymCard(d)) +
       '<div class="chips" style="padding:0 4px"><span class="caption" style="align-self:center">Quick tick:</span><button class="chip" data-act="ex" data-v="gym" aria-pressed="' + (doc.exercise === 'gym') + '">Gym done</button><button class="chip" data-act="ex" data-v="walk" aria-pressed="' + (doc.exercise === 'walk') + '">Walk done</button>' +
@@ -1617,7 +1620,12 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
 
   /* ---------------- food spending: what each shop really cost ---------------- */
   var FOOD_WEEK = 165, CASH_EXTRA = 72.61;
-  function foodIn(ws) { return inWeek(state.foodBuys, ws); }
+  // Food weeks run Monday to Sunday; the very first one also takes Sunday 8 November (the first dinner, eaten again as Monday's lunch).
+  function foodIn(ws) {
+    var a = ymd(ws), b = ymd(addDays(ws, 7));
+    if (a === '2026-11-09') a = '2026-11-08'; else if (b === '2026-11-09') b = '2026-11-08';
+    return state.foodBuys.filter(function (f) { return f.date >= a && f.date < b; });
+  }
   function foodWeek(ws) { var spent = sum(foodIn(ws), function (f) { return f.price; }); return { spent: spent, diff: FOOD_WEEK - spent, cashExtra: CASH_EXTRA + FOOD_WEEK - spent }; }
   // "500 g skinless chicken" → 500 g; "2 × 1 kg yoghurt" → 2 kg; "12 eggs" → 12 each
   function parseQty(t) {
@@ -1634,10 +1642,10 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
   function foodCard(d) {
     var ws = weekStart(d), fw = foodWeek(ws), list = foodIn(ws), stores = {};
     list.forEach(function (f) { stores[f.store] = (stores[f.store] || 0) + f.price; });
-    return '<section class="card a-money"><div class="card-head"><span class="eyebrow l-money">Food and coffee · this week</span><span class="caption">from Sunday</span></div>' +
+    return '<section class="card a-money"><div class="card-head"><span class="eyebrow l-money">Food and coffee · this week</span><span class="caption">from Monday' + (ymd(ws) === '2026-11-09' ? ', first week from Sunday 8 Nov' : '') + '</span></div>' +
       '<span class="fig-lg">' + money(fw.spent, true) + ' <span class="caption">of ' + money(FOOD_WEEK) + '</span></span>' + bar('money', fw.spent / FOOD_WEEK, '', '', { lg: true, onSoft: true }) +
       '<span class="body" style="color:var(--ink)">' + (fw.spent === 0 ? 'Nothing bought yet this week. Tap Bought next to each item as you shop.' : fw.diff >= 0 ? money(fw.diff, true) + ' under budget: it goes to this week\'s cash extra.' : money(-fw.diff, true) + ' over budget: taken from this week\'s cash extra.') + '</span>' +
-      '<div class="kv">' + Object.keys(stores).map(function (s) { return kvRow(esc(s), money(stores[s], true)); }).join('') + kvRow('Cash extra this week (plan ' + money(CASH_EXTRA, true) + ')', money(fw.cashExtra, true), 'total') + '</div>' +
+      '<div class="kv">' + Object.keys(stores).map(function (s) { return kvRow(esc(s), money(stores[s], true)); }).join('') + kvRow('Cash extra this week, all costs counted (plan ' + money(CASH_EXTRA, true) + ')', money(liveWeek(d).cashExtra, true), 'total') + '</div>' +
       '<button class="btn btn-secondary btn-small" data-act="shop" style="background:var(--money-track)">' + icon('bag', 18) + 'Shopping list and prices</button></section>';
   }
   function boughtSheet(store, item) {
@@ -1722,7 +1730,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
     var taxCard = '<section class="card a-money"><div style="display:flex;gap:16px;align-items:center">' +
       ring(taxDone / taxGoal, 'money', 'Tax', Math.round(clamp(taxDone / taxGoal) * 100) + '%', true, 'Tax account ' + money(taxDone, true) + ' of ' + money(taxGoal, true)) +
       '<div style="display:flex;flex-direction:column;gap:6px;min-width:0"><span class="eyebrow l-money">Tax account · this week</span><span class="fig">' + money(taxDone, true) + ' / ' + money(taxGoal, true) + '</span>' +
-      '<span class="caption">' + (wr.days ? money(wr.receipts, true) + ' earned over ' + wr.days + ' day' + (wr.days === 1 ? '' : 's') + '. ' : '') + 'Plan: ' + money(TAX_WEEKLY, true) + ' a week at ' + money(DAY_TARGET) + ' a day, plus 38.2% of anything above it.</span></div></div>' +
+      '<span class="caption">' + (wr.days ? money(wr.receipts, true) + ' earned over ' + wr.days + ' day' + (wr.days === 1 ? '' : 's') + '. ' : '') + 'Worked out from what you really earned and spent: GST on earnings less credits on costs, plus income tax and Medicare on the profit. Plan at target: ' + money(TAX_WEEKLY, true) + ' a week.</span></div></div>' +
       '<button class="btn btn-secondary btn-small" data-act="tax" style="background:var(--money-track)">Record set-aside</button></section>';
 
     var rows = list.length ? list.map(function (e) {
@@ -1802,15 +1810,205 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
     var budgetCard = '<section class="card"><div class="card-head"><h3 class="heading">Weekly budget</h3><span class="caption">At ' + money(DAY_TARGET) + ' a day</span></div>' +
       '<div class="kv">' + kvRow('Receipts after fees (' + money(DAY_TARGET) + ' × 7)', money(WEEK_TARGET, true), 'total') +
       lines(BUDGET_BIZ) + lines(BUDGET_TAX) + kvRow('Available after business costs and tax', money(WEEK_TARGET - bizT - taxT, true), 'total') +
-      lines(BUDGET_PERSONAL) + kvRow('Cash extra (unlisted costs and savings)', money(WEEK_TARGET - bizT - taxT - perT, true), 'total') +
-      kvRow('Food and coffee actually spent this week', money(foodWeek(ws).spent, true) + ' / ' + money(FOOD_WEEK)) +
-      kvRow('Cash extra this week after real food spending', money(WEEK_TARGET - bizT - taxT - perT + foodWeek(ws).diff, true), 'total') + '</div>' +
+      lines(BUDGET_PERSONAL) + kvRow('Cash extra (unlisted costs and savings)', money(WEEK_TARGET - bizT - taxT - perT, true), 'total') + '</div>' +
       '<span class="caption">Break-even: ' + money(DAY_BREAKEVEN, true) + ' a day.</span></section>';
 
-    return hero('money', 'Money', 'Uber balance, bills, tax, BAS and the weekly budget.') + notice() + walletCard(d) + billsCard(d) + taxCard + expCard + statementsCard(d) + basCard + itCard + lbCard + budgetCard +
+    return hero('money', 'Money', 'Uber balance, bills, tax, BAS and the weekly budget.') + notice() + liveCard(d) + accountsCard(d) + walletCard(d) + billsCard(d) + taxCard + expCard + statementsCard(d) + basCard + itCard + lbCard + budgetCard +
       appearanceCard() +
       '<section class="card"><div class="card-head"><h3 class="heading">Backup</h3><span class="caption">App version ' + APP_VERSION + '</span></div><p class="body" style="margin:0">Saves a copy of every entry to a file on your phone, for safekeeping.</p><button class="btn btn-secondary btn-small" data-act="export">Back up my data</button></section>' +
       (user ? '<button class="link-btn" data-act="signout" style="align-self:center">Sign out (' + esc(user.email) + ')</button>' : '');
+  }
+
+  /* ---------------- this week, live: earnings − costs − tax − personal = cash extra ---------------- */
+  // Variable costs are real (charging, food, cash-out fees, one-off expenses). Fixed bills count as their weekly share:
+  // from the Bills list when a bill of that type exists, otherwise the plan figure.
+  // Days not finished yet use the plan: $35 charging a day, $165 food until you have shopped.
+  // Tax follows the real numbers: GST = earnings/11 − GST credits on business costs; income tax + Medicare move 32c per dollar of profit.
+  var FIXED = [ // [expense type, plan weekly amount, business %, includes GST]
+    ['Splend', 449.01, 80, true], ['Car wash', 52.50, 80, true], ['Vodafone', 36.96, 50, true],
+    ['Rent', 310, 0, false], ['Utilities', 40, 0, true], ['Subscriptions', 46.15 + 21.68 + 11.19 + 5.76, 0, true], ['Gym membership', 25.95, 0, true]
+  ];
+  var CHARGE_DAY = 35, INCOME_TAX_WEEK = 113.26 + 19.99, PROFIT_MARGINAL = 0.32;
+  var EVERY_WEEKS = { week: 1, fortnight: 0.5, month: 12 / 52, quarter: 4 / 52, year: 1 / 52 };
+  function weekBits(costs) { // costs: [{amt, pct, gst}] → full spend, GST credits, profit deductions
+    var full = 0, credits = 0, ded = 0;
+    costs.forEach(function (c) { var g = c.gst != null ? c.gst : 0; full += c.amt; credits += g * c.pct / 100; ded += (c.amt - g) * c.pct / 100; });
+    return { full: full, credits: credits, ded: ded };
+  }
+  function fixedShares() {
+    return FIXED.map(function (f) {
+      var bills = state.bills.filter(function (b) { return b.active && b.category === f[0]; });
+      var amt = bills.length ? sum(bills, function (b) { return b.amount * (EVERY_WEEKS[b.every] || 0); }) : f[1];
+      var pct = bills.length ? bills[0].businessPct : f[2];
+      return { name: f[0], amt: amt, pct: pct, gst: f[3] ? amt / 11 : 0, fromBills: bills.length > 0 };
+    });
+  }
+  var PLAN_PROFIT = (function () { // weekly taxable profit at the plan figures
+    var c = weekBits(FIXED.filter(function (f) { return f[2] > 0; }).map(function (f) { return { amt: f[1], pct: f[2], gst: f[3] ? f[1] / 11 : 0 }; }).concat([{ amt: CHARGE_DAY * 7, pct: 80, gst: CHARGE_DAY * 7 / 11 }]));
+    return WEEK_TARGET * 10 / 11 - c.ded;
+  })();
+  function taxFor(earn, biz) { var gst = earn / 11 - biz.credits, profit = earn * 10 / 11 - biz.ded; return { gst: gst, income: Math.max(0, INCOME_TAX_WEEK + PROFIT_MARGINAL * (profit - PLAN_PROFIT)), profit: profit }; }
+  function liveWeek(d) {
+    var ws = weekStart(d), a = ymd(ws), b = ymd(addDays(ws, 7)), key = ymd(d), over = key >= b;
+    var idx = Math.min(7, Math.floor((parseYmd(key) - ws) / 864e5)); // days fully gone before today
+    var earn = sum(inWeek(state.shifts, ws), function (s) { return s.receipts; });
+    var ex = inWeek(state.expenses, ws);
+    var fixedNames = FIXED.map(function (f) { return f[0]; });
+    var charges = ex.filter(function (e) { return e.category === 'Charging'; }), chargeReal = sum(charges, function (e) { return e.amount; });
+    var chargedToday = charges.some(function (e) { return e.date === key; });
+    var daysLeft = over ? 0 : 7 - idx - (chargedToday ? 1 : 0), chargePlanRest = CHARGE_DAY * Math.max(0, daysLeft);
+    var cashFees = sum(state.cashouts.filter(function (c) { return c.date >= a && c.date < b; }), function (c) { return c.fee; });
+    var others = ex.filter(function (e) { return e.category !== 'Charging' && fixedNames.indexOf(e.category) < 0; });
+    var otherBiz = others.filter(function (e) { return e.businessPct > 0; }), otherPersonal = others.filter(function (e) { return !(e.businessPct > 0); });
+    var fx = fixedShares(), fxBiz = fx.filter(function (f) { return f.pct > 0; }), fxPers = fx.filter(function (f) { return !(f.pct > 0); });
+    var food = foodWeek(ws).spent, foodUsed = over || food > 0 ? food : FOOD_WEEK;
+    var tolls = sum(inWeek(state.shifts, ws), function (s) { return s.tolls || 0; }); // paid back exactly: neutral
+    var bizCosts = [{ amt: chargeReal + chargePlanRest, pct: 80, gst: (chargeReal + chargePlanRest) / 11 }, { amt: cashFees, pct: 100, gst: 0 }]
+      .concat(fxBiz).concat(otherBiz.map(function (e) { return { amt: e.amount, pct: e.businessPct, gst: e.gst }; }));
+    var biz = weekBits(bizCosts);
+    // Personal side: the non-business share of business costs is still money spent
+    var personal = sum(fxPers, function (f) { return f.amt; }) + foodUsed + sum(otherPersonal, function (e) { return e.amount; });
+    var tax = taxFor(earn, biz), totalTax = tax.gst + tax.income;
+    function ce(e) { var t = taxFor(e, biz); return e - biz.full - t.gst - t.income - personal; }
+    var cashExtra = ce(earn);
+    // Break-even: the weekly earnings at which cash extra = 0, with these costs (about 62c of each extra dollar is kept after tax).
+    function solve(goal) { var lo = 0, hi = 20000; for (var i = 0; i < 60; i++) { var m = (lo + hi) / 2; if (ce(m) < goal) lo = m; else hi = m; } return hi; }
+    var breakEven = solve(0), planKeep = solve(CASH_EXTRA);
+    // Tax to set aside so far: on what is earned, with fixed costs counted for the days gone.
+    var frac = over ? 1 : Math.min(1, (idx + 1) / 7);
+    var soFar = weekBits([{ amt: chargeReal, pct: 80, gst: chargeReal / 11 }, { amt: cashFees, pct: 100, gst: 0 }]
+      .concat(fxBiz.map(function (f) { return { amt: f.amt * frac, pct: f.pct, gst: f.gst * frac }; })).concat(otherBiz.map(function (e) { return { amt: e.amount, pct: e.businessPct, gst: e.gst }; })));
+    var gstSoFar = earn / 11 - soFar.credits, incSoFar = Math.max(0, INCOME_TAX_WEEK * frac + PROFIT_MARGINAL * (earn * 10 / 11 - soFar.ded - PLAN_PROFIT * frac));
+    return { ws: ws, over: over, daysLeft: Math.max(0, 7 - idx), earn: earn, tolls: tolls, chargeReal: chargeReal, chargePlanRest: chargePlanRest, cashFees: cashFees, fx: fx,
+      otherBiz: sum(otherBiz, function (e) { return e.amount; }), otherPersonal: sum(otherPersonal, function (e) { return e.amount; }), food: food, foodUsed: foodUsed,
+      biz: biz, personal: personal, gst: tax.gst, income: tax.income, tax: totalTax, cashExtra: cashExtra, breakEven: breakEven, planKeep: planKeep,
+      setAside: Math.max(0, gstSoFar + incSoFar) };
+  }
+  // Bar with two marks: break-even and target.
+  function markBar(earn, be, target) {
+    var max = Math.max(target, be, earn) * 1.06, pct = function (v) { return (clamp(v / max) * 100).toFixed(1) + '%'; };
+    return '<div style="position:relative;padding:18px 0 18px"><div class="track t-money on-soft" role="progressbar" aria-label="Earned ' + money(earn) + ', break-even ' + money(be) + ', target ' + money(target) + '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + Math.round(clamp(earn / max) * 100) + '" style="height:14px">' +
+      (earn > 0 ? '<div class="fill f-' + (earn >= be ? 'health' : 'money') + '" style="width:' + pct(earn) + '"></div>' : '') + '</div>' +
+      [[be, 'Break-even ' + money(be), 'bottom'], [target, 'Target ' + money(target), 'top']].map(function (m) { var x = clamp(m[0] / max), al = x > 0.8 ? 'translateX(-100%)' : x < 0.2 ? 'none' : 'translateX(-50%)';
+        return '<span style="position:absolute;' + m[2] + ':0;left:' + pct(m[0]) + ';transform:' + al + ';font-size:11px;color:var(--ink-muted);white-space:nowrap">' + m[1] + '</span><span style="position:absolute;top:14px;height:22px;left:' + pct(m[0]) + ';width:2px;background:var(--ink)"></span>'; }).join('') + '</div>';
+  }
+  function liveCard(d, compact) {
+    var w = liveWeek(d), toBe = w.breakEven - w.earn, toT = WEEK_TARGET - w.earn;
+    var head = '<section class="card a-money"><div class="card-head"><span class="eyebrow l-money">This week, live · Mon ' + w.ws.getDate() + ' ' + MONTHS[w.ws.getMonth()].slice(0, 3) + '</span><span class="caption">' + (w.over ? 'final' : w.daysLeft + ' day' + (w.daysLeft === 1 ? '' : 's') + ' to go') + '</span></div>' +
+      '<span class="fig-lg">' + money(w.earn, true) + ' <span class="caption">earned</span></span>' + markBar(w.earn, w.breakEven, WEEK_TARGET) +
+      '<span class="body" style="color:var(--ink)">' + (toBe > 0 ? money(toBe, true) + ' more to break even (' + money(w.breakEven, true) + ' this week' + (w.daysLeft ? ', ' + money(toBe / w.daysLeft, true) + ' a day' : '') + ').' : 'Break-even reached (' + money(w.breakEven, true) + ').') +
+      ' ' + (toT > 0 ? money(toT, true) + ' to the ' + money(WEEK_TARGET) + ' target.' : 'Target reached.') + '</span>' +
+      '<span class="caption">Cash extra this week: <b style="color:var(--' + (w.cashExtra >= 0 ? 'ink' : 'money-label') + ')">' + money(w.cashExtra, true) + '</b> (plan ' + money(CASH_EXTRA, true) + '). ' + (w.planKeep > w.earn ? 'Earn ' + money(w.planKeep, true) + ' to keep the plan\'s cash extra.' : '') + '</span>';
+    if (compact) return head + '</section>';
+    function fxRow(f) { return kvRow(esc(f.name) + (f.fromBills ? '' : ' (plan)') + (f.pct ? ', ' + f.pct + '% business' : ''), '−' + money(f.amt, true)); }
+    return head + '<div class="kv">' +
+      kvRow('Earned (tolls not counted' + (w.tolls ? ', ' + money(w.tolls, true) + ' paid back' : '') + ')', money(w.earn, true), 'total') +
+      kvRow('Charging paid' + (w.chargePlanRest ? ' + ' + money(w.chargePlanRest) + ' plan for days left' : ''), '−' + money(w.chargeReal + w.chargePlanRest, true)) +
+      (w.cashFees ? kvRow('Cash-out fees', '−' + money(w.cashFees, true)) : '') + (w.otherBiz ? kvRow('Other business costs', '−' + money(w.otherBiz, true)) : '') +
+      w.fx.filter(function (f) { return f.pct > 0; }).map(fxRow).join('') +
+      kvRow('GST (on earnings, less credits on costs)', '−' + money(w.gst, true)) + kvRow('Income tax and Medicare (on this week\'s profit)', '−' + money(w.income, true)) +
+      kvRow('Food and coffee' + (w.food > 0 || w.over ? '' : ' (plan, not shopped yet)'), '−' + money(w.foodUsed, true)) +
+      w.fx.filter(function (f) { return !(f.pct > 0); }).map(fxRow).join('') + (w.otherPersonal ? kvRow('Other personal spending', '−' + money(w.otherPersonal, true)) : '') +
+      kvRow('Cash extra', money(w.cashExtra, true), 'total') + '</div>' +
+      '<span class="caption">Fixed bills count as a weekly share (from your bills when entered). Tax is recalculated from what you really earn and spend; set aside ' + money(w.setAside, true) + ' for the days so far.</span></section>';
+  }
+
+  /* ---------------- bank accounts: ANZ Plus Everyday and Savings (tax) ---------------- */
+  // Everyday: Uber payouts and cash-outs in; all spending out; tax set-aside out to Savings. Savings: tax set-aside in; BAS and tax paid out.
+  // Each balance starts from the opening balance you enter ("at the start of" that date) and carries on from every entry.
+  var ACCOUNTS = [['everyday', 'ANZ Plus Everyday'], ['savings', 'Savings (tax)']];
+  function acctName(k) { return k === 'savings' ? 'Savings (tax)' : 'ANZ Plus Everyday'; }
+  function opening(acct) { var o = state.ledger.filter(function (l) { return l.kind === 'opening' && l.account === acct; }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (a.createdAt < b.createdAt ? 1 : -1); }); return o[0] || null; }
+  // Every movement of money, as [date, account, signed amount, label, source]
+  function movements() {
+    var m = [];
+    state.expenses.forEach(function (e) { m.push({ date: e.date, acct: e.account || 'everyday', amt: -e.amount, label: e.category + (e.note ? ' · ' + e.note : ''), c: 'expenses', id: e.id }); });
+    state.foodBuys.forEach(function (f) { m.push({ date: f.date, acct: 'everyday', amt: -f.price, label: 'Food: ' + f.item + ' (' + f.store + ')', c: 'food_buys', id: f.id }); });
+    state.cashouts.forEach(function (c) { if (c.kind === 'instant') m.push({ date: c.date, acct: 'everyday', amt: c.amount - c.fee, label: 'Uber instant cash-out', c: 'cashouts', id: c.id }); else if (c.kind === 'weekly') m.push({ date: c.date, acct: 'everyday', amt: c.amount, label: 'Uber weekly payout', c: 'cashouts', id: c.id }); });
+    Object.keys(state.tax).forEach(function (k) { var a = Number(state.tax[k].amount) || 0; if (!a) return; var d = k.slice(1);
+      m.push({ date: d, acct: 'everyday', amt: -a, label: 'Tax set-aside to Savings, week of ' + shortDate(d) }); m.push({ date: d, acct: 'savings', amt: a, label: 'Tax set-aside from Everyday, week of ' + shortDate(d) }); });
+    state.ledger.forEach(function (l) {
+      if (l.kind === 'opening') return;
+      if (l.kind === 'transfer') { m.push({ date: l.date, acct: l.account, amt: -l.amount, label: 'Transfer to ' + acctName(l.to) + (l.note ? ' · ' + l.note : ''), c: 'ledger', id: l.id }); m.push({ date: l.date, acct: l.to, amt: l.amount, label: 'Transfer from ' + acctName(l.account) + (l.note ? ' · ' + l.note : ''), c: 'ledger', id: l.id }); }
+      else m.push({ date: l.date, acct: l.account, amt: l.kind === 'in' || l.kind === 'adjust' ? l.amount : -l.amount, label: (l.kind === 'in' ? 'Money in' : l.kind === 'ato' ? 'Paid to the ATO' : 'Not logged (balance matched to the bank)') + (l.note ? ' · ' + l.note : ''), c: 'ledger', id: l.id });
+    });
+    return m;
+  }
+  function balance(acct, atEnd) { // atEnd: include movements up to this date (inclusive); null = everything
+    var o = opening(acct); if (!o) return null;
+    return o.amount + sum(movements().filter(function (x) { return x.acct === acct && x.date >= o.date && (!atEnd || x.date <= atEnd); }), function (x) { return x.amt; });
+  }
+  // What the tax pot should hold: the weekly set-aside targets since Savings started, less what was paid to the ATO.
+  function taxShouldHold() {
+    var o = opening('savings'); if (!o) return null;
+    var t = 0, ws = weekStart(parseYmd(o.date)), end = weekStart(now());
+    for (var w = ws; w <= end; w = addDays(w, 7)) if (inWeek(state.shifts, w).length) t += weekReserve(w).target;
+    var paid = sum(state.ledger.filter(function (l) { return l.kind === 'ato' && l.date >= o.date; }), function (l) { return l.amount; });
+    return Math.max(0, t - paid);
+  }
+  function accountsCard(d) {
+    var rows = ACCOUNTS.map(function (a) {
+      var b = balance(a[0]), o = opening(a[0]);
+      return '<div class="row"><div class="row-main"><span class="row-title">' + a[1] + '</span><span class="row-sub">' + (o ? 'From ' + money(o.amount, true) + ' at the start of ' + shortDate(o.date) : 'Enter the starting balance') + '</span></div>' +
+        '<span class="fig-sm" style="color:var(--' + (b == null ? 'ink-muted' : b < 0 ? 'money-label' : 'ink') + ')">' + (b == null ? '–' : (b < 0 ? '−' : '') + money(Math.abs(b), true)) + '</span>' +
+        '<button class="link-btn" data-act="acct-open" data-v="' + a[0] + '">' + (o ? 'Match bank' : 'Start') + '</button></div>';
+    }).join('');
+    var should = taxShouldHold(), sv = balance('savings');
+    var recent = movements().filter(function (x) { var o = opening(x.acct); return o && x.date >= o.date; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 8).map(function (x) {
+      return '<div class="row"><div class="row-main"><span class="row-title">' + esc(x.label) + '</span><span class="row-sub">' + shortDate(x.date) + ' · ' + acctName(x.acct) + '</span></div><span class="fig-sm" style="color:var(--' + (x.amt < 0 ? 'ink' : 'health-label') + ')">' + (x.amt < 0 ? '−' : '+') + money(Math.abs(x.amt), true) + '</span><span></span></div>'; }).join('');
+    return '<section class="card"><div class="card-head"><h3 class="heading">Bank accounts</h3><span class="caption">carry over week to week</span></div><div class="list">' + rows + '</div>' +
+      (should != null && sv != null ? '<span class="caption">' + (sv >= should - 0.5 ? 'Tax pot on track: ' + money(sv, true) + ' in Savings, ' + money(should, true) + ' needed for tax so far.' : 'Tax pot short by ' + money(should - sv, true) + ': ' + money(should, true) + ' needed for tax so far, ' + money(sv, true) + ' in Savings.') + '</span>' : '') +
+      '<div class="chips"><button class="chip" data-act="acct-in">+ Money in</button><button class="chip" data-act="acct-move">Transfer</button><button class="chip" data-act="acct-ato">Paid the ATO</button><button class="chip" data-act="expense">− Other expense</button></div>' +
+      (recent ? '<h4 class="eyebrow">Latest</h4><div class="list">' + recent + '</div>' : '') + '</section>';
+  }
+  function acctOpenSheet(acct) {
+    var o = opening(acct), b = balance(acct);
+    openSheet('<h2 class="title" id="sheet-title">' + acctName(acct) + '</h2><p class="body" style="margin:0">' + (o ? 'The app has ' + money(b, true) + '. Type what the bank app shows now; the difference is saved as "not logged", so you can see what was missed.' : 'Enter the balance at the start of the day you begin (before anything else that day). From then on every entry moves it.') + '</p>' +
+      '<form id="f-ao" style="display:flex;flex-direction:column;gap:14px" novalidate>' +
+      '<div class="two"><div class="field"><label for="ao-amt">' + (o ? 'Balance in the bank now ($)' : 'Starting balance ($)') + '</label><input id="ao-amt" type="number" inputmode="decimal" step="0.01" required></div>' +
+      (o ? '' : '<div class="field"><label for="ao-d">At the start of</label><input id="ao-d" type="date" value="' + (ymd(now()) < '2026-11-08' ? '2026-11-08' : ymd(now())) + '"></div>') + '</div>' +
+      (o ? '<button type="button" class="link-btn" id="ao-restart" style="align-self:flex-start">Start again from a new opening balance</button>' : '') +
+      '<p class="caption" id="ao-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
+      '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div></form>');
+    var rs = document.getElementById('ao-restart'); if (rs) rs.addEventListener('click', function () { closeSheet(); acctRestart(acct); });
+    document.getElementById('f-ao').addEventListener('submit', function (e) {
+      e.preventDefault(); var err = document.getElementById('ao-err'); if (!need5(err)) return;
+      var v = parseFloat(document.getElementById('ao-amt').value); if (!isFinite(v)) { err.textContent = 'Enter the balance.'; return; }
+      if (!o) { var d = document.getElementById('ao-d').value; if (!d) { err.textContent = 'Pick the date.'; return; }
+        write({ t: 'ledger', a: 'insert', row: { id: uuid(), date: d, account: acct, kind: 'opening', amount: Math.round(v * 100) / 100, to_account: null, note: '' } }); closeSheet(); toast('Starting balance saved'); return; }
+      var diff = Math.round((v - b) * 100) / 100; if (Math.abs(diff) < 0.01) { closeSheet(); toast('Already matches the bank'); return; }
+      write({ t: 'ledger', a: 'insert', row: { id: uuid(), date: ymd(now()), account: acct, kind: 'adjust', amount: diff, to_account: null, note: '' } }); closeSheet(); toast('Matched: ' + (diff < 0 ? money(-diff, true) + ' not logged' : money(diff, true) + ' more than logged'));
+    });
+  }
+  function acctRestart(acct) {
+    openSheet('<h2 class="title" id="sheet-title">New opening balance</h2><p class="body" style="margin:0">' + acctName(acct) + ' will count from this balance; earlier entries stay saved but no longer move it.</p>' +
+      '<form id="f-ar" style="display:flex;flex-direction:column;gap:14px" novalidate><div class="two"><div class="field"><label for="ar-amt">Balance ($)</label><input id="ar-amt" type="number" inputmode="decimal" step="0.01" required></div>' +
+      '<div class="field"><label for="ar-d">At the start of</label><input id="ar-d" type="date" value="' + ymd(now()) + '"></div></div>' +
+      '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div></form>');
+    document.getElementById('f-ar').addEventListener('submit', function (e) {
+      e.preventDefault(); var v = parseFloat(document.getElementById('ar-amt').value), d = document.getElementById('ar-d').value; if (!isFinite(v) || !d) return;
+      write({ t: 'ledger', a: 'insert', row: { id: uuid(), date: d, account: acct, kind: 'opening', amount: Math.round(v * 100) / 100, to_account: null, note: '' } }); closeSheet(); toast('Opening balance saved');
+    });
+  }
+  function ledgerSheet(kind) {
+    var t = { in: 'Money in', move: 'Transfer', ato: 'Paid the ATO' }[kind];
+    var from = kind === 'ato' ? 'savings' : 'everyday';
+    openSheet('<h2 class="title" id="sheet-title">' + t + '</h2>' +
+      '<p class="body" style="margin:0">' + (kind === 'in' ? 'Money other than Uber: refunds, gifts, a planning job later. Not counted as Uber income.' : kind === 'ato' ? 'A BAS or income-tax payment. It comes out of Savings and lowers what the tax pot needs to hold.' : 'Between your two accounts. The weekly tax set-aside is recorded with "Record set-aside" and moves money to Savings by itself.') + '</p>' +
+      '<form id="f-lg" style="display:flex;flex-direction:column;gap:14px" novalidate>' +
+      '<div class="two"><div class="field"><label for="lg-amt">Amount ($)</label><input id="lg-amt" type="number" inputmode="decimal" min="0" step="0.01" required></div>' +
+      '<div class="field"><label for="lg-d">Date</label><input id="lg-d" type="date" value="' + ymd(now()) + '"></div></div>' +
+      '<div class="field"><label for="lg-a">' + (kind === 'in' ? 'Into' : 'From') + '</label><select id="lg-a">' + ACCOUNTS.map(function (a) { return '<option value="' + a[0] + '"' + (a[0] === from ? ' selected' : '') + '>' + a[1] + '</option>'; }).join('') + '</select>' + (kind === 'move' ? '<span class="hint">To the other account.</span>' : '') + '</div>' +
+      '<div class="field"><label for="lg-n">Note</label><input id="lg-n" type="text" maxlength="60" placeholder="' + (kind === 'ato' ? 'e.g. BAS Oct–Dec' : kind === 'in' ? 'e.g. tax refund' : '') + '"></div>' +
+      '<p class="caption" id="lg-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
+      '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div></form>');
+    document.getElementById('f-lg').addEventListener('submit', function (e) {
+      e.preventDefault(); var err = document.getElementById('lg-err'); if (!need5(err)) return;
+      var a = parseFloat(document.getElementById('lg-amt').value), d = document.getElementById('lg-d').value, ac = document.getElementById('lg-a').value;
+      if (!(a > 0) || !d) { err.textContent = 'Enter the amount and date.'; return; }
+      write({ t: 'ledger', a: 'insert', row: { id: uuid(), date: d, account: ac, kind: kind === 'move' ? 'transfer' : kind, amount: Math.round(a * 100) / 100, to_account: kind === 'move' ? (ac === 'savings' ? 'everyday' : 'savings') : null, note: document.getElementById('lg-n').value.trim() } });
+      closeSheet(); toast(t + ' saved');
+    });
   }
 
   /* ---------------- money: Uber balance, monthly statements, bills ---------------- */
@@ -2238,6 +2436,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
       '<div class="field"><label for="e-gst">GST included ($)</label><input id="e-gst" type="number" inputmode="decimal" min="0" step="0.01"></div></div>' +
       '<span class="hint" id="e-calc" style="margin-top:-8px"></span>' +
       '<label class="chip" style="display:flex;align-items:center;gap:10px;justify-content:flex-start"><input id="e-rec" type="checkbox" style="width:20px;height:20px"> Tax invoice / receipt kept</label>' +
+      '<div class="field"><label for="e-acct">Paid from</label><select id="e-acct"><option value="everyday">ANZ Plus Everyday</option><option value="savings">Savings (tax)</option></select></div>' +
       '<div class="field"><label for="e-n">Note</label><input id="e-n" type="text" maxlength="80" placeholder="e.g. Evie charger, Rhodes"></div>' +
       '<p class="caption" id="e-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
       '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save expense</button></div></form>');
@@ -2259,7 +2458,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
       if (!(p >= 0 && p <= 100)) { document.getElementById('e-err').textContent = 'Business share must be between 0 and 100.'; return; }
       if (g > a / 11 + 0.01) { document.getElementById('e-err').textContent = 'GST can be at most 1/11 of the amount (' + money(a / 11, true) + ').'; return; }
       save('expenses', null, { date: date, category: cat.value, amount: Math.round(a * 100) / 100, businessPct: p, gst: Math.round(g * 100) / 100,
-        receiptKept: document.getElementById('e-rec').checked, note: document.getElementById('e-n').value.trim(), createdAt: new Date().toISOString() })
+        receiptKept: document.getElementById('e-rec').checked, note: document.getElementById('e-n').value.trim(), account: document.getElementById('e-acct').value, createdAt: new Date().toISOString() })
         .then(function () { closeSheet(); toast('Expense saved'); });
     });
   }
@@ -2287,7 +2486,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
   function taxSheet() {
     var ws = weekStart(now()), key = 'w' + ymd(ws), cur = Number((state.tax[key] || {}).amount) || 0, wr = weekReserve(ws);
     var goal = wr.days ? Math.round(wr.target * 100) / 100 : TAX_WEEKLY;
-    openSheet('<h2 class="title" id="sheet-title">Tax account</h2><p class="body" style="margin:0">How much have you moved to the tax account for the week starting Sunday ' + ws.getDate() + ' ' + MONTHS[ws.getMonth()] + '? ' +
+    openSheet('<h2 class="title" id="sheet-title">Tax account</h2><p class="body" style="margin:0">How much have you moved to the tax account for the week starting Monday ' + ws.getDate() + ' ' + MONTHS[ws.getMonth()] + '? ' +
       (wr.days ? 'Based on ' + money(wr.receipts, true) + ' earned over ' + wr.days + ' day' + (wr.days === 1 ? '' : 's') + ', set aside ' + money(goal, true) + '.' : 'The plan figure for a full week is ' + money(TAX_WEEKLY, true) + '.') + '</p>' +
       '<form id="f-tax" style="display:flex;flex-direction:column;gap:14px" novalidate><div class="field"><label for="t-amt">Total set aside this week ($)</label><input id="t-amt" type="number" inputmode="decimal" min="0" step="0.01" value="' + (cur || goal) + '"></div>' +
       '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div></form>');
@@ -2358,6 +2557,10 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
     else if (act === 'bill') billSheet(b.getAttribute('data-id'));
     else if (act === 'bill-new') billSheet(null, b.getAttribute('data-v'));
     else if (act === 'bill-pay') billPaySheet(b.getAttribute('data-id'));
+    else if (act === 'acct-open') acctOpenSheet(b.getAttribute('data-v'));
+    else if (act === 'acct-in') ledgerSheet('in');
+    else if (act === 'acct-move') ledgerSheet('move');
+    else if (act === 'acct-ato') ledgerSheet('ato');
     else if (act === 'gym-log') gymLogSheet(b.getAttribute('data-v'));
     else if (act === 'machines') machinesSheet();
     else if (act === 'walk-start') { try { localStorage.setItem('fn-walk-start', String(Date.now())); } catch (x) {} render(); toast('Walk timer started'); }
