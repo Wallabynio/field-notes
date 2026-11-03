@@ -355,7 +355,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '1.0.0';
+  var APP_VERSION = '1.1.0';
   var PLAN_START = '2026-11-08';               // Sunday, week 1 day 1
   var NORMAL_MIN = 340, HOMEWARD_MIN = 60;      // 5 h 40 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
@@ -442,11 +442,63 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
   };
   var WL = { start: 120, kcal: 2100, stages: [[108, 'Stage 1', 'May 2027'], [100, 'Stage 2', 'Nov 2027'], [93.5, 'Stage 3', 'mid-2028']] };
 
+  /* ---------------- gym: Anytime Fitness Rhodes ---------------- */
+  // Gym Monday, Tuesday, Thursday, Friday (A, B, A, B). Homebush Bay walk Wednesday, Saturday, Sunday.
+  var GYM_DAYS = [1, 2, 4, 5];
+  // Standard Anytime Fitness floor. Renamed, hidden or added machines are saved per account.
+  var MACHINES = [
+    ['elliptical', 'Elliptical cross-trainer', 'cardio'], ['treadmill', 'Treadmill', 'cardio'], ['bike', 'Exercise bike', 'cardio'], ['rower', 'Rowing machine', 'cardio'], ['stairs', 'Stair climber', 'cardio'],
+    ['legpress', 'Leg press', 'weights'], ['legext', 'Leg extension', 'weights'], ['legcurl', 'Seated leg curl', 'weights'], ['chestpress', 'Chest press', 'weights'],
+    ['shoulderpress', 'Shoulder press', 'weights'], ['pulldown', 'Lat pulldown', 'weights'], ['row', 'Seated cable row', 'weights'], ['cable', 'Cable crossover station', 'weights'],
+    ['pecdeck', 'Pec deck / rear delt', 'weights'], ['smith', 'Smith machine', 'weights'], ['assist', 'Assisted pull-up / dip', 'weights'], ['dumbbells', 'Dumbbells', 'weights'], ['mat', 'Mat (bodyweight)', 'body']
+  ];
+  // Programme exercises. Weights: double progression in the rep range; step = kg added once every set reaches the top of the range.
+  var EX = {
+    warm: { m: 'elliptical', name: 'Warm-up', type: 'cardio', min: 8, note: 'Easy pace, you can still talk' },
+    legpress: { m: 'legpress', sets: 3, lo: 10, hi: 12, step: 5 },
+    chestpress: { m: 'chestpress', sets: 3, lo: 10, hi: 12, step: 2.5 },
+    pulldown: { m: 'pulldown', sets: 3, lo: 10, hi: 12, step: 2.5 },
+    legcurl: { m: 'legcurl', sets: 2, lo: 12, hi: 15, step: 2.5 },
+    plank: { m: 'mat', name: 'Plank', type: 'hold', sets: 2, lo: 20, hi: 60 },
+    goblet: { m: 'dumbbells', name: 'Goblet squat (one dumbbell)', sets: 3, lo: 10, hi: 12, step: 2 },
+    row: { m: 'row', sets: 3, lo: 10, hi: 12, step: 2.5 },
+    shoulderpress: { m: 'shoulderpress', sets: 3, lo: 10, hi: 12, step: 2.5 },
+    dbrdl: { m: 'dumbbells', name: 'Romanian deadlift (dumbbells, kg each)', sets: 3, lo: 10, hi: 12, step: 2 },
+    legext: { m: 'legext', sets: 2, lo: 12, hi: 15, step: 2.5 },
+    finish: { m: 'elliptical', name: 'Elliptical', type: 'cardio', min: 15, note: 'Steady, a little breathless' }
+  };
+  var WORKOUTS = { A: ['warm', 'legpress', 'chestpress', 'pulldown', 'legcurl', 'plank', 'finish'], B: ['warm', 'goblet', 'row', 'shoulderpress', 'dbrdl', 'legext', 'finish'] };
+  var WORKOUT_DAYS = { 1: 'A', 2: 'B', 4: 'A', 5: 'B' };
+  function workoutFor(d) { return WORKOUT_DAYS[d.getDay()] || null; }
+  function machine(key) {
+    var o = state.machines[key]; for (var i = 0; i < MACHINES.length; i++) if (MACHINES[i][0] === key) return { key: key, name: o ? o.name : MACHINES[i][1], kind: MACHINES[i][2], hidden: o ? o.hidden : false };
+    return o ? { key: key, name: o.name, kind: o.kind, hidden: o.hidden, custom: true } : { key: key, name: key, kind: 'weights' };
+  }
+  function allMachines() {
+    var list = MACHINES.map(function (m) { return machine(m[0]); });
+    Object.keys(state.machines).forEach(function (k) { if (!MACHINES.some(function (m) { return m[0] === k; })) list.push(machine(k)); });
+    return list;
+  }
+  function exDef(key) {
+    if (EX[key]) { var e = EX[key], m = machine(e.m); return Object.assign({ key: key, type: 'weights' }, e, { name: e.name || m.name, machineName: m.name }); }
+    var mm = machine(key); return mm.kind === 'cardio' ? { key: key, m: key, type: 'cardio', min: 10, name: mm.name, machineName: mm.name } :
+      mm.kind === 'body' ? { key: key, m: key, type: 'hold', sets: 2, lo: 20, hi: 60, name: mm.name } : { key: key, m: key, type: 'weights', sets: 3, lo: 10, hi: 12, step: 2.5, name: mm.name, machineName: mm.name };
+  }
+
+  /* ---------------- money: Uber balance, bills ---------------- */
+  var CASHOUT_FEE = 1.50;
+  var BIZ_FIXED_WEEK = 449.01 + 52.50 + 36.96; // Splend, car washes, Vodafone business share: for profit after all costs
+  var BILL_EVERY = [['week', 'Every week'], ['fortnight', 'Every 2 weeks'], ['month', 'Every month'], ['quarter', 'Every 3 months'], ['year', 'Every year']];
+  // Quick-add from the weekly budget: [name, category, amount, every, business %]
+  var BILL_PRESETS = [['Splend', 'Splend', 449.01, 'week', 80], ['Vodafone', 'Vodafone', 160.17, 'month', 50], ['Rent', 'Rent', 310, 'week', 0], ['Anytime Fitness', 'Gym membership', 25.95, 'week', 0],
+    ['Claude Max', 'Subscriptions', 199.99, 'month', 0], ['Higgsfield', 'Subscriptions', 93.94, 'month', 0], ['Microsoft 365', 'Subscriptions', 48.51, 'month', 0], ['Apple One', 'Subscriptions', 24.95, 'month', 0]];
+
   // Expense categories: [name, default business %, includes GST by default]
   var EXPENSE_CATS = [
     ['Charging', 80, true], ['Splend', 80, true], ['Car wash', 80, true], ['Vodafone', 50, true],
     ['Parking (on shift)', 100, true], ['Tolls (on shift)', 100, true], ['Car supplies', 80, true],
-    ['Other business', 100, true], ['Food on shift', 0, true], ['Personal', 0, true]
+    ['Other business', 100, true], ['Food on shift', 0, true], ['Rent', 0, false], ['Utilities', 0, true], ['Gym membership', 0, true],
+    ['Subscriptions', 0, true], ['Personal', 0, true]
   ];
   function catInfo(name) { for (var i = 0; i < EXPENSE_CATS.length; i++) if (EXPENSE_CATS[i][0] === name) return EXPENSE_CATS[i]; return [name, 100, true]; }
 
@@ -471,12 +523,25 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
   function shiftGross(s) { return s.grossFares != null && s.grossFares !== '' ? Number(s.grossFares) : null; }
   function shiftFees(s) { return s.uberFees != null && s.uberFees !== '' ? Number(s.uberFees) : 0; }
   // Totals for a date range [a, b): sales, GST, credits, deductions.
+  // Gross fares and Uber fees come from the monthly statement. Until it arrives, what you were paid stands in for gross fares.
   function taxFigures(a, b) {
     var sh = state.shifts.filter(function (s) { return s.date >= a && s.date < b; });
     var ex = state.expenses.filter(function (e) { return e.date >= a && e.date < b; });
-    var missing = 0, g1 = 0, fees = 0, net = 0;
-    sh.forEach(function (s) { var g = shiftGross(s); net += Number(s.receipts) || 0; if (g == null) { missing++; g = Number(s.receipts) || 0; } g1 += g; fees += shiftFees(s); });
-    var a1 = g1 / 11, creditsFees = fees / 11, creditsExp = 0, dedExp = 0, noReceipt = 0, bizSpend = 0;
+    var byMonth = {};
+    function bm(m) { return byMonth[m] || (byMonth[m] = { paid: 0, gross: 0, fees: 0, allGross: true, n: 0 }); }
+    sh.forEach(function (s) { var x = bm(s.date.slice(0, 7)), g = shiftGross(s); x.n++; x.paid += s.stint ? s.paid : (Number(s.receipts) || 0);
+      if (g == null) x.allGross = false; else { x.gross += g; x.fees += shiftFees(s); } });
+    Object.keys(state.months).forEach(function (m) { if (m + '-01' >= a && m + '-01' < b) bm(m); });
+    var g1 = 0, fees = 0, net = 0, missingMonths = [];
+    Object.keys(byMonth).sort().forEach(function (m) {
+      var x = byMonth[m], st = state.months[m]; net += x.paid;
+      if (st && st.gross != null) { g1 += st.gross; fees += st.fees || 0; }
+      else if (x.n && x.allGross) { g1 += x.gross; fees += x.fees; }
+      else { g1 += x.paid; if (x.paid > 0) missingMonths.push(m); }
+    });
+    var tolls = sum(sh, function (s) { return s.tolls || 0; });
+    var cashFees = sum(state.cashouts.filter(function (c) { return c.date >= a && c.date < b; }), function (c) { return c.fee; });
+    var a1 = g1 / 11, creditsFees = fees / 11, creditsExp = tolls / 11, dedExp = tolls - tolls / 11 + cashFees, noReceipt = 0, bizSpend = tolls + cashFees;
     ex.forEach(function (e) {
       var pct = (e.businessPct == null ? 100 : Number(e.businessPct)) / 100, gst = Number(e.gst) || 0, amt = Number(e.amount) || 0;
       if (pct <= 0) return;
@@ -485,7 +550,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
     });
     var b1 = creditsFees + creditsExp;
     var income = g1 - a1, deductions = (fees - creditsFees) + dedExp;
-    return { shifts: sh.length, missing: missing, g1: g1, a1: a1, b1: b1, gstOwing: a1 - b1, fees: fees, net: net,
+    return { shifts: sh.length, missing: missingMonths.length, missingMonths: missingMonths, g1: g1, a1: a1, b1: b1, gstOwing: a1 - b1, fees: fees, net: net, tolls: tolls, cashFees: cashFees,
       income: income, deductions: deductions, profit: income - deductions, noReceipt: noReceipt, bizSpend: bizSpend };
   }
   // Tax reserve for a week: plan figure per day worked, adjusted by 38.2% of earnings above/below target.
@@ -506,7 +571,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
 
   function schedule(d) {
     var dow = d.getDay(); var weekend = dow === 0 || dow === 6;
-    var gym = dow === 1 || dow === 3 || dow === 5;
+    var gym = GYM_DAYS.indexOf(dow) >= 0; // gym Mon, Tue, Thu, Fri; Homebush Bay walk Wed, Sat, Sun
     var s = [
       [330, 405, 'health', gym ? 'Gym' : 'Homebush Bay walk'],
       [405, 420, 'neutral', 'Shower'],
@@ -545,22 +610,38 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
   function shortDate(s) { var d = parseYmd(s); return DAYS[d.getDay()].slice(0, 3) + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()].slice(0, 3); }
 
   /* ---------------- state + storage ---------------- */
-  var state = { shifts: [], expenses: [], days: {}, tax: {}, logbook: [], body: {}, assessments: [], results: {}, tab: 'today', saving: true, ready: false, dbV2: true, dbV3: true, dbV4: true };
+  // raw = the rows exactly as stored in the database, per table. Everything on screen is derived from raw.
+  // Writes change raw on the phone at once, then go to a queue that syncs to the database (and waits when there is no signal).
+  var state = { shifts: [], oldShifts: [], stints: [], expenses: [], days: {}, tax: {}, logbook: [], body: {}, assessments: [], results: {},
+    cashouts: [], months: {}, bills: [], machines: {}, gymSets: [], walks: [],
+    tab: 'today', saving: true, ready: false, dbV2: true, dbV3: true, dbV4: true, dbV5: true, offline: false };
+  var TABLE_LIST = ['shifts', 'expenses', 'days', 'tax_weeks', 'logbook', 'body', 'assessments', 'subject_results', 'stints', 'cashouts', 'uber_months', 'bills', 'machines', 'gym_sets', 'walks'];
+  var PK = { days: ['date'], tax_weeks: ['week_start'], body: ['date'], subject_results: ['code'], uber_months: ['month'], machines: ['key'] };
+  var raw = {}; TABLE_LIST.forEach(function (t) { raw[t] = []; });
 
   var sb = null, user = null;
   var TABLES = { shifts: 'shifts', expenses: 'expenses', days: 'days', tax: 'tax_weeks', logbook: 'logbook', body: 'body' };
-  function num(v) { return v == null ? null : Number(v); }
+  function num(v) { return v == null || v === '' ? null : Number(v); }
+  function uuid() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+  }
   function fromShift(r) { return { id: r.id, date: r.date, normalMin: r.normal_min, homeMin: r.home_min, receipts: Number(r.receipts), km: r.km, note: r.note, grossFares: num(r.gross_fares), uberFees: num(r.uber_fees) }; }
   function fromExpense(r) {
     var legacy = r.business_pct === undefined;
-    return { id: r.id, date: r.date, category: r.category, amount: Number(r.amount), note: r.note,
+    return { id: r.id, date: r.date, category: r.category, amount: Number(r.amount), note: r.note, billId: r.bill_id || null, kwh: num(r.kwh),
       businessPct: legacy ? catInfo(r.category)[1] : Number(r.business_pct), gst: legacy ? Number(r.amount) / 11 : Number(r.gst), receiptKept: !!r.receipt_kept };
   }
   function fromAssess(r) { return { id: r.id, code: r.subject_code, name: r.name, due: r.due, weight: num(r.weight), status: r.status || 'todo', mark: num(r.mark), plan: Array.isArray(r.plan) ? r.plan : [] }; }
   function assessRow(a) { return { subject_code: a.code, name: a.name, due: a.due, weight: a.weight, status: a.status, mark: a.mark, plan: a.plan || [], updated_at: new Date().toISOString() }; }
   function seedDone() { try { return !!localStorage.getItem('fn-seed-17914'); } catch (x) { return false; } }
   function markSeeded() { try { localStorage.setItem('fn-seed-17914', '1'); } catch (x) {} }
-  function fromLog(r) { return { id: r.id, date: r.date, odoStart: Number(r.odo_start), odoEnd: Number(r.odo_end), kind: r.kind, purpose: r.purpose }; }
+  function fromLog(r) { return { id: r.id, date: r.date, odoStart: Number(r.odo_start), odoEnd: Number(r.odo_end), kind: r.kind, purpose: r.purpose, table: 'logbook' }; }
+  function fromStint(r) {
+    return { id: r.id, date: r.date, kind: r.kind, startedAt: r.started_at, endedAt: r.ended_at, odoStart: num(r.odo_start), odoEnd: num(r.odo_end),
+      earned: Number(r.earned) || 0, tolls: Number(r.tolls) || 0, note: r.note || '', createdAt: r.created_at };
+  }
+  function stintMin(s) { if (!s.startedAt || !s.endedAt) return 0; return Math.max(0, Math.round((new Date(s.endedAt) - new Date(s.startedAt)) / 60000)); }
   function toRow(collection, id, d) {
     if (collection === 'shifts') {
       var s = { date: d.date, normal_min: d.normalMin, home_min: d.homeMin, receipts: d.receipts, km: d.km, note: d.note };
@@ -570,12 +651,107 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
     if (collection === 'expenses') {
       var e = { date: d.date, category: d.category, amount: d.amount, note: d.note };
       if (state.dbV2) { e.business_pct = d.businessPct; e.gst = d.gst; e.receipt_kept = d.receiptKept; }
+      if (state.dbV5) { if (d.billId) e.bill_id = d.billId; if (d.kwh != null) e.kwh = d.kwh; }
       return e;
     }
     if (collection === 'logbook') return { date: d.date, odo_start: d.odoStart, odo_end: d.odoEnd, kind: d.kind, purpose: d.purpose };
     if (collection === 'body') return { date: id, weight_kg: d.weight, waist_cm: d.waist, bp_sys: d.bpSys, bp_dia: d.bpDia, updated_at: new Date().toISOString() };
-    if (collection === 'days') return { date: id, exercise: d.exercise || null, study_min: d.studyMin || 0, updated_at: new Date().toISOString() };
+    if (collection === 'days') {
+      var r = { date: id, exercise: d.exercise || null, study_min: d.studyMin || 0, updated_at: new Date().toISOString() };
+      if (state.dbV5) { r.energy = d.energy || null; r.sleep = d.sleep || null; r.stress = d.stress || null; }
+      return r;
+    }
     return { week_start: id.slice(1), amount: d.amount, updated_at: new Date().toISOString() };
+  }
+
+  // Turn raw rows into what the screens use.
+  function derive() {
+    state.oldShifts = raw.shifts.map(fromShift);
+    state.expenses = raw.expenses.map(fromExpense);
+    var dm = {}; raw.days.forEach(function (r) { dm[r.date] = { exercise: r.exercise, studyMin: r.study_min, energy: num(r.energy), sleep: num(r.sleep), stress: num(r.stress) }; }); state.days = dm;
+    var tm = {}; raw.tax_weeks.forEach(function (r) { tm['w' + r.week_start] = { amount: Number(r.amount) }; }); state.tax = tm;
+    var bm = {}; raw.body.forEach(function (r) { bm[r.date] = { weight: num(r.weight_kg), waist: num(r.waist_cm), bpSys: num(r.bp_sys), bpDia: num(r.bp_dia) }; }); state.body = bm;
+    state.assessments = raw.assessments.map(fromAssess);
+    var rm = {}; raw.subject_results.forEach(function (r) { rm[r.code] = num(r.mark); }); state.results = rm;
+    state.stints = raw.stints.map(fromStint).sort(function (a, b) { return (a.startedAt || a.date) < (b.startedAt || b.date) ? -1 : 1; });
+    state.cashouts = raw.cashouts.map(function (r) { return { id: r.id, date: r.date, kind: r.kind, amount: Number(r.amount) || 0, fee: Number(r.fee) || 0, note: r.note || '', createdAt: r.created_at }; });
+    var mm = {}; raw.uber_months.forEach(function (r) { mm[String(r.month).slice(0, 7)] = { gross: num(r.gross_fares), fees: num(r.uber_fees) }; }); state.months = mm;
+    state.bills = raw.bills.map(function (r) { return { id: r.id, name: r.name, category: r.category, amount: Number(r.amount) || 0, every: r.every, nextDue: r.next_due, businessPct: Number(r.business_pct) || 0, active: r.active !== false }; });
+    var mc = {}; raw.machines.forEach(function (r) { mc[r.key] = { name: r.name, kind: r.kind, hidden: !!r.hidden }; }); state.machines = mc;
+    state.gymSets = raw.gym_sets.map(function (r) { return { id: r.id, date: r.date, ex: r.exercise, set: Number(r.set_no) || 1, kg: num(r.kg), reps: num(r.reps), minutes: num(r.minutes), level: num(r.level), km: num(r.km), createdAt: r.created_at }; });
+    state.walks = raw.walks.map(function (r) { return { id: r.id, date: r.date, minutes: Number(r.minutes) || 0, km: num(r.km), hr: num(r.avg_hr), note: r.note || '' }; });
+    // Completed work stints count as driving: normal rate or homeward; earnings exclude tolls (they are only paid back).
+    var fromStints = state.stints.filter(function (s) { return s.endedAt && (s.kind === 'uber' || s.kind === 'homeward'); }).map(function (s) {
+      var m = stintMin(s);
+      return { id: s.id, stint: true, date: s.date, normalMin: s.kind === 'uber' ? m : 0, homeMin: s.kind === 'homeward' ? m : 0, receipts: s.earned - s.tolls, paid: s.earned, tolls: s.tolls,
+        km: s.odoEnd != null && s.odoStart != null ? Math.max(0, s.odoEnd - s.odoStart) : 0, note: s.note, startedAt: s.startedAt, endedAt: s.endedAt };
+    });
+    state.shifts = state.oldShifts.concat(fromStints);
+    var logs = raw.logbook.map(fromLog);
+    state.stints.forEach(function (s) {
+      if (s.odoEnd == null || s.odoStart == null) return;
+      logs.push({ id: s.id, table: 'stints', date: s.date, odoStart: s.odoStart, odoEnd: s.odoEnd, kind: s.kind === 'private' ? 'private' : 'business',
+        purpose: s.kind === 'private' ? (s.note || 'Private') : s.kind === 'business' ? (s.note || 'Business, not online') : s.kind === 'homeward' ? 'Uber, heading home' : 'Uber' });
+    });
+    state.logbook = logs;
+  }
+
+  /* offline queue */
+  var queue = []; try { queue = JSON.parse(localStorage.getItem('fn-queue') || '[]'); } catch (x) { queue = []; }
+  function persist() {
+    try { localStorage.setItem('fn-queue', JSON.stringify(queue)); } catch (x) {}
+    try { if (user) localStorage.setItem('fn-cache', JSON.stringify({ user: user.id, raw: raw, flags: [state.dbV2, state.dbV3, state.dbV4, state.dbV5] })); } catch (x) {}
+  }
+  function matches(row, op) {
+    if (op.id) return row.id === op.id;
+    var keys = PK[op.t] || ['id']; return keys.every(function (k) { return String(row[k]) === String(op.row[k]); });
+  }
+  function applyLocal(op) {
+    var list = raw[op.t] || (raw[op.t] = []);
+    if (op.a === 'insert') { list.push(Object.assign({ created_at: new Date().toISOString() }, op.row)); return; }
+    if (op.a === 'delete') { raw[op.t] = list.filter(function (r) { return !(op.id ? r.id === op.id : Object.keys(op.match).every(function (k) { return String(r[k]) === String(op.match[k]); })); }); return; }
+    var found = false;
+    list.forEach(function (r, i) { if (matches(r, op)) { list[i] = Object.assign({}, r, op.row); found = true; } });
+    if (!found && op.a === 'upsert') list.push(Object.assign({ created_at: new Date().toISOString() }, op.row));
+  }
+  function runOp(op) {
+    var q = sb.from(op.t);
+    if (op.a === 'insert') q = q.insert(op.row);
+    else if (op.a === 'upsert') q = q.upsert(op.row, { onConflict: 'user_id,' + (PK[op.t] || ['id']).join(',') });
+    else if (op.a === 'update') q = q.update(op.row).eq('id', op.id);
+    else { q = q.delete(); if (op.id) q = q.eq('id', op.id); else Object.keys(op.match).forEach(function (k) { q = q.eq(k, op.match[k]); }); }
+    return q;
+  }
+  var flushing = null, offlineToastShown = false;
+  function flush() {
+    if (flushing) return flushing;
+    if (!sb || !user || !queue.length) return Promise.resolve();
+    flushing = new Promise(function (resolve) {
+      function next() {
+        if (!queue.length) { flushing = null; state.offline = false; offlineToastShown = false; persist(); resolve(); loadAll(); return; }
+        var op = queue[0];
+        Promise.resolve(runOp(op)).then(function (r) {
+          if (r.error && (!r.status || r.status >= 500 || r.status === 408 || r.status === 429)) throw r.error; // no signal or server busy: try later
+          if (r.error && r.error.code !== '23505') toast('Could not save: ' + r.error.message);
+          queue.shift(); persist(); next();
+        }).catch(function () {
+          flushing = null; state.offline = true; persist(); render();
+          if (!offlineToastShown) { offlineToastShown = true; toast('Saved on this phone. It syncs when you have signal.'); }
+          resolve();
+        });
+      }
+      next();
+    });
+    return flushing;
+  }
+  window.addEventListener('online', function () { flush(); });
+  setInterval(function () { if (queue.length) flush(); }, 60000);
+  function write(op) {
+    applyLocal(op); derive(); persist(); render();
+    if (!sb || !user) return Promise.resolve();
+    queue.push(op); persist();
+    flush();
+    return Promise.resolve();
   }
 
   function showLogin(show) {
@@ -584,52 +760,55 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
     document.querySelector('.nav').style.display = show ? 'none' : '';
   }
 
+  function loadCache() {
+    try { var c = JSON.parse(localStorage.getItem('fn-cache') || 'null'); if (!c || !user || c.user !== user.id) return false;
+      TABLE_LIST.forEach(function (t) { raw[t] = c.raw[t] || []; }); if (c.flags) { state.dbV2 = c.flags[0]; state.dbV3 = c.flags[1]; state.dbV4 = c.flags[2]; state.dbV5 = c.flags[3] !== false; }
+      derive(); state.ready = true; return true; } catch (x) { return false; }
+  }
   function loadAll() {
     if (!sb || !user) return Promise.resolve();
-    return Promise.all([
-      sb.from('shifts').select('*').order('date', { ascending: false }).limit(1000),
-      sb.from('expenses').select('*').order('date', { ascending: false }).limit(1000),
-      sb.from('days').select('*').limit(1000),
-      sb.from('tax_weeks').select('*').limit(200),
-      sb.from('logbook').select('*').order('date', { ascending: false }).limit(2000),
-      sb.from('body').select('*').limit(2000),
-      sb.from('assessments').select('*').order('due', { ascending: true }).limit(500),
-      sb.from('subject_results').select('*').limit(100)
-    ]).then(function (res) {
-      if (res.slice(0, 4).some(function (r) { return r.error; })) { toast('Could not load your data. Check your connection.'); return; }
-      state.dbV2 = !res[4].error;
-      state.shifts = res[0].data.map(fromShift);
-      state.expenses = res[1].data.map(fromExpense);
-      var dm = {}; res[2].data.forEach(function (r) { dm[r.date] = { exercise: r.exercise, studyMin: r.study_min }; }); state.days = dm;
-      var tm = {}; res[3].data.forEach(function (r) { tm['w' + r.week_start] = { amount: Number(r.amount) }; }); state.tax = tm;
-      state.logbook = state.dbV2 ? res[4].data.map(fromLog) : [];
-      state.dbV3 = !res[5].error;
-      var bm = {}; if (state.dbV3) res[5].data.forEach(function (r) { bm[r.date] = { weight: num(r.weight_kg), waist: num(r.waist_cm), bpSys: num(r.bp_sys), bpDia: num(r.bp_dia) }; }); state.body = bm;
-      state.dbV4 = !res[6].error && !res[7].error;
-      if (state.dbV4) {
-        state.assessments = res[6].data.map(fromAssess);
-        var rm = {}; res[7].data.forEach(function (r) { rm[r.code] = num(r.mark); }); state.results = rm;
-        if (!state.assessments.length && !seedDone()) { markSeeded(); return sb.from('assessments').insert(seedRows(ymd(now())).map(assessRow)).then(function () { return loadAll(); }); }
-      } else { state.assessments = seedRows(ymd(now())); state.results = {}; }
+    if (queue.length) { if (!flushing) flush(); return Promise.resolve(); } // sync waiting changes first, then reload
+    return Promise.all(TABLE_LIST.map(function (t) {
+      var q = sb.from(t).select('*'); return (t === 'stints' || t === 'gym_sets' || t === 'logbook' ? q.limit(5000) : q.limit(2000));
+    })).then(function (res) {
+      if (res.slice(0, 4).some(function (r) { return r.error; })) {
+        var off = res.slice(0, 4).some(function (r) { return !r.status; });
+        state.offline = off; if (!state.ready) loadCache(); render();
+        if (!off) toast('Could not load your data. Check your connection.');
+        return;
+      }
+      state.offline = false;
+      state.dbV2 = !res[4].error; state.dbV3 = !res[5].error; state.dbV4 = !res[6].error && !res[7].error;
+      state.dbV5 = res.slice(8).every(function (r) { return !r.error; });
+      TABLE_LIST.forEach(function (t, i) { raw[t] = res[i].error ? [] : res[i].data; });
+      if (queue.length) queue.forEach(applyLocal);
+      if (state.dbV4 && !raw.assessments.length && !seedDone()) {
+        markSeeded(); seedRows(ymd(now())).forEach(function (a) { write({ t: 'assessments', a: 'insert', row: Object.assign({ id: uuid() }, assessRow(a)) }); });
+      }
+      if (!state.dbV4) raw.assessments = seedRows(ymd(now())).map(function (a) { return Object.assign({ id: a.id }, assessRow(a)); });
+      derive(); persist();
       var first = !state.ready; state.ready = true; render(first);
-    });
+    }, function () { state.offline = true; if (!state.ready) loadCache(); render(); });
   }
 
   function connect() {
     var cfg = window.FIELD_NOTES_CONFIG || {};
     if (!window.supabase || !cfg.supabaseUrl || cfg.supabaseUrl.indexOf('YOUR_') === 0) {
-      state.saving = false; state.ready = true; state.assessments = seedRows(ymd(now())); showLogin(false); render(); return;
+      // No database client (first visit offline, or not set up): show the last copy kept on this phone if there is one.
+      var c = null; try { c = JSON.parse(localStorage.getItem('fn-cache') || 'null'); } catch (x) {}
+      if (c && c.raw) { user = { id: c.user, email: '' }; loadCache(); state.offline = true; showLogin(false); render(); return; }
+      state.saving = false; state.ready = true; raw.assessments = seedRows(ymd(now())).map(function (a) { return Object.assign({ id: a.id }, assessRow(a)); }); derive(); showLogin(false); render(); return;
     }
     sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, { auth: { persistSession: true, autoRefreshToken: true } });
     sb.auth.getSession().then(function (r) {
       user = r.data && r.data.session ? r.data.session.user : null;
-      showLogin(!user); if (user) loadAll(); else render();
+      showLogin(!user); if (user) { if (loadCache()) render(true); loadAll(); flush(); } else render();
     });
     sb.auth.onAuthStateChange(function (_e, session) {
       var was = user; user = session ? session.user : null;
-      showLogin(!user); if (user && !was) loadAll();
+      showLogin(!user); if (user && !was) { loadCache(); loadAll(); }
     });
-    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') loadAll(); });
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') { if (queue.length) flush(); else loadAll(); } });
 
     var form = document.getElementById('f-login'), err = document.getElementById('l-err');
     function creds() { return { email: document.getElementById('l-email').value.trim(), password: document.getElementById('l-pass').value }; }
@@ -647,48 +826,31 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
     });
   }
 
+  // Older entry points, now on top of write().
   function save(collection, id, data) {
-    if (sb && user) {
-      var row = toRow(collection, id, data), q;
-      if (collection === 'days') q = sb.from('days').upsert(row, { onConflict: 'user_id,date' });
-      else if (collection === 'tax') q = sb.from('tax_weeks').upsert(row, { onConflict: 'user_id,week_start' });
-      else if (collection === 'body') q = sb.from('body').upsert(row, { onConflict: 'user_id,date' });
-      else q = sb.from(TABLES[collection]).insert(row);
-      return q.then(function (r) { if (r.error) { toast('Could not save, try again'); throw r.error; } return loadAll(); });
-    }
-    var rec = Object.assign({ id: id || ('local' + Date.now()) }, data);
-    if (collection === 'shifts' || collection === 'expenses' || collection === 'logbook') state[collection] = state[collection].filter(function (r) { return r.id !== rec.id; }).concat([rec]);
-    else state[collection][rec.id] = rec;
-    render(); return Promise.resolve();
+    var t = TABLES[collection], row = toRow(collection, id, data);
+    if (PK[t]) return write({ t: t, a: 'upsert', row: row });
+    row.id = uuid(); return write({ t: t, a: 'insert', row: row });
   }
   function remove(collection, id) {
-    if (sb && user) return sb.from(TABLES[collection]).delete().eq('id', id).then(function (r) { if (r.error) toast('Could not delete, try again'); return loadAll(); });
-    if (collection === 'shifts' || collection === 'expenses' || collection === 'logbook') state[collection] = state[collection].filter(function (r) { return r.id !== id; });
-    else delete state[collection][id];
-    render(); return Promise.resolve();
+    if (collection === 'gymday') return write({ t: 'gym_sets', a: 'delete', match: { date: id } });
+    return write({ t: TABLES[collection] || collection, a: 'delete', id: id });
   }
-
   function saveAssess(a) {
-    if (sb && user) {
-      if (!state.dbV4) { toast('Run the database update first'); return Promise.reject(); }
-      var row = assessRow(a), q = a.id && !/^(local|seed)/.test(a.id) ? sb.from('assessments').update(row).eq('id', a.id) : sb.from('assessments').insert(row);
-      return q.then(function (r) { if (r.error) { toast('Could not save, try again'); throw r.error; } return loadAll(); });
-    }
-    if (!a.id) a.id = 'local' + Date.now();
-    state.assessments = state.assessments.filter(function (x) { return x.id !== a.id; }).concat([JSON.parse(JSON.stringify(a))]);
-    render(); return Promise.resolve();
+    if (sb && !state.dbV4) { toast('Run the database update first'); return Promise.reject(); }
+    var row = assessRow(a);
+    if (a.id && raw.assessments.some(function (r) { return r.id === a.id; })) return write({ t: 'assessments', a: 'update', id: a.id, row: row });
+    row.id = uuid(); return write({ t: 'assessments', a: 'insert', row: row });
   }
-  function removeAssess(id) {
-    if (sb && user) return sb.from('assessments').delete().eq('id', id).then(function (r) { if (r.error) toast('Could not delete, try again'); return loadAll(); });
-    state.assessments = state.assessments.filter(function (x) { return x.id !== id; }); render(); return Promise.resolve();
-  }
+  function removeAssess(id) { return write({ t: 'assessments', a: 'delete', id: id }); }
   function saveResult(code, mark) {
-    if (sb && user) {
-      if (!state.dbV4) { toast('Run the database update first'); return Promise.reject(); }
-      var q = mark == null ? sb.from('subject_results').delete().eq('code', code) : sb.from('subject_results').upsert({ code: code, mark: mark, updated_at: new Date().toISOString() }, { onConflict: 'user_id,code' });
-      return q.then(function (r) { if (r.error) { toast('Could not save, try again'); throw r.error; } return loadAll(); });
-    }
-    if (mark == null) delete state.results[code]; else state.results[code] = mark; render(); return Promise.resolve();
+    if (sb && !state.dbV4) { toast('Run the database update first'); return Promise.reject(); }
+    if (mark == null) return write({ t: 'subject_results', a: 'delete', match: { code: code } });
+    return write({ t: 'subject_results', a: 'upsert', row: { code: code, mark: mark, updated_at: new Date().toISOString() } });
+  }
+  function need5(errEl) {
+    if (sb && !state.dbV5) { var m = 'This can\'t be saved until the one-time database update for version 1.1 is done.'; if (errEl) errEl.textContent = m; else toast(m); return false; }
+    return true;
   }
 
   /* ---------------- derived numbers ---------------- */
@@ -825,6 +987,8 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
 
   /* ---------------- views ---------------- */
   function notice() {
+    if (state.offline || queue.length) return '<div class="notice">' + (queue.length ? 'No signal: ' + queue.length + ' change' + (queue.length === 1 ? '' : 's') + ' saved on this phone. They sync by themselves when you are back online.' : 'No signal: showing what is saved on this phone.') + '</div>';
+    if (state.saving && state.dbV4 && !state.dbV5) return '<div class="notice">Driving stints, the Uber balance, bills, gym sets, walks and check-ins can\'t be saved yet. The database needs its one-time update for version 1.1.</div>';
     if (state.saving && state.dbV2 && !state.dbV3) return '<div class="notice">Weigh-ins can\'t be saved yet. The database needs its one-time update for this version.</div>';
     if (state.saving) return state.dbV2 ? '' : '<div class="notice">Tax, BAS and logbook details can\'t be saved yet. The database needs its one-time update.</div>';
     return '<div class="notice">Not connected to your database yet, so entries are not saved. Finish the setup steps to switch saving on.</div>';
@@ -849,7 +1013,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
     var blocks = sch.blocks.concat([[DAY_END, DAY_END + 480, 'rest', 'Sleep']]);
     return '<div class="agenda" role="list">' + blocks.map(function (b) {
       var past = isToday && nm >= b[1], cur = isToday && nm >= b[0] && nm < b[1];
-      var info = b[3] === 'Cook and eat dinner' ? 'Cook two portions: ' + mealsFor(d).dinner.name : b[3] === 'Midday stop: charge, lunch, rest' ? 'Lunch: ' + mealsFor(d).lunch.name : b[2] === 'health' ? (sch.gym ? '55 min session, 10 min walk each way' : 'Door to door, 1 h 15') : b[3] === 'Sleep' ? 'Up at 5:30 am' : (BLOCK_INFO[b[3]] || '');
+      var info = b[3] === 'Cook and eat dinner' ? 'Cook two portions: ' + mealsFor(d).dinner.name : b[3] === 'Midday stop: charge, lunch, rest' ? 'Lunch: ' + mealsFor(d).lunch.name : b[2] === 'health' ? (sch.gym ? 'Workout ' + workoutFor(d) + ', 55 min session, 10 min walk each way' : 'Door to door, max 1 h 15') : b[3] === 'Sleep' ? 'Up at 5:30 am' : (BLOCK_INFO[b[3]] || '');
       var state = cur ? '<span class="ag-badge">Now</span>' : past ? 'Done' : '';
       return '<div class="ag-row' + (cur ? ' now' : '') + (past ? ' past' : '') + '" role="listitem"' + (cur ? ' aria-current="time"' : '') + '>' +
         '<span class="ag-time">' + clock(b[0] % 1440) + '</span><span class="ag-ico i-' + b[2] + '" aria-hidden="true">' + icon(blockIcon(b[3]), 16) + '</span>' +
@@ -922,38 +1086,241 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
       bar('rest', Math.max(0, wn) / 52, 'Transition year', wn >= 1 ? 'Week ' + Math.min(wn, 52) + ' / 52' : 'Starts 8 Nov') +
       bar('study', COURSE.filter(function (c) { return finalMark(c) != null; }).length / COURSE.length, 'Master of Urban Planning', COURSE.filter(function (c) { return finalMark(c) != null; }).length + ' / ' + COURSE.length + ' subjects · ends May 2027') + bar('work', 0, 'Splend term', 'Ends December 2027') + '</section>';
 
-    return hero('today', (d.getHours() < 12 ? 'Good morning' : d.getHours() < 17 ? 'Good afternoon' : 'Good evening') + ', Istvan', '', { tall: true }) + notice() + startNote(d) + rings + nowCard + timeline +
+    var dueSoon = billsDue(key, 3), act = activeStint();
+    var alerts = (lighterDay(d) ? '<section class="card a-rest"><span class="eyebrow l-rest">Take it easier tomorrow</span><span class="body" style="color:var(--ink)">Two of your last three check-ins were low. ' + LIGHT_DAY + '</span></section>' : '') +
+      (dueSoon.length ? '<section class="card a-money"><span class="eyebrow l-money">Bills due</span>' + dueSoon.map(function (b) { return '<span class="body" style="color:var(--ink)">' + esc(b.name) + ' · ' + money(b.amount, true) + ' · ' + dueLabel(b.nextDue, key) + '</span>'; }).join('') + '</section>' : '') +
+      (act ? '<section class="card a-work"><span class="eyebrow l-work">' + esc(KIND_LABEL[act.kind]) + ' since ' + timeOf(act.startedAt) + '</span><span class="body" style="color:var(--ink)">Stop it on the Work tab with the odometer' + (act.kind === 'private' || act.kind === 'business' ? '.' : ' and what you were paid.') + '</span></section>' : '');
+    return hero('today', (d.getHours() < 12 ? 'Good morning' : d.getHours() < 17 ? 'Good afternoon' : 'Good evening') + ', Istvan', '', { tall: true }) + notice() + startNote(d) + alerts + rings + nowCard + timeline +
       '<section class="card" aria-label="Today\'s plan"><div class="card-head"><h2 class="heading">Today\'s plan</h2><span class="caption">' + DAYS[d.getDay()] + '</span></div>' + agenda(d) + '</section>' + week + moneyCard + longView;
   }
 
+  /* ---------------- work: driving stints, charging, real profit ---------------- */
+  function monthName(m) { var p = m.split('-'); return MONTHS[+p[1] - 1] + ' ' + p[0]; }
+  function timeOf(iso) { if (!iso) return ''; var d = new Date(iso); return clockAp(d.getHours() * 60 + d.getMinutes()); }
+  function hhmm(iso) { var d = iso ? new Date(iso) : now(); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+  function isoAt(dateStr, time) { var p = dateStr.split('-'), t = (time || '00:00').split(':'); return new Date(+p[0], +p[1] - 1, +p[2], +t[0], +t[1]).toISOString(); }
+  function activeStint() { for (var i = state.stints.length - 1; i >= 0; i--) if (!state.stints[i].endedAt && state.stints[i].startedAt) return state.stints[i]; return null; }
+  function lastOdo() {
+    var m = 0; state.logbook.forEach(function (l) { m = Math.max(m, l.odoEnd || 0, l.odoStart || 0); });
+    state.stints.forEach(function (s) { m = Math.max(m, s.odoStart || 0, s.odoEnd || 0); }); return m;
+  }
+  var KIND_LABEL = { uber: 'Uber, online', homeward: 'Uber, heading home', private: 'Private', business: 'Business, not online' };
+  function stintsOn(key) { return state.stints.filter(function (s) { return s.date === key; }); }
+  function paidOn(key) { return sum(stintsOn(key).filter(function (s) { return s.endedAt; }), function (s) { return s.earned; }); }
+  function chargesIn(a, b) { return state.expenses.filter(function (e) { return e.category === 'Charging' && e.date >= a && e.date < b; }); }
+
+  // Real profit for [a, b): earnings without tolls, less charging and cash-out fees; then less Splend, washes and phone at plan rates.
+  function profitIn(a, b) {
+    var sh = state.shifts.filter(function (s) { return s.date >= a && s.date < b; });
+    var earn = sum(sh, function (s) { return s.receipts; }), min = sum(sh, driveMin), km = sum(sh, function (s) { return s.km; });
+    var days = {}; sh.forEach(function (s) { days[s.date] = 1; }); var nDays = Object.keys(days).length;
+    var charge = sum(chargesIn(a, b), function (e) { return e.amount; });
+    var fees = sum(state.cashouts.filter(function (c) { return c.date >= a && c.date < b; }), function (c) { return c.fee; });
+    var run = earn - charge - fees, all = run - BIZ_FIXED_WEEK / 7 * nDays;
+    return { earn: earn, min: min, km: km, days: nDays, charge: charge, fees: fees, run: run, all: all,
+      perHour: min ? run / (min / 60) : null, perHourAll: min ? all / (min / 60) : null, perKm: km ? run / km : null };
+  }
+
   function viewWork(d) {
-    var ws = weekStart(d), list = inWeek(state.shifts, ws).sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+    var key = ymd(d), ws = weekStart(d), list = inWeek(state.shifts, ws).sort(function (a, b) { return (a.startedAt || a.date) < (b.startedAt || b.date) ? 1 : -1; });
     var drive = sum(list, driveMin), normal = sum(list, function (s) { return s.normalMin; }), home = sum(list, function (s) { return s.homeMin; });
     var earn = sum(list, function (s) { return s.receipts; }), km = sum(list, function (s) { return s.km; });
     var season = seasonFor(d), forecast = EQ_HOURS * season.rate * 7;
-    var equiv = (normal + home * 2 / 3) / 60, perHour = equiv > 0 ? earn / equiv : 0;
     var nDays = {}; list.forEach(function (s) { nDays[s.date] = 1; }); nDays = Object.keys(nDays).length;
     var avgDay = nDays ? earn / nDays : 0;
-    var gross = sum(list, function (s) { return shiftGross(s) || 0; }), fees = sum(list, shiftFees);
-    var rows = list.length ? list.map(function (s) {
-      var g = shiftGross(s);
-      return '<div class="row"><div class="row-main"><span class="row-title">' + shortDate(s.date) + ' · ' + hm(driveMin(s)) + ' driven</span><span class="row-sub">' +
-        (g != null ? 'Gross ' + money(g, true) + ' · fees ' + money(shiftFees(s), true) + ' · ' : 'Gross fares not entered · ') +
-        (s.km ? Number(s.km) + ' km · ' : '') + (s.note ? esc(s.note) : (Number(s.homeMin) ? 'incl. ' + hm(s.homeMin) + ' homeward' : '')) + '</span></div>' +
-        '<span class="fig-sm">' + money(s.receipts, true) + '</span><button class="link-btn" data-act="del" data-c="shifts" data-id="' + esc(s.id) + '" aria-label="Delete shift on ' + shortDate(s.date) + '">Delete</button></div>';
-    }).join('') : '<div class="empty-state">' + illo('car') + '<p class="empty">No shifts logged this week yet. Log one after you get home.</p></div>';
-    return hero('work', 'Work', 'One shift, 7:30 am to 3:30 pm. Target ' + money(DAY_TARGET) + ' a day.') + notice() +
-      '<section class="card a-work"><span class="eyebrow l-work">Target ' + money(DAY_TARGET) + ' a day · ' + money(WEEK_TARGET) + ' a week</span>' +
-      '<span class="fig-lg">' + money(earn, true) + '</span><span class="body" style="color:var(--ink)">earned this week after fees</span>' +
+    var act = activeStint();
+
+    // Driving now / start
+    var live;
+    if (act) {
+      var mins = Math.max(0, Math.round((now() - new Date(act.startedAt)) / 60000)), online = act.kind === 'uber' || act.kind === 'homeward';
+      live = '<section class="card a-work has-illo">' + illo('car', 'corner') + '<span class="eyebrow l-work">' + esc(KIND_LABEL[act.kind]) + ' · since ' + timeOf(act.startedAt) + '</span>' +
+        '<span class="fig-lg">' + hm(mins) + '</span><span class="body" style="color:var(--ink)">Odometer at start ' + (act.odoStart || 0).toLocaleString('en-AU') + ' km' + (online ? ' · paid so far today ' + money(paidOn(key), true) : '') + '</span>' +
+        '<div class="btn-row"><button class="btn btn-primary" data-act="stint-stop">Stop</button>' + (act.kind === 'uber' ? '<button class="btn btn-secondary" data-act="stint-stop" data-v="homeward">Heading home</button>' : '') + '</div>' +
+        '<button class="btn btn-secondary btn-small" data-act="charge">' + icon('bolt', 18) + 'Charged</button></section>';
+    } else {
+      live = '<section class="card a-work has-illo">' + illo('gauge', 'corner') + '<span class="eyebrow l-work">Not driving</span><span class="title">Start a stint</span>' +
+        '<span class="body" style="color:var(--ink)">Odometer at start, then odometer and what you were paid when you stop. Last reading ' + (lastOdo() ? lastOdo().toLocaleString('en-AU') + ' km' : 'none yet') + '.</span>' +
+        '<button class="btn btn-primary" data-act="stint-start" data-v="uber">' + icon('car', 20) + 'Start driving</button>' +
+        '<div class="btn-row"><button class="btn btn-secondary btn-small" data-act="stint-start" data-v="private">Private trip</button><button class="btn btn-secondary btn-small" data-act="charge">' + icon('bolt', 18) + 'Charged</button></div></section>';
+    }
+
+    // Today
+    var todays = stintsOn(key).slice().reverse(), paidToday = paidOn(key), tollsToday = sum(todays.filter(function (s) { return s.endedAt; }), function (s) { return s.tolls; });
+    var realToday = paidToday - tollsToday;
+    var todayRows = todays.map(function (s) {
+      var k = s.odoEnd != null && s.odoStart != null ? Math.max(0, s.odoEnd - s.odoStart) : null, online = s.kind === 'uber' || s.kind === 'homeward';
+      return '<div class="row"><div class="row-main"><span class="row-title">' + (s.startedAt ? timeOf(s.startedAt) + (s.endedAt ? ' – ' + timeOf(s.endedAt) : ' · now') : 'Between readings') + ' · ' + esc(KIND_LABEL[s.kind]) + '</span>' +
+        '<span class="row-sub">' + (k != null ? k + ' km' : 'running') + (s.endedAt ? ' · ' + hm(stintMin(s)) : '') + (s.tolls ? ' · tolls ' + money(s.tolls, true) : '') + (s.note ? ' · ' + esc(s.note) : '') + '</span></div>' +
+        '<span class="fig-sm">' + (online && s.endedAt ? money(s.earned, true) : '') + '</span><button class="link-btn" data-act="del" data-c="stints" data-id="' + esc(s.id) + '" aria-label="Delete stint">Delete</button></div>';
+    }).join('');
+    var todayCard = '<section class="card"><div class="card-head"><h3 class="heading">Today</h3><span class="fig-sm">' + money(realToday, true) + ' / ' + money(DAY_TARGET) + '</span></div>' +
+      bar('work', realToday / DAY_TARGET, '', '', {}) +
+      '<span class="caption">' + (paidToday ? 'Paid ' + money(paidToday, true) + (tollsToday ? ', of which ' + money(tollsToday, true) + ' paid back tolls' : '') + '. ' : '') +
+      (realToday >= DAY_TARGET ? 'Target met.' : realToday >= DAY_BREAKEVEN ? 'Above break-even, ' + money(DAY_TARGET - realToday, true) + ' to target.' : money(DAY_BREAKEVEN - realToday, true) + ' to break-even (' + money(DAY_BREAKEVEN, true) + ').') + '</span>' +
+      (todayRows ? '<div class="list">' + todayRows + '</div>' : '') +
+      '<button class="btn btn-secondary btn-small" data-act="stint-past">Add a stint afterwards</button></section>';
+
+    // Week target
+    var weekCard = '<section class="card a-work"><span class="eyebrow l-work">This week · target ' + money(WEEK_TARGET) + '</span>' +
+      '<span class="fig-lg">' + money(earn, true) + '</span><span class="body" style="color:var(--ink)">earned this week, tolls not counted</span>' +
       bar('work', earn / WEEK_TARGET, '', '', { onSoft: true }) +
       '<span class="caption">' + (nDays ? 'Average ' + money(avgDay, true) + ' a day over ' + nDays + ' day' + (nDays === 1 ? '' : 's') + (avgDay >= DAY_TARGET ? ' · on target' : avgDay >= DAY_BREAKEVEN ? ' · above break-even' : ' · below break-even (' + money(DAY_BREAKEVEN, true) + ')') + '. ' : '') +
-      season.name + ' forecast: ' + money(forecast) + ' a week.</span></section>' +
-      '<section class="card"><div class="card-head"><h3 class="heading">This week</h3><span class="caption">from Sunday ' + ws.getDate() + ' ' + MONTHS[ws.getMonth()].slice(0, 3) + '</span></div>' +
+      season.name + ' forecast: ' + money(forecast) + ' a week.</span></section>';
+
+    // Real profit
+    var pw = profitIn(ymd(ws), ymd(addDays(ws, 7))), p4 = profitIn(ymd(addDays(ws, -28)), ymd(ws));
+    var byDay = [0, 0, 0, 0, 0, 0, 0].map(function () { return { e: 0, m: 0 }; }), byBand = [['Before 10 am', 0, 600], ['10 am – noon', 600, 720], ['Noon – 3 pm', 720, 900], ['After 3 pm', 900, 1440]].map(function (b) { return { n: b[0], a: b[1], b: b[2], e: 0, m: 0 }; });
+    var from28 = ymd(addDays(parseYmd(key), -28));
+    state.shifts.forEach(function (s) {
+      if (s.date < from28 || s.date > key) return; var m = driveMin(s); if (!m) return;
+      var x = byDay[parseYmd(s.date).getDay()]; x.e += s.receipts; x.m += m;
+      if (s.startedAt) { var st = new Date(s.startedAt), sm = st.getHours() * 60 + st.getMinutes(); byBand.forEach(function (b) { if (sm >= b.a && sm < b.b) { b.e += s.receipts; b.m += m; } }); }
+    });
+    var maxRate = 0; byDay.concat(byBand).forEach(function (x) { if (x.m) maxRate = Math.max(maxRate, x.e / (x.m / 60)); });
+    function rateBar(label, x) { var r = x.m ? x.e / (x.m / 60) : 0; return bar('work', maxRate ? r / maxRate : 0, label, x.m ? money(r, true) + '/h' : '–'); }
+    var hasRates = maxRate > 0;
+    var profitCard = '<section class="card"><div class="card-head"><h3 class="heading">Real profit</h3><span class="caption">this week</span></div>' +
+      '<div class="kv">' + kvRow('Earned (tolls not counted)', money(pw.earn, true)) + kvRow('Charging', '−' + money(pw.charge, true)) + kvRow('Cash-out fees', '−' + money(pw.fees, true)) +
+      kvRow('After running costs', money(pw.run, true), 'total') +
+      kvRow('Per hour driven', pw.perHour != null ? money(pw.perHour, true) : '–') + kvRow('Per km', pw.perKm != null ? money(pw.perKm, true) : '–') +
+      kvRow('Per hour after Splend, washes and phone', pw.perHourAll != null ? money(pw.perHourAll, true) : '–', 'total') +
+      kvRow('Last 4 weeks, per hour after running costs', p4.perHour != null ? money(p4.perHour, true) : '–') + '</div>' +
+      (hasRates ? '<h4 class="eyebrow">Earnings per hour by day, last 4 weeks</h4>' + [1, 2, 3, 4, 5, 6, 0].map(function (i) { return rateBar(DAYS[i], byDay[i]); }).join('') +
+        '<h4 class="eyebrow">By start time</h4>' + byBand.map(function (b) { return rateBar(b.n, b); }).join('') : '<span class="caption">Per-day and per-time comparisons appear after a few stints.</span>') + '</section>';
+
+    // Charging
+    var ch = chargesIn(ymd(ws), ymd(addDays(ws, 7))), chT = sum(ch, function (e) { return e.amount; }), kwh = sum(ch, function (e) { return e.kwh || 0; });
+    var chRows = ch.slice().reverse().map(function (e) {
+      return '<div class="row"><div class="row-main"><span class="row-title">' + shortDate(e.date) + (e.note ? ' · ' + esc(e.note) : '') + '</span><span class="row-sub">' + (e.kwh ? e.kwh + ' kWh · ' + money(e.amount / e.kwh, true) + '/kWh' : 'kWh not entered') + '</span></div>' +
+        '<span class="fig-sm">' + money(e.amount, true) + '</span><button class="link-btn" data-act="del" data-c="expenses" data-id="' + esc(e.id) + '" aria-label="Delete charge">Delete</button></div>';
+    }).join('');
+    var chargeCard = '<section class="card"><div class="card-head"><h3 class="heading">Charging this week</h3><span class="fig-sm">' + money(chT, true) + ' / ' + money(245) + '</span></div>' +
+      bar('money', chT / 245, '', '', {}) +
+      '<div class="kv">' + kvRow('Energy', kwh ? kwh.toFixed(1) + ' kWh' : '–') + kvRow('Average price', kwh ? money(chT / kwh, true) + '/kWh' : '–') + kvRow('Per 100 km driven', km ? money(chT / km * 100, true) : '–') + '</div>' +
+      (chRows ? '<div class="list">' + chRows + '</div>' : '') + '<button class="btn btn-secondary btn-small" data-act="charge">' + icon('bolt', 18) + 'Log a charge</button></section>';
+
+    var stats = '<section class="card"><div class="card-head"><h3 class="heading">Hours and kilometres</h3><span class="caption">from Sunday ' + ws.getDate() + ' ' + MONTHS[ws.getMonth()].slice(0, 3) + '</span></div>' +
       bar('work', drive / WEEK_DRIVE_MIN, 'Hours driven', hm(drive) + ' / ' + hm(WEEK_DRIVE_MIN)) +
-      '<div class="kv"><span>Normal-rate hours</span><span class="fig-sm">' + hm(normal) + '</span><span>Homeward hours</span><span class="fig-sm">' + hm(home) + '</span>' +
-      '<span>Earnings per normal-rate hour (target ' + money(WEEK_TARGET / (EQ_HOURS * 7), true) + ')</span><span class="fig-sm">' + (perHour ? money(perHour, true) : '–') + '</span><span>Gross fares (incl. GST)</span><span class="fig-sm">' + (gross ? money(gross, true) : '–') + '</span><span>Uber fees</span><span class="fig-sm">' + (fees ? money(fees, true) : '–') + '</span><span>Kilometres</span><span class="fig-sm">' + (km ? km.toLocaleString('en-AU') : '–') + '</span></div></section>' +
-      '<button class="btn btn-primary" data-act="shift">' + icon('plus', 20) + 'Log shift</button>' +
-      '<section class="card"><h3 class="heading">Shifts this week</h3><div class="list">' + rows + '</div></section>';
+      '<div class="kv">' + kvRow('Normal-rate hours', hm(normal)) + kvRow('Homeward hours', hm(home)) + kvRow('Kilometres on Uber', km ? km.toLocaleString('en-AU') : '–') + '</div></section>';
+
+    var rows = list.filter(function (s) { return !s.stint || s.date !== key; }).map(function (s) {
+      return '<div class="row"><div class="row-main"><span class="row-title">' + shortDate(s.date) + (s.startedAt ? ' · ' + timeOf(s.startedAt) + ' – ' + timeOf(s.endedAt) : '') + '</span><span class="row-sub">' +
+        hm(driveMin(s)) + (s.homeMin && !s.normalMin ? ' heading home' : '') + (s.km ? ' · ' + Number(s.km) + ' km' : '') + (s.tolls ? ' · tolls ' + money(s.tolls, true) : '') + (s.note ? ' · ' + esc(s.note) : '') + '</span></div>' +
+        '<span class="fig-sm">' + money(s.receipts, true) + '</span><button class="link-btn" data-act="del" data-c="' + (s.stint ? 'stints' : 'shifts') + '" data-id="' + esc(s.id) + '" aria-label="Delete">Delete</button></div>';
+    }).join('');
+    var listCard = rows ? '<section class="card"><h3 class="heading">Earlier this week</h3><div class="list">' + rows + '</div></section>' : '';
+
+    return hero('work', 'Work', 'One shift, 7:30 am to 3:30 pm. Target ' + money(DAY_TARGET) + ' a day.') + notice() + live + todayCard + weekCard + profitCard + chargeCard + stats + listCard;
+  }
+
+  function kindChips(cur, name) {
+    return '<div class="chips" role="radiogroup" aria-label="Type of trip">' + ['uber', 'homeward', 'private', 'business'].map(function (k) {
+      return '<label class="chip" style="display:inline-flex;gap:8px;align-items:center"><input type="radio" name="' + name + '" value="' + k + '"' + (k === cur ? ' checked' : '') + '>' + esc(KIND_LABEL[k]) + '</label>'; }).join('') + '</div>';
+  }
+  function stintStartSheet(kind) {
+    var last = lastOdo(), d = now();
+    openSheet('<h2 class="title" id="sheet-title">' + (kind === 'private' ? 'Start a private trip' : 'Start driving') + '</h2>' +
+      '<form id="f-st" style="display:flex;flex-direction:column;gap:14px" novalidate>' + kindChips(kind, 'st-kind') +
+      '<div class="two"><div class="field"><label for="st-odo">Odometer now (km)</label><input id="st-odo" type="number" inputmode="numeric" min="0" step="1" value="' + (last || '') + '" required></div>' +
+      '<div class="field"><label for="st-time">Start time</label><input id="st-time" type="time" value="' + hhmm() + '"></div></div>' +
+      '<div id="st-gap" hidden><span class="hint" id="st-gap-t"></span><div class="chips" role="radiogroup" aria-label="Kilometres since the last reading">' +
+      '<label class="chip" style="display:inline-flex;gap:8px;align-items:center"><input type="radio" name="st-gap" value="private">Private</label>' +
+      '<label class="chip" style="display:inline-flex;gap:8px;align-items:center"><input type="radio" name="st-gap" value="business">Business, not online</label>' +
+      '<label class="chip" style="display:inline-flex;gap:8px;align-items:center"><input type="radio" name="st-gap" value="skip">Leave out</label></div></div>' +
+      '<p class="caption" id="st-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
+      '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Start</button></div></form>');
+    var odo = document.getElementById('st-odo');
+    function gap() { var g = (parseInt(odo.value, 10) || 0) - last; document.getElementById('st-gap').hidden = !(last && g > 0);
+      document.getElementById('st-gap-t').textContent = g > 0 ? g + ' km since your last reading (' + last.toLocaleString('en-AU') + '). What were they?' : ''; return g; }
+    odo.addEventListener('input', gap); gap();
+    document.getElementById('f-st').addEventListener('submit', function (e) {
+      e.preventDefault(); var err = document.getElementById('st-err');
+      if (!need5(err)) return;
+      var o = parseInt(odo.value, 10), k = (sheet.querySelector('input[name="st-kind"]:checked') || {}).value || 'uber', g = gap();
+      var gk = (sheet.querySelector('input[name="st-gap"]:checked') || {}).value;
+      if (!(o >= 0)) { err.textContent = 'Enter the odometer reading.'; return; }
+      if (last && o < last) { err.textContent = 'That is below the last reading (' + last.toLocaleString('en-AU') + ' km). Check the odometer.'; return; }
+      if (last && g > 0 && !gk) { err.textContent = 'Say what the ' + g + ' km since the last reading were.'; return; }
+      var key = ymd(now()), t = document.getElementById('st-time').value || hhmm();
+      if (last && g > 0 && gk !== 'skip') write({ t: 'stints', a: 'insert', row: { id: uuid(), date: key, kind: gk, started_at: null, ended_at: null, odo_start: last, odo_end: o, earned: 0, tolls: 0, note: 'Between readings' } });
+      write({ t: 'stints', a: 'insert', row: { id: uuid(), date: key, kind: k, started_at: isoAt(key, t), ended_at: null, odo_start: o, odo_end: null, earned: 0, tolls: 0, note: '' } });
+      closeSheet(); toast(k === 'private' ? 'Private trip started' : 'Driving: started');
+    });
+  }
+  function stintStopSheet(next) {
+    var s = activeStint(); if (!s) return;
+    var online = s.kind === 'uber' || s.kind === 'homeward', before = paidOn(s.date);
+    openSheet('<h2 class="title" id="sheet-title">' + (next === 'homeward' ? 'Heading home' : 'Stop') + '</h2><p class="body" style="margin:0">' + esc(KIND_LABEL[s.kind]) + ' since ' + timeOf(s.startedAt) + ', odometer ' + s.odoStart.toLocaleString('en-AU') + ' km.' + (next === 'homeward' ? ' This closes the stint and starts the homeward one from the same reading.' : '') + '</p>' +
+      '<form id="f-sp" style="display:flex;flex-direction:column;gap:14px" novalidate>' +
+      '<div class="two"><div class="field"><label for="sp-odo">Odometer now (km)</label><input id="sp-odo" type="number" inputmode="numeric" min="' + s.odoStart + '" step="1" required></div>' +
+      '<div class="field"><label for="sp-time">Stop time</label><input id="sp-time" type="time" value="' + hhmm() + '"></div></div>' +
+      (online ? '<div class="field"><label for="sp-paid">Paid for this stint ($)</label><input id="sp-paid" type="number" inputmode="decimal" min="0" step="0.01" placeholder="what Uber paid you, tolls included"></div>' +
+        '<label class="chip" style="display:flex;align-items:center;gap:10px;justify-content:flex-start"><input id="sp-total" type="checkbox" style="width:20px;height:20px"> That is today\'s total in the Uber app' + (before ? ' (' + money(before, true) + ' already logged today is taken off)' : '') + '</label>' +
+        '<div class="field"><label for="sp-tolls">Tolls inside that ($)</label><input id="sp-tolls" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"><span class="hint">Tolls are paid back exactly, so they are not counted as earnings.</span></div>' : '') +
+      '<div class="field"><label for="sp-n">Note</label><input id="sp-n" type="text" maxlength="80" placeholder="' + (online ? 'e.g. airport run' : 'e.g. groceries') + '"></div>' +
+      '<p class="caption" id="sp-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
+      '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div></form>');
+    document.getElementById('f-sp').addEventListener('submit', function (e) {
+      e.preventDefault(); var err = document.getElementById('sp-err');
+      var o = parseInt(document.getElementById('sp-odo').value, 10), t = document.getElementById('sp-time').value || hhmm();
+      if (!(o >= s.odoStart)) { err.textContent = 'Enter the odometer reading, at least ' + s.odoStart.toLocaleString('en-AU') + ' km.'; return; }
+      var end = isoAt(s.date, t); if (new Date(end) < new Date(s.startedAt)) { err.textContent = 'The stop time is before the start time.'; return; }
+      var paid = 0, tolls = 0;
+      if (online) {
+        paid = parseFloat(document.getElementById('sp-paid').value); tolls = parseFloat(document.getElementById('sp-tolls').value) || 0;
+        if (!(paid >= 0)) { err.textContent = 'Enter what you were paid (0 if nothing).'; return; }
+        if (document.getElementById('sp-total').checked) { paid = paid - before; if (paid < 0) { err.textContent = 'That total is less than the ' + money(before, true) + ' already logged today.'; return; } }
+        if (tolls > paid) { err.textContent = 'Tolls can\'t be more than what you were paid.'; return; }
+      }
+      write({ t: 'stints', a: 'update', id: s.id, row: { ended_at: end, odo_end: o, earned: Math.round(paid * 100) / 100, tolls: Math.round(tolls * 100) / 100, note: document.getElementById('sp-n').value.trim() } });
+      if (next === 'homeward') write({ t: 'stints', a: 'insert', row: { id: uuid(), date: s.date, kind: 'homeward', started_at: end, ended_at: null, odo_start: o, odo_end: null, earned: 0, tolls: 0, note: '' } });
+      closeSheet(); toast(next === 'homeward' ? 'Heading home: started' : online ? 'Stint saved: ' + money(paid, true) : 'Trip saved: ' + (o - s.odoStart) + ' km');
+    });
+  }
+  function stintPastSheet() {
+    var d = now(), last = lastOdo();
+    openSheet('<h2 class="title" id="sheet-title">Add a stint afterwards</h2>' +
+      '<form id="f-pa" style="display:flex;flex-direction:column;gap:14px" novalidate>' + kindChips('uber', 'pa-kind') +
+      '<div class="field"><label for="pa-date">Date</label><input id="pa-date" type="date" value="' + ymd(d) + '" required></div>' +
+      '<div class="two"><div class="field"><label for="pa-t1">Start time</label><input id="pa-t1" type="time" value="07:30"></div><div class="field"><label for="pa-t2">Stop time</label><input id="pa-t2" type="time" value="' + hhmm() + '"></div></div>' +
+      '<div class="two"><div class="field"><label for="pa-o1">Odometer start</label><input id="pa-o1" type="number" inputmode="numeric" min="0" step="1" value="' + (last || '') + '"></div><div class="field"><label for="pa-o2">Odometer end</label><input id="pa-o2" type="number" inputmode="numeric" min="0" step="1"></div></div>' +
+      '<div class="two"><div class="field"><label for="pa-paid">Paid ($)</label><input id="pa-paid" type="number" inputmode="decimal" min="0" step="0.01" placeholder="tolls included"></div><div class="field"><label for="pa-tolls">Tolls inside ($)</label><input id="pa-tolls" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"></div></div>' +
+      '<div class="field"><label for="pa-n">Note</label><input id="pa-n" type="text" maxlength="80"></div>' +
+      '<p class="caption" id="pa-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
+      '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div></form>');
+    document.getElementById('f-pa').addEventListener('submit', function (e) {
+      e.preventDefault(); var err = document.getElementById('pa-err'); if (!need5(err)) return;
+      var k = (sheet.querySelector('input[name="pa-kind"]:checked') || {}).value || 'uber', date = document.getElementById('pa-date').value;
+      var o1 = parseInt(document.getElementById('pa-o1').value, 10), o2 = parseInt(document.getElementById('pa-o2').value, 10);
+      var t1 = document.getElementById('pa-t1').value, t2 = document.getElementById('pa-t2').value;
+      var paid = parseFloat(document.getElementById('pa-paid').value) || 0, tolls = parseFloat(document.getElementById('pa-tolls').value) || 0;
+      if (!date || !t1 || !t2 || t2 <= t1) { err.textContent = 'Enter the date and a stop time after the start time.'; return; }
+      if (!(o1 >= 0) || !(o2 >= o1)) { err.textContent = 'Enter both odometer readings, the end at or above the start.'; return; }
+      if (k === 'private' || k === 'business') { paid = 0; tolls = 0; }
+      if (tolls > paid) { err.textContent = 'Tolls can\'t be more than what you were paid.'; return; }
+      write({ t: 'stints', a: 'insert', row: { id: uuid(), date: date, kind: k, started_at: isoAt(date, t1), ended_at: isoAt(date, t2), odo_start: o1, odo_end: o2, earned: Math.round(paid * 100) / 100, tolls: Math.round(tolls * 100) / 100, note: document.getElementById('pa-n').value.trim() } });
+      closeSheet(); toast('Stint saved');
+    });
+  }
+  function chargeSheet() {
+    openSheet('<h2 class="title" id="sheet-title">Charged</h2>' +
+      '<form id="f-ch" style="display:flex;flex-direction:column;gap:14px" novalidate>' +
+      '<div class="two"><div class="field"><label for="ch-amt">Cost ($)</label><input id="ch-amt" type="number" inputmode="decimal" min="0" step="0.01" required></div>' +
+      '<div class="field"><label for="ch-kwh">Energy (kWh)</label><input id="ch-kwh" type="number" inputmode="decimal" min="0" step="0.1" placeholder="optional"></div></div>' +
+      '<div class="field"><label for="ch-where">Where</label><input id="ch-where" type="text" maxlength="60" placeholder="e.g. Evie, Rhodes"></div>' +
+      '<div class="field"><label for="ch-date">Date</label><input id="ch-date" type="date" value="' + ymd(now()) + '"></div>' +
+      '<label class="chip" style="display:flex;align-items:center;gap:10px;justify-content:flex-start"><input id="ch-rec" type="checkbox" style="width:20px;height:20px"> Tax invoice / receipt kept</label>' +
+      '<span class="hint">Counted as 80% business, GST is 1/11 of the cost.</span>' +
+      '<p class="caption" id="ch-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
+      '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div></form>');
+    document.getElementById('f-ch').addEventListener('submit', function (e) {
+      e.preventDefault(); var a = parseFloat(document.getElementById('ch-amt').value), k = parseFloat(document.getElementById('ch-kwh').value), date = document.getElementById('ch-date').value;
+      if (!(a > 0) || !date) { document.getElementById('ch-err').textContent = 'Enter what the charge cost.'; return; }
+      save('expenses', null, { date: date, category: 'Charging', amount: Math.round(a * 100) / 100, businessPct: 80, gst: Math.round(a / 11 * 100) / 100, kwh: k > 0 ? Math.round(k * 100) / 100 : null,
+        receiptKept: document.getElementById('ch-rec').checked, note: document.getElementById('ch-where').value.trim() });
+      closeSheet(); toast('Charge saved: ' + money(a, true));
+    });
   }
 
   /* ---------------- Master of Urban Planning (Online), UTS ---------------- */
@@ -1135,11 +1502,11 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
   function viewHealth(d) {
     var ws = weekStart(d), segs = '', count = 0, key = ymd(d), doc = dayDoc(key), sch = schedule(d), m = mealsFor(d), di = d.getDay();
     for (var i = 0; i < 7; i++) { var dt = addDays(ws, i), dd = dayDoc(ymd(dt)), g = schedule(dt).gym; if (dd.exercise) count++;
-      segs += '<div class="row"><div class="row-main"><span class="row-title">' + DAYS[i] + '</span><span class="row-sub">Planned: ' + (g ? 'gym' : 'Homebush Bay walk') + '</span></div><span class="fig-sm">' + (dd.exercise ? (dd.exercise === 'gym' ? 'Gym done' : 'Walk done') : '–') + '</span><span></span></div>'; }
+      segs += '<div class="row"><div class="row-main"><span class="row-title">' + DAYS[i] + '</span><span class="row-sub">Planned: ' + (g ? 'gym, workout ' + workoutFor(dt) : 'Homebush Bay walk') + '</span></div><span class="fig-sm">' + (dd.exercise ? (dd.exercise === 'gym' ? 'Gym done' : 'Walk done') : '–') + '</span><span></span></div>'; }
 
-    var exCard = '<section class="card a-health has-illo">' + illo(sch.gym ? 'gym' : 'sunrise', 'corner') + '<span class="eyebrow l-health">This morning, 5:30</span><span class="title">' + (doc.exercise ? (doc.exercise === 'gym' ? 'Gym done' : 'Walk done') : (sch.gym ? 'Gym day' : 'Bay walk day')) + '</span>' +
-      '<div class="chips"><button class="chip" data-act="ex" data-v="gym" aria-pressed="' + (doc.exercise === 'gym') + '">Gym done</button><button class="chip" data-act="ex" data-v="walk" aria-pressed="' + (doc.exercise === 'walk') + '">Walk done</button>' +
-      (doc.exercise ? '<button class="chip" data-act="ex" data-v="">Undo</button>' : '') + '</div></section>';
+    var exCard = (sch.gym ? gymCard(d) + walkCard(d) : walkCard(d) + gymCard(d)) +
+      '<div class="chips" style="padding:0 4px"><span class="caption" style="align-self:center">Quick tick:</span><button class="chip" data-act="ex" data-v="gym" aria-pressed="' + (doc.exercise === 'gym') + '">Gym done</button><button class="chip" data-act="ex" data-v="walk" aria-pressed="' + (doc.exercise === 'walk') + '">Walk done</button>' +
+      (doc.exercise ? '<button class="chip" data-act="ex" data-v="">Undo</button>' : '') + '</div>';
 
     function mealBtn(label, meal, key, when) {
       return '<button type="button" class="row-btn" data-act="recipe" data-k="' + key + '" aria-label="' + esc(label + ': ' + meal.name + ', open recipe') + '">' +
@@ -1202,7 +1569,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
     var bfCard = '<section class="card"><div class="card-head"><h3 class="heading">Breakfasts this week</h3><span class="caption">Same every week</span></div><div class="list">' + bweek + '</div></section>';
     var menuCard = '<section class="card"><div class="card-head"><h3 class="heading">Dinners this week</h3><span class="caption">Same every week</span></div><div class="list">' + week + '</div></section>';
 
-    return hero('health', 'Health', 'Eating well, moving daily, ' + WL.kcal.toLocaleString('en-AU') + ' kcal a day.') + notice() + mealsCard + exCard + weightCard + histCard + menuCard + bfCard +
+    return hero('health', 'Health', 'Eating well, moving daily, ' + WL.kcal.toLocaleString('en-AU') + ' kcal a day.') + notice() + (d.getHours() >= 18 ? checkinCard(d) : '') + exCard + progressCard() + mealsCard + weightCard + histCard + (d.getHours() < 18 ? checkinCard(d) : '') + menuCard + bfCard +
       '<section class="card"><h3 class="heading">Exercise this week</h3>' + segBar('health', 7, count, 'Days done') + '<div class="list">' + segs + '</div></section>';
   }
 
@@ -1265,7 +1632,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
   function kvRow(label, value, cls) { return '<span' + (cls ? ' class="' + cls + '"' : '') + '>' + label + '</span><span class="fig-sm' + (cls ? ' ' + cls : '') + '">' + value + '</span>'; }
   function warnList(f) {
     var w = [];
-    if (f.missing) w.push(f.missing + ' shift' + (f.missing === 1 ? '' : 's') + ' without gross fares — using earnings after fees instead, so GST on sales is understated.');
+    if (f.missing) w.push('No Uber monthly statement yet for ' + f.missingMonths.map(monthName).join(', ') + '. Until you enter it, what you were paid stands in for gross fares, so GST on sales is understated.');
     if (f.noReceipt) w.push(f.noReceipt + ' business expense' + (f.noReceipt === 1 ? '' : 's') + ' not marked "tax invoice kept" — you can only claim GST credits with a tax invoice.');
     return w.length ? '<div class="notice">' + w.map(esc).join('<br>') + '</div>' : '';
   }
@@ -1280,6 +1647,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
 
   function viewMoney(d) {
     var key = ymd(d), ws = weekStart(d), list = inWeek(state.expenses, ws).sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+    list = list.filter(function (e) { return e.category !== 'Charging'; }); // charging is listed on the Work tab
     var spent = sum(list, function (e) { return e.amount; });
     var taxKey = 'w' + ymd(ws), taxDone = Number((state.tax[taxKey] || {}).amount) || 0, wr = weekReserve(ws);
     var taxGoal = wr.days ? wr.target : TAX_WEEKLY;
@@ -1296,7 +1664,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
         (pct > 0 && Number(e.gst) > 0 ? (e.receiptKept ? ' · invoice kept' : ' · no invoice yet') : '') + (e.note ? ' · ' + esc(e.note) : '');
       return '<div class="row"><div class="row-main"><span class="row-title">' + esc(e.category) + '</span><span class="row-sub">' + sub + '</span></div>' +
         '<span class="fig-sm">' + money(e.amount, true) + '</span><button class="link-btn" data-act="del" data-c="expenses" data-id="' + esc(e.id) + '" aria-label="Delete ' + esc(e.category) + ' expense">Delete</button></div>';
-    }).join('') : '<div class="empty-state">' + illo('receipt') + '<p class="empty">No expenses this week yet. Charging, washes and Splend go here.</p></div>';
+    }).join('') : '<div class="empty-state">' + illo('receipt') + '<p class="empty">No other expenses this week. Charging is on the Work tab; bills you mark as paid show up here.</p></div>';
     var expCard = '<section class="card"><div class="card-head"><h3 class="heading">Expenses this week</h3><span class="fig-sm">' + money(spent, true) + '</span></div><div class="list">' + rows + '</div>' +
       '<button class="btn btn-primary btn-small" data-act="expense">' + icon('plus', 18) + 'Log expense</button></section>';
 
@@ -1311,7 +1679,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
       kvRow('1B GST credits — business expenses', money(f.b1 - f.fees / 11, true)) +
       kvRow('1B GST credits — total', money(f.b1, true)) +
       kvRow(f.gstOwing >= 0 ? 'GST to pay (1A − 1B)' : 'GST refund (1B − 1A)', money(Math.abs(f.gstOwing), true), 'total') +
-      '</div><span class="caption">' + f.shifts + ' shift' + (f.shifts === 1 ? '' : 's') + ' this quarter. Tax account set aside this quarter: ' + money(qSet, true) + '. Lodge with the real Uber tax summary and invoices.</span>';
+      '</div><span class="caption">' + f.shifts + ' driving stint' + (f.shifts === 1 ? '' : 's') + ' this quarter' + (f.tolls ? ', tolls ' + money(f.tolls, true) : '') + (f.cashFees ? ', cash-out fees ' + money(f.cashFees, true) : '') + '. Tax account set aside this quarter: ' + money(qSet, true) + '. Lodge with the real Uber tax summary and invoices.</span>';
     var past = {};
     state.shifts.concat(state.expenses).forEach(function (x) { var q = quarterOf(x.date); var k = q.fy + '-' + q.q; if (!(q.fy === cq.fy && q.q === cq.q)) past[k] = q; });
     var pastKeys = Object.keys(past).sort().reverse();
@@ -1333,7 +1701,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
       '<div class="kv">' +
       kvRow('Business income (fares excl. GST)', money(t.income, true)) +
       kvRow('Uber fees (excl. GST)', '−' + money(t.fees - t.fees / 11, true)) +
-      kvRow('Business expenses (excl. GST, business share)', '−' + money(t.deductions - (t.fees - t.fees / 11), true)) +
+      kvRow('Business expenses incl. tolls and cash-out fees (excl. GST, business share)', '−' + money(t.deductions - (t.fees - t.fees / 11), true)) +
       kvRow('Taxable profit so far', money(t.profit, true), 'total') +
       kvRow('Income tax on that (after LITO ' + money(it.lito, true) + ')', money(it.net, true)) +
       kvRow('Medicare levy', money(it.medicare, true)) +
@@ -1350,14 +1718,14 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
     var lbRows = lb.list.slice(-5).reverse().map(function (l) {
       return '<div class="row"><div class="row-main"><span class="row-title">' + shortDate(l.date) + ' · ' + (l.kind === 'private' ? 'Private' : 'Business') + '</span><span class="row-sub">' +
         l.odoStart.toLocaleString('en-AU') + ' → ' + l.odoEnd.toLocaleString('en-AU') + (l.purpose ? ' · ' + esc(l.purpose) : '') + '</span></div>' +
-        '<span class="fig-sm">' + Math.max(0, l.odoEnd - l.odoStart).toLocaleString('en-AU') + ' km</span><button class="link-btn" data-act="del" data-c="logbook" data-id="' + esc(l.id) + '" aria-label="Delete logbook entry">Delete</button></div>';
+        '<span class="fig-sm">' + Math.max(0, l.odoEnd - l.odoStart).toLocaleString('en-AU') + ' km</span><button class="link-btn" data-act="del" data-c="' + (l.table || 'logbook') + '" data-id="' + esc(l.id) + '" aria-label="Delete logbook entry">Delete</button></div>';
     }).join('');
     var lbCard = '<section class="card"><div class="card-head"><h3 class="heading">Vehicle logbook</h3><span class="caption">' + (lb.first ? 'Week ' + lb.weeks + ' of 12' : 'Not started') + '</span></div>' +
       (state.dbV2 ? '' : '<div class="notice">Trips can\'t be saved until the database update is done.</div>') +
       segBar('work', 12, lb.weeks, '12-week logbook period', lb.first ? 'from ' + shortDate(lb.first) : '0 / 12') +
       '<div class="kv">' + kvRow('Business km', lb.biz.toLocaleString('en-AU')) + kvRow('Private km', lb.priv.toLocaleString('en-AU')) +
       kvRow('Business use', lb.total ? Math.round(lb.pct * 1000) / 10 + '% (plan: 80%)' : '–', 'total') + '</div>' +
-      (lbRows ? '<div class="list">' + lbRows + '</div>' : '<div class="empty-state">' + illo('gauge') + '<p class="empty">Add odometer readings when you log a shift, and log every private trip here.</p></div>') +
+      (lbRows ? '<div class="list">' + lbRows + '</div>' : '<div class="empty-state">' + illo('gauge') + '<p class="empty">Every stint on the Work tab goes into the logbook from its odometer readings, private trips too.</p></div>') +
       '<div class="btn-row"><button class="btn btn-secondary btn-small" data-act="trip" data-v="business">Business trip</button><button class="btn btn-secondary btn-small" data-act="trip" data-v="private">Private trip</button></div>' +
       '<span class="caption">ATO logbook: 12 continuous weeks covering every trip, with date, odometer start and end, km and purpose. Keep it for 5 years; it stays valid for 5 years.</span></section>';
 
@@ -1370,10 +1738,378 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
       lines(BUDGET_PERSONAL) + kvRow('Cash extra (unlisted costs and savings)', money(WEEK_TARGET - bizT - taxT - perT, true), 'total') + '</div>' +
       '<span class="caption">Break-even: ' + money(DAY_BREAKEVEN, true) + ' a day.</span></section>';
 
-    return hero('money', 'Money', 'Earnings, tax, BAS and the weekly budget.') + notice() + taxCard + expCard + basCard + itCard + lbCard + budgetCard +
+    return hero('money', 'Money', 'Uber balance, bills, tax, BAS and the weekly budget.') + notice() + walletCard(d) + billsCard(d) + taxCard + expCard + statementsCard(d) + basCard + itCard + lbCard + budgetCard +
       appearanceCard() +
       '<section class="card"><div class="card-head"><h3 class="heading">Backup</h3><span class="caption">App version ' + APP_VERSION + '</span></div><p class="body" style="margin:0">Saves a copy of every entry to a file on your phone, for safekeeping.</p><button class="btn btn-secondary btn-small" data-act="export">Back up my data</button></section>' +
       (user ? '<button class="link-btn" data-act="signout" style="align-self:center">Sign out (' + esc(user.email) + ')</button>' : '');
+  }
+
+  /* ---------------- money: Uber balance, monthly statements, bills ---------------- */
+  // Uber pays out each Tuesday (roughly) what is left in the balance from Monday to Sunday. Instant cash-outs take money out early, $1.50 each.
+  function uberWeekStart(d) { var x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); return addDays(x, -((x.getDay() + 6) % 7)); }
+  function walletUpTo(key) { // balance at the end of day `key` (inclusive); null = everything
+    var e = sum(state.stints.filter(function (s) { return s.endedAt && (s.kind === 'uber' || s.kind === 'homeward') && (!key || s.date <= key); }), function (s) { return s.earned; });
+    var c = sum(state.cashouts.filter(function (c) { return !key || c.date <= key; }), function (c) { return c.amount; });
+    return e - c;
+  }
+  function walletInfo(d) {
+    var key = ymd(d), uw = uberWeekStart(d), lastSun = ymd(addDays(uw, -1)), tue = addDays(uw, 1);
+    var paidOut = state.cashouts.filter(function (c) { return c.kind === 'weekly' && c.date > lastSun && c.date <= ymd(addDays(uw, 6)); })[0] || null;
+    // the payout for last week, if not yet recorded, is the balance left at the end of last Sunday
+    return { balance: walletUpTo(null), lastSun: lastSun, tue: tue, expected: paidOut ? paidOut.amount : Math.max(0, walletUpTo(lastSun)), paidOut: paidOut,
+      started: state.stints.length > 0 || state.cashouts.length > 0, due: key >= ymd(tue) && !paidOut && walletUpTo(lastSun) > 0.005 };
+  }
+  function walletCard(d) {
+    var w = walletInfo(d), key = ymd(d), m0 = key.slice(0, 7) + '-01', fy = fyStartYear(key) + '-07-01';
+    var feesM = sum(state.cashouts.filter(function (c) { return c.date >= m0; }), function (c) { return c.fee; }), feesY = sum(state.cashouts.filter(function (c) { return c.date >= fy; }), function (c) { return c.fee; });
+    var nInst = state.cashouts.filter(function (c) { return c.kind === 'instant' && c.date >= m0; }).length;
+    var rows = state.cashouts.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 6).map(function (c) {
+      return '<div class="row"><div class="row-main"><span class="row-title">' + shortDate(c.date) + ' · ' + (c.kind === 'weekly' ? 'Weekly payout' : c.kind === 'adjust' ? 'Balance corrected' : 'Instant cash-out') + '</span><span class="row-sub">' +
+        (c.kind === 'instant' ? 'Fee ' + money(c.fee, true) + ' · ' + money(c.amount - c.fee, true) + ' to the bank' : c.kind === 'adjust' ? (c.amount > 0 ? 'Balance was lower by ' : 'Balance was higher by ') + money(Math.abs(c.amount), true) : 'To the bank') + (c.note ? ' · ' + esc(c.note) : '') + '</span></div>' +
+        '<span class="fig-sm">' + (c.kind === 'adjust' ? '' : money(c.amount, true)) + '</span><button class="link-btn" data-act="del" data-c="cashouts" data-id="' + esc(c.id) + '" aria-label="Delete">Delete</button></div>';
+    }).join('');
+    return '<section class="card a-money"><span class="eyebrow l-money">Uber balance · estimate</span><span class="fig-lg">' + money(w.balance, true) + '</span>' +
+      '<span class="body" style="color:var(--ink)">' + (w.paidOut ? 'Weekly payout received ' + shortDate(w.paidOut.date) + ': ' + money(w.paidOut.amount, true) + '.' :
+        w.expected > 0.005 ? 'Payout due about Tuesday ' + w.tue.getDate() + ' ' + MONTHS[w.tue.getMonth()].slice(0, 3) + ': ' + money(w.expected, true) + ' (Monday to Sunday, less instant cash-outs).' : 'Nothing waiting from last week.') + '</span>' +
+      (w.due ? '<button class="btn btn-primary btn-small" data-act="cashout" data-v="weekly">Weekly payout arrived</button>' : '') +
+      '<div class="btn-row"><button class="btn btn-secondary btn-small" data-act="cashout" data-v="instant" style="background:var(--money-track)">Instant cash-out</button>' +
+      (w.due ? '' : '<button class="btn btn-secondary btn-small" data-act="cashout" data-v="weekly" style="background:var(--money-track)">Weekly payout</button>') + '</div>' +
+      '<div class="kv">' + kvRow('Cash-out fees this month', money(feesM, true) + (nInst ? ' (' + nInst + ' × ' + money(CASHOUT_FEE, true) + ')' : '')) + kvRow('Cash-out fees this financial year', money(feesY, true)) + '</div>' +
+      (rows ? '<div class="list">' + rows + '</div>' : '') +
+      '<button class="link-btn" data-act="balance" style="align-self:flex-start">The Uber app shows a different balance? Correct it</button></section>';
+  }
+  function cashoutSheet(kind) {
+    var w = walletInfo(now()), weekly = kind === 'weekly';
+    openSheet('<h2 class="title" id="sheet-title">' + (weekly ? 'Weekly payout' : 'Instant cash-out') + '</h2>' +
+      '<p class="body" style="margin:0">' + (weekly ? 'The automatic payout of last week\'s balance (Monday to Sunday). Expected ' + money(w.expected, true) + '.' : 'Money you cashed out yourself. Uber charges ' + money(CASHOUT_FEE, true) + ' each time, whatever the amount.') + '</p>' +
+      '<form id="f-co" style="display:flex;flex-direction:column;gap:14px" novalidate>' +
+      '<div class="field"><label for="co-amt">' + (weekly ? 'Amount paid to your bank ($)' : 'Amount taken from the Uber balance ($)') + '</label><input id="co-amt" type="number" inputmode="decimal" min="0" step="0.01" value="' + (weekly ? w.expected.toFixed(2) : w.balance > 0 ? w.balance.toFixed(2) : '') + '" required></div>' +
+      (weekly ? '' : '<div class="field"><label for="co-fee">Fee ($)</label><input id="co-fee" type="number" inputmode="decimal" min="0" step="0.01" value="' + CASHOUT_FEE.toFixed(2) + '"><span class="hint" id="co-net"></span></div>') +
+      '<div class="field"><label for="co-date">Date</label><input id="co-date" type="date" value="' + ymd(now()) + '"></div>' +
+      '<p class="caption" id="co-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
+      '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div></form>');
+    var amt = document.getElementById('co-amt'), fee = document.getElementById('co-fee'), net = document.getElementById('co-net');
+    function upd() { if (net) { var a = parseFloat(amt.value) || 0, f = parseFloat(fee.value) || 0; net.textContent = a > 0 ? money(a - f, true) + ' lands in your bank.' : ''; } }
+    amt.addEventListener('input', upd); if (fee) fee.addEventListener('input', upd); upd();
+    document.getElementById('f-co').addEventListener('submit', function (e) {
+      e.preventDefault(); var err = document.getElementById('co-err'); if (!need5(err)) return;
+      var a = parseFloat(amt.value), f = fee ? parseFloat(fee.value) || 0 : 0, date = document.getElementById('co-date').value;
+      if (!(a > 0) || !date) { err.textContent = 'Enter the amount and date.'; return; }
+      write({ t: 'cashouts', a: 'insert', row: { id: uuid(), date: date, kind: weekly ? 'weekly' : 'instant', amount: Math.round(a * 100) / 100, fee: Math.round(f * 100) / 100, note: '' } });
+      closeSheet(); toast(weekly ? 'Payout saved' : 'Cash-out saved');
+    });
+  }
+  function balanceSheet() {
+    var cur = walletUpTo(null);
+    openSheet('<h2 class="title" id="sheet-title">Correct the Uber balance</h2><p class="body" style="margin:0">The app estimates ' + money(cur, true) + '. Enter what the Uber app shows now; the difference is recorded so later figures start from the right number.</p>' +
+      '<form id="f-bal" style="display:flex;flex-direction:column;gap:14px" novalidate><div class="field"><label for="bal-amt">Balance in the Uber app ($)</label><input id="bal-amt" type="number" inputmode="decimal" step="0.01" required></div>' +
+      '<p class="caption" id="bal-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
+      '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div></form>');
+    document.getElementById('f-bal').addEventListener('submit', function (e) {
+      e.preventDefault(); var err = document.getElementById('bal-err'); if (!need5(err)) return;
+      var v = parseFloat(document.getElementById('bal-amt').value); if (!isFinite(v)) { err.textContent = 'Enter the balance.'; return; }
+      var diff = Math.round((cur - v) * 100) / 100; if (Math.abs(diff) < 0.01) { closeSheet(); toast('Already matches'); return; }
+      write({ t: 'cashouts', a: 'insert', row: { id: uuid(), date: ymd(now()), kind: 'adjust', amount: diff, fee: 0, note: '' } });
+      closeSheet(); toast('Balance corrected');
+    });
+  }
+
+  function statementsCard(d) {
+    var months = {}; state.shifts.forEach(function (s) { months[s.date.slice(0, 7)] = 1; }); Object.keys(state.months).forEach(function (m) { months[m] = 1; });
+    var cur = ymd(d).slice(0, 7), keys = Object.keys(months).sort().reverse().slice(0, 8);
+    var rows = keys.map(function (m) {
+      var paid = sum(state.shifts.filter(function (s) { return s.date.slice(0, 7) === m; }), function (s) { return s.stint ? s.paid : s.receipts; }), st = state.months[m];
+      var sub = st && st.gross != null ? 'Gross ' + money(st.gross, true) + ' − fees ' + money(st.fees || 0, true) + ' = ' + money(st.gross - (st.fees || 0), true) + ' · paid per app ' + money(paid, true) :
+        'Paid per app ' + money(paid, true) + ' · ' + (m === cur ? 'statement after the month ends' : 'statement not entered');
+      return '<button type="button" class="row-btn" data-act="statement" data-v="' + m + '"><span class="row-main"><span class="row-title">' + monthName(m) + '</span><span class="row-sub">' + sub + '</span></span>' +
+        '<span class="fig-sm' + (st && st.gross != null ? '' : ' l-money') + '">' + (st && st.gross != null ? 'Entered' : m === cur ? '' : 'Enter') + '</span><span class="chev" aria-hidden="true">' + icon('chev', 18) + '</span></button>';
+    }).join('');
+    return '<section class="card"><div class="card-head"><h3 class="heading">Uber monthly statements</h3><span class="caption">for the BAS</span></div>' +
+      '<p class="body" style="margin:0">Gross fares and Uber fees come out after each month ends, sometimes weeks later. Enter them here when they arrive; until then the BAS uses what you were paid.</p>' +
+      (rows ? '<div class="list">' + rows + '</div>' : '<p class="empty">Months appear here once you have driven.</p>') +
+      '<button class="btn btn-secondary btn-small" data-act="statement" data-v="">Enter a statement</button></section>';
+  }
+  function statementSheet(m) {
+    var d = now(), prev = ymd(new Date(d.getFullYear(), d.getMonth() - 1, 1)).slice(0, 7); m = m || prev;
+    var st = state.months[m] || {}, paid = sum(state.shifts.filter(function (s) { return s.date.slice(0, 7) === m; }), function (s) { return s.stint ? s.paid : s.receipts; });
+    openSheet('<h2 class="title" id="sheet-title">Uber statement</h2>' +
+      '<form id="f-um" style="display:flex;flex-direction:column;gap:14px" novalidate>' +
+      '<div class="field"><label for="um-m">Month</label><input id="um-m" type="month" value="' + m + '" required></div>' +
+      '<div class="two"><div class="field"><label for="um-g">Gross fares ($, incl. GST)</label><input id="um-g" type="number" inputmode="decimal" min="0" step="0.01" value="' + (st.gross != null ? st.gross : '') + '"></div>' +
+      '<div class="field"><label for="um-f">Uber fees ($)</label><input id="um-f" type="number" inputmode="decimal" min="0" step="0.01" value="' + (st.fees != null ? st.fees : '') + '"></div></div>' +
+      '<span class="hint" id="um-chk"></span>' +
+      '<p class="caption" id="um-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
+      '<div class="btn-row">' + (st.gross != null ? '<button type="button" class="btn btn-secondary" id="um-del">Remove</button>' : '<button type="button" class="btn btn-secondary" data-act="close">Cancel</button>') + '<button type="submit" class="btn btn-primary">Save</button></div></form>');
+    var g = document.getElementById('um-g'), f = document.getElementById('um-f'), chk = document.getElementById('um-chk');
+    function upd() { var gv = parseFloat(g.value), fv = parseFloat(f.value) || 0; chk.textContent = gv > 0 ? 'Gross less fees: ' + money(gv - fv, true) + '. Paid per the app this month: ' + money(paid, true) + (Math.abs(gv - fv - paid) > 1 ? ' (difference ' + money(gv - fv - paid, true) + ': tips, tolls, promotions or a stint not logged).' : '.') : ''; }
+    g.addEventListener('input', upd); f.addEventListener('input', upd); upd();
+    var del = document.getElementById('um-del'); if (del) del.addEventListener('click', function () { write({ t: 'uber_months', a: 'delete', match: { month: m + '-01' } }); closeSheet(); toast('Removed'); });
+    document.getElementById('f-um').addEventListener('submit', function (e) {
+      e.preventDefault(); var err = document.getElementById('um-err'); if (!need5(err)) return;
+      var mm = document.getElementById('um-m').value, gv = parseFloat(g.value), fv = parseFloat(f.value);
+      if (!mm || !(gv >= 0) || !(fv >= 0)) { err.textContent = 'Enter the month, gross fares and Uber fees.'; return; }
+      write({ t: 'uber_months', a: 'upsert', row: { month: mm + '-01', gross_fares: Math.round(gv * 100) / 100, uber_fees: Math.round(fv * 100) / 100, updated_at: new Date().toISOString() } });
+      closeSheet(); toast(monthName(mm) + ' statement saved');
+    });
+  }
+
+  function nextDue(dateStr, every) {
+    var d = parseYmd(dateStr);
+    if (every === 'week') return ymd(addDays(d, 7)); if (every === 'fortnight') return ymd(addDays(d, 14));
+    var n = every === 'month' ? 1 : every === 'quarter' ? 3 : 12, day = d.getDate(), x = new Date(d.getFullYear(), d.getMonth() + n, 1);
+    x.setDate(Math.min(day, new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate())); return ymd(x);
+  }
+  function dueLabel(due, key) { var n = daysBetween(key, due); return n < 0 ? (-n) + ' day' + (n === -1 ? '' : 's') + ' overdue' : n === 0 ? 'due today' : n === 1 ? 'due tomorrow' : 'due in ' + n + ' days'; }
+  function billsDue(key, within) { return state.bills.filter(function (b) { return b.active && daysBetween(key, b.nextDue) <= within; }).sort(function (a, b) { return a.nextDue < b.nextDue ? -1 : 1; }); }
+  function billsCard(d) {
+    var key = ymd(d), list = state.bills.filter(function (b) { return b.active; }).sort(function (a, b) { return a.nextDue < b.nextDue ? -1 : 1; });
+    var m0 = key.slice(0, 7) + '-01', paidM = sum(state.expenses.filter(function (e) { return e.billId && e.date >= m0; }), function (e) { return e.amount; });
+    var week = sum(list.filter(function (b) { return daysBetween(key, b.nextDue) <= 7; }), function (b) { return b.amount; });
+    var rows = list.map(function (b) {
+      var n = daysBetween(key, b.nextDue);
+      return '<div class="row"><button type="button" class="row-main link-row" data-act="bill" data-id="' + esc(b.id) + '" style="text-align:left;background:none;border:0;padding:0;color:inherit;font:inherit"><span class="row-title">' + esc(b.name) + '</span>' +
+        '<span class="row-sub' + (n < 0 ? ' l-money' : '') + '">' + shortDate(b.nextDue) + ' · ' + dueLabel(b.nextDue, key) + ' · ' + esc((BILL_EVERY.filter(function (x) { return x[0] === b.every; })[0] || ['', ''])[1].toLowerCase()) + '</span></button>' +
+        '<span class="fig-sm">' + money(b.amount, true) + '</span><button class="link-btn" data-act="bill-pay" data-id="' + esc(b.id) + '"' + (n <= 7 ? ' style="font-weight:700"' : '') + '>Paid</button></div>';
+    }).join('');
+    var presets = BILL_PRESETS.filter(function (p) { return !state.bills.some(function (b) { return b.name === p[0]; }); });
+    return '<section class="card"><div class="card-head"><h3 class="heading">Bills</h3><span class="caption">' + (list.length ? money(week, true) + ' due in the next 7 days' : '') + '</span></div>' +
+      (rows ? '<div class="list">' + rows + '</div>' : '<div class="empty-state">' + illo('receipt') + '<p class="empty">Add your regular bills with their next due date. Tap Paid when you pay one: it is saved as an expense and the next due date moves on.</p></div>') +
+      (paidM ? '<span class="caption">Bills paid this month: ' + money(paidM, true) + '</span>' : '') +
+      (presets.length ? '<div class="chips">' + presets.map(function (p) { return '<button class="chip" data-act="bill-new" data-v="' + esc(p[0]) + '">+ ' + esc(p[0]) + '</button>'; }).join('') + '</div>' : '') +
+      '<button class="btn btn-secondary btn-small" data-act="bill-new" data-v="">' + icon('plus', 18) + 'Add a bill</button></section>';
+  }
+  function billSheet(id, preset) {
+    var b = id ? state.bills.filter(function (x) { return x.id === id; })[0] : null, p = null;
+    BILL_PRESETS.forEach(function (x) { if (x[0] === preset) p = x; });
+    var v = b || (p ? { name: p[0], category: p[1], amount: p[2], every: p[3], businessPct: p[4], nextDue: '' } : { name: '', category: 'Personal', amount: '', every: 'month', businessPct: 0, nextDue: '' });
+    openSheet('<h2 class="title" id="sheet-title">' + (b ? 'Edit bill' : 'Add a bill') + '</h2>' +
+      '<form id="f-bill" style="display:flex;flex-direction:column;gap:14px" novalidate>' +
+      '<div class="field"><label for="bl-n">Name</label><input id="bl-n" type="text" maxlength="40" value="' + esc(v.name) + '" required></div>' +
+      '<div class="two"><div class="field"><label for="bl-a">Usual amount ($)</label><input id="bl-a" type="number" inputmode="decimal" min="0" step="0.01" value="' + v.amount + '"></div>' +
+      '<div class="field"><label for="bl-e">How often</label><select id="bl-e">' + BILL_EVERY.map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === v.every ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select></div></div>' +
+      '<div class="field"><label for="bl-d">Next due date</label><input id="bl-d" type="date" value="' + v.nextDue + '" required></div>' +
+      '<div class="two"><div class="field"><label for="bl-c">Expense type</label><select id="bl-c">' + EXPENSE_CATS.map(function (c) { return '<option' + (c[0] === v.category ? ' selected' : '') + '>' + esc(c[0]) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field"><label for="bl-p">Business share (%)</label><input id="bl-p" type="number" inputmode="numeric" min="0" max="100" step="5" value="' + v.businessPct + '"></div></div>' +
+      '<p class="caption" id="bl-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
+      '<div class="btn-row">' + (b ? '<button type="button" class="btn btn-secondary" id="bl-del">Delete</button>' : '<button type="button" class="btn btn-secondary" data-act="close">Cancel</button>') + '<button type="submit" class="btn btn-primary">Save</button></div></form>');
+    var c = document.getElementById('bl-c'); c.addEventListener('change', function () { document.getElementById('bl-p').value = catInfo(c.value)[1]; });
+    var del = document.getElementById('bl-del'); if (del) del.addEventListener('click', function () { write({ t: 'bills', a: 'delete', id: b.id }); closeSheet(); toast('Bill deleted'); });
+    document.getElementById('f-bill').addEventListener('submit', function (e) {
+      e.preventDefault(); var err = document.getElementById('bl-err'); if (!need5(err)) return;
+      var row = { name: document.getElementById('bl-n').value.trim(), amount: Math.round((parseFloat(document.getElementById('bl-a').value) || 0) * 100) / 100, every: document.getElementById('bl-e').value,
+        next_due: document.getElementById('bl-d').value, category: c.value, business_pct: Math.max(0, Math.min(100, parseInt(document.getElementById('bl-p').value, 10) || 0)), active: true };
+      if (!row.name || !row.next_due) { err.textContent = 'Enter a name and the next due date.'; return; }
+      if (b) write({ t: 'bills', a: 'update', id: b.id, row: row }); else write({ t: 'bills', a: 'insert', row: Object.assign({ id: uuid() }, row) });
+      closeSheet(); toast('Bill saved');
+    });
+  }
+  function billPaySheet(id) {
+    var b = state.bills.filter(function (x) { return x.id === id; })[0]; if (!b) return;
+    openSheet('<h2 class="title" id="sheet-title">Paid: ' + esc(b.name) + '</h2><p class="body" style="margin:0">Due ' + shortDate(b.nextDue) + '. Saving it records the expense and moves the next due date to ' + shortDate(nextDue(b.nextDue, b.every)) + '.</p>' +
+      '<form id="f-bp" style="display:flex;flex-direction:column;gap:14px" novalidate>' +
+      '<div class="two"><div class="field"><label for="bp-d">Date paid</label><input id="bp-d" type="date" value="' + ymd(now()) + '"></div>' +
+      '<div class="field"><label for="bp-a">Amount paid ($)</label><input id="bp-a" type="number" inputmode="decimal" min="0" step="0.01" value="' + b.amount.toFixed(2) + '"></div></div>' +
+      '<label class="chip" style="display:flex;align-items:center;gap:10px;justify-content:flex-start"><input id="bp-rec" type="checkbox" style="width:20px;height:20px"> Bill / tax invoice kept</label>' +
+      '<p class="caption" id="bp-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
+      '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div></form>');
+    document.getElementById('f-bp').addEventListener('submit', function (e) {
+      e.preventDefault(); var a = parseFloat(document.getElementById('bp-a').value), date = document.getElementById('bp-d').value;
+      if (!(a > 0) || !date) { document.getElementById('bp-err').textContent = 'Enter the date and amount.'; return; }
+      var gstIn = catInfo(b.category)[2];
+      save('expenses', null, { date: date, category: b.category, amount: Math.round(a * 100) / 100, businessPct: b.businessPct, gst: gstIn ? Math.round(a / 11 * 100) / 100 : 0, receiptKept: document.getElementById('bp-rec').checked, note: b.name, billId: b.id });
+      write({ t: 'bills', a: 'update', id: b.id, row: { next_due: nextDue(b.nextDue, b.every) } });
+      closeSheet(); toast(b.name + ' paid');
+    });
+  }
+
+  /* ---------------- gym: log, targets and progression ---------------- */
+  function exHistory(key) {
+    var by = {}; state.gymSets.forEach(function (s) { if (s.ex === key) (by[s.date] = by[s.date] || []).push(s); });
+    return Object.keys(by).sort().map(function (d) { return { date: d, sets: by[d].sort(function (a, b) { return a.set - b.set; }) }; });
+  }
+  function roundStep(v, step) { return Math.max(step, Math.round(v / step) * step); }
+  // Double progression: stay at a weight until every set reaches the top of the rep range, then add one step.
+  // Plateau (3 sessions at the same weight without more total reps): first add a set (up to 4), then go 10% lighter and build back up.
+  function exTarget(key, beforeDate) {
+    var e = exDef(key), h = exHistory(key).filter(function (x) { return !beforeDate || x.date < beforeDate; }), last = h[h.length - 1];
+    if (e.type === 'cardio') {
+      var lv = last ? Math.max.apply(null, last.sets.map(function (s) { return s.level || 0; })) : 0, full = function (x) { return x && x.sets.some(function (s) { return (s.minutes || 0) >= e.min; }); };
+      var up = h.length >= 2 && full(h[h.length - 1]) && full(h[h.length - 2]) && Math.max.apply(null, h[h.length - 2].sets.map(function (s) { return s.level || 0; })) === lv && lv > 0;
+      var level = lv ? lv + (up ? 1 : 0) : null;
+      return { type: 'cardio', minutes: e.min, level: level, text: e.min + ' min' + (level ? ', level ' + level + (up ? ' (up one)' : '') : ', pick a level that feels ' + (key === 'warm' ? 'easy' : 'steady')) };
+    }
+    if (e.type === 'hold') {
+      var best = last ? Math.min.apply(null, last.sets.map(function (s) { return s.reps || 0; })) : 0, sec = best ? Math.min(e.hi, best + 5) : e.lo;
+      return { type: 'hold', sets: e.sets, reps: sec, text: e.sets + ' × ' + sec + ' s hold' };
+    }
+    if (!last) return { type: 'weights', sets: e.sets, kg: null, reps: e.hi, text: e.sets + ' × ' + e.lo + '–' + e.hi + '. First time: a weight you can lift ' + e.hi + ' times with 2–3 reps to spare.' };
+    var work = last.sets.filter(function (s) { return s.kg != null && s.reps; }), kg = work.length ? Math.max.apply(null, work.map(function (s) { return s.kg; })) : null;
+    var nSets = Math.max(e.sets, work.length), top = work.length >= e.sets && work.every(function (s) { return s.kg === kg && s.reps >= e.hi; });
+    function tot(x) { return sum(x.sets, function (s) { return s.reps; }); }
+    function topKg(x) { var w = x.sets.filter(function (s) { return s.kg != null; }); return w.length ? Math.max.apply(null, w.map(function (s) { return s.kg; })) : null; }
+    var stuck = h.length >= 3 && [h[h.length - 1], h[h.length - 2], h[h.length - 3]].every(function (x) { return topKg(x) === kg; }) && tot(h[h.length - 1]) <= tot(h[h.length - 3]);
+    if (top) return { type: 'weights', sets: nSets, kg: kg + e.step, reps: e.lo, text: nSets + ' × ' + e.lo + '–' + e.hi + ' at ' + (kg + e.step) + ' kg', note: 'Up ' + e.step + ' kg: every set reached ' + e.hi + ' last time.' };
+    if (stuck && nSets < 4) return { type: 'weights', sets: nSets + 1, kg: kg, reps: e.lo, text: (nSets + 1) + ' × ' + e.lo + '–' + e.hi + ' at ' + kg + ' kg', note: 'Plateau: three sessions without progress. One more set from today.', plateau: true };
+    if (stuck) { var lighter = roundStep(kg * 0.9, e.step); return { type: 'weights', sets: e.sets, kg: lighter, reps: e.hi, text: e.sets + ' × ' + e.hi + ' at ' + lighter + ' kg', note: 'Plateau with 4 sets: reset 10% lighter and build back up.', plateau: true }; }
+    var lastTot = tot(last);
+    return { type: 'weights', sets: nSets, kg: kg, reps: e.lo, text: nSets + ' × ' + e.lo + '–' + e.hi + ' at ' + kg + ' kg', note: 'Beat last time: ' + lastTot + ' reps in total.' };
+  }
+  function gymSummary(date) {
+    var sets = state.gymSets.filter(function (s) { return s.date === date; }); if (!sets.length) return null;
+    var ex = {}, cardio = 0, strengthSets = 0; sets.forEach(function (s) { ex[s.ex] = 1; if (s.minutes) cardio += s.minutes; else strengthSets++; });
+    return { exercises: Object.keys(ex).length, sets: strengthSets, cardio: cardio };
+  }
+  function gymCard(d) {
+    var key = ymd(d), w = workoutFor(d), done = gymSummary(key), wk = w || 'A';
+    var plan = WORKOUTS[wk].map(function (k) { var e = exDef(k), t = exTarget(k, key);
+      return '<div class="row"><div class="row-main"><span class="row-title">' + esc(e.name) + (e.machineName && e.machineName !== e.name ? ' · ' + esc(e.machineName) : '') + '</span><span class="row-sub">' + esc(t.text) + (t.note ? ' · ' + esc(t.note) : '') + '</span></div><span class="fig-sm' + (t.plateau ? ' l-money' : '') + '">' + (t.kg ? t.kg + ' kg' : '') + '</span><span></span></div>'; }).join('');
+    return '<section class="card a-health has-illo">' + illo('gym', 'corner') + '<span class="eyebrow l-health">' + (w ? 'Gym today · 5:30, Anytime Fitness Rhodes' : 'Gym days: Mon A, Tue B, Thu A, Fri B') + '</span>' +
+      '<span class="title">Workout ' + wk + (done ? ' · done' : '') + '</span>' +
+      (done ? '<span class="body" style="color:var(--ink)">' + done.exercises + ' exercises, ' + done.sets + ' sets' + (done.cardio ? ', ' + Math.round(done.cardio) + ' min elliptical' : '') + '.</span>' :
+        '<span class="body" style="color:var(--ink)">55 min: 10 min walk there · elliptical 8 min · weights ≈ 27 min, 75 s rest between sets · elliptical 15 min · stretch 3 min · 10 min walk home.</span>') +
+      '<div class="list">' + plan + '</div>' +
+      '<button class="btn btn-primary btn-small" data-act="gym-log" data-v="' + wk + '">' + icon('dumbbell', 18) + (done ? 'Edit today\'s workout' : 'Log workout ' + wk) + '</button>' +
+      '<div class="btn-row"><button class="btn btn-secondary btn-small" data-act="gym-log" data-v="' + (wk === 'A' ? 'B' : 'A') + '">Log workout ' + (wk === 'A' ? 'B' : 'A') + ' instead</button><button class="btn btn-secondary btn-small" data-act="machines">Machines</button></div></section>';
+  }
+  function gymLogSheet(wk) {
+    var key = ymd(now()), existing = state.gymSets.filter(function (s) { return s.date === key; });
+    var keys = WORKOUTS[wk].slice(); existing.forEach(function (s) { if (keys.indexOf(s.ex) < 0) keys.splice(keys.length - 1, 0, s.ex); });
+    function block(k) {
+      var e = exDef(k), t = exTarget(k, key), mine = existing.filter(function (s) { return s.ex === k; }), n = mine.length || (t.type === 'cardio' ? 1 : t.sets), out = '';
+      for (var i = 0; i < n; i++) {
+        var s = mine[i] || {};
+        if (t.type === 'cardio') out += '<div class="two" data-set><input type="number" inputmode="decimal" min="0" step="0.5" aria-label="Minutes" placeholder="min" data-f="minutes" value="' + (s.minutes != null ? s.minutes : t.minutes) + '">' +
+          '<input type="number" inputmode="numeric" min="1" max="30" aria-label="Level" placeholder="level" data-f="level" value="' + (s.level != null ? s.level : (t.level || '')) + '"></div>';
+        else out += '<div class="two" data-set>' + (t.type === 'hold' ? '' : '<input type="number" inputmode="decimal" min="0" step="0.5" aria-label="Set ' + (i + 1) + ' kilograms" placeholder="kg" data-f="kg" value="' + (s.kg != null ? s.kg : (t.kg || '')) + '">') +
+          '<input type="number" inputmode="numeric" min="0" max="200" aria-label="Set ' + (i + 1) + (t.type === 'hold' ? ' seconds' : ' reps') + '" placeholder="' + (t.type === 'hold' ? 'seconds' : 'reps') + '" data-f="reps" value="' + (s.reps != null ? s.reps : '') + '"></div>';
+      }
+      return '<div class="field" data-ex="' + esc(k) + '" data-type="' + t.type + '" style="gap:8px"><label>' + esc(e.name) + '</label><span class="hint">' + esc(t.text) + (t.note ? ' · ' + esc(t.note) : '') + '</span>' +
+        '<div data-sets style="display:flex;flex-direction:column;gap:8px">' + out + '</div>' + (t.type === 'cardio' ? '' : '<button type="button" class="link-btn" data-addset style="align-self:flex-start">+ set</button>') + '</div>';
+    }
+    var spare = allMachines().filter(function (m) { return !m.hidden && keys.indexOf(m.key) < 0; });
+    openSheet('<h2 class="title" id="sheet-title">Workout ' + wk + '</h2><p class="body" style="margin:0">Targets are filled in. Change any weight, write the reps you actually did, leave a set empty if you skipped it.</p>' +
+      '<form id="f-gym" style="display:flex;flex-direction:column;gap:18px" novalidate><div id="gym-blocks" style="display:flex;flex-direction:column;gap:18px">' + keys.map(block).join('') + '</div>' +
+      '<div class="field"><label for="gym-add">Add a machine</label><select id="gym-add"><option value="">Choose…</option>' + spare.map(function (m) { return '<option value="' + esc(m.key) + '">' + esc(m.name) + '</option>'; }).join('') + '</select></div>' +
+      '<p class="caption" id="gym-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
+      '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save workout</button></div></form>');
+    sheet.onclick = function (e) {
+      var b = e.target.closest('[data-addset]'); if (!b) return;
+      var sets = b.parentNode.querySelector('[data-sets]'), last = sets.lastElementChild; if (!last) return;
+      var c = last.cloneNode(true); c.querySelectorAll('input[data-f="reps"]').forEach(function (i) { i.value = ''; }); sets.appendChild(c);
+    };
+    document.getElementById('gym-add').addEventListener('change', function (e) { var k = e.target.value; if (!k) return; keys.push(k); document.getElementById('gym-blocks').insertAdjacentHTML('beforeend', block(k)); e.target.querySelector('option[value="' + k + '"]').remove(); e.target.value = ''; });
+    document.getElementById('f-gym').addEventListener('submit', function (e) {
+      e.preventDefault(); if (!need5(document.getElementById('gym-err'))) return;
+      var rows = [];
+      sheet.querySelectorAll('[data-ex]').forEach(function (blk) {
+        var k = blk.getAttribute('data-ex'), n = 0;
+        blk.querySelectorAll('[data-set]').forEach(function (row) {
+          var v = {}; row.querySelectorAll('input').forEach(function (i) { var x = parseFloat(i.value); v[i.getAttribute('data-f')] = isFinite(x) ? x : null; });
+          if (blk.getAttribute('data-type') === 'cardio' ? !(v.minutes > 0) : !(v.reps > 0)) return;
+          n++; rows.push({ id: uuid(), date: key, exercise: k, set_no: n, kg: v.kg != null ? v.kg : null, reps: v.reps != null ? Math.round(v.reps) : null, minutes: v.minutes != null ? v.minutes : null, level: v.level != null ? Math.round(v.level) : null, km: null });
+        });
+      });
+      if (!rows.length) { document.getElementById('gym-err').textContent = 'Nothing to save yet: enter the reps (or minutes) you did.'; return; }
+      write({ t: 'gym_sets', a: 'delete', match: { date: key } });
+      rows.forEach(function (r) { write({ t: 'gym_sets', a: 'insert', row: r }); });
+      setDay(key, { exercise: 'gym' });
+      closeSheet(); toast('Workout saved');
+    });
+  }
+  function machinesSheet() {
+    var list = allMachines();
+    openSheet('<h2 class="title" id="sheet-title">Machines</h2><p class="body" style="margin:0">The usual Anytime Fitness floor. Rename a machine to match the one at Rhodes, hide what isn\'t there, or add one.</p>' +
+      '<form id="f-mac" style="display:flex;flex-direction:column;gap:12px" novalidate>' + list.map(function (m) {
+        return '<div class="two" data-mac="' + esc(m.key) + '" data-kind="' + m.kind + '" style="align-items:center"><input type="text" maxlength="40" aria-label="Name" value="' + esc(m.name) + '">' +
+          '<label class="chip" style="display:flex;gap:8px;align-items:center"><input type="checkbox"' + (m.hidden ? '' : ' checked') + '> At Rhodes</label></div>'; }).join('') +
+      '<div class="two"><input id="mac-new" type="text" maxlength="40" placeholder="Add a machine" aria-label="New machine name"><select id="mac-kind" aria-label="Type"><option value="weights">Weights</option><option value="cardio">Cardio</option><option value="body">Bodyweight</option></select></div>' +
+      '<p class="caption" id="mac-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
+      '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div></form>');
+    document.getElementById('f-mac').addEventListener('submit', function (e) {
+      e.preventDefault(); if (!need5(document.getElementById('mac-err'))) return; var n = 0;
+      sheet.querySelectorAll('[data-mac]').forEach(function (row) {
+        var k = row.getAttribute('data-mac'), m = machine(k), name = row.querySelector('input[type="text"]').value.trim() || m.name, hidden = !row.querySelector('input[type="checkbox"]').checked;
+        if (name !== m.name || hidden !== !!m.hidden) { n++; write({ t: 'machines', a: 'upsert', row: { key: k, name: name, kind: m.kind, hidden: hidden, updated_at: new Date().toISOString() } }); }
+      });
+      var nn = document.getElementById('mac-new').value.trim();
+      if (nn) { n++; write({ t: 'machines', a: 'upsert', row: { key: 'c' + Date.now(), name: nn, kind: document.getElementById('mac-kind').value, hidden: false, updated_at: new Date().toISOString() } }); }
+      closeSheet(); toast(n ? 'Machines saved' : 'No changes');
+    });
+  }
+  function progressCard() {
+    var keys = Object.keys(EX).filter(function (k) { return EX[k].type !== 'cardio'; }).concat(Object.keys(state.machines).filter(function (k) { return !EX[k] && state.gymSets.some(function (s) { return s.ex === k; }); }));
+    var rows = keys.map(function (k) {
+      var h = exHistory(k); if (!h.length) return '';
+      var e = exDef(k), first = h[0], last = h[h.length - 1];
+      function top(x) { var w = x.sets.filter(function (s) { return s.kg != null; }); return w.length ? Math.max.apply(null, w.map(function (s) { return s.kg; })) : null; }
+      var t = exTarget(k, null), f = top(first), l = top(last);
+      return '<div class="row"><div class="row-main"><span class="row-title">' + esc(e.name) + '</span><span class="row-sub">' + h.length + ' session' + (h.length === 1 ? '' : 's') + (f != null && l != null ? ' · ' + f + ' → ' + l + ' kg' : e.type === 'hold' ? ' · ' + Math.min.apply(null, last.sets.map(function (s) { return s.reps || 0; })) + ' s' : '') + ' · next ' + esc(t.text) + '</span></div>' +
+        '<span class="fig-sm' + (t.plateau ? ' l-money' : '') + '">' + (t.plateau ? 'Plateau' : l != null ? l + ' kg' : '') + '</span><span></span></div>';
+    }).join('');
+    var el = exHistory('finish').concat(exHistory('warm')).sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+    return '<section class="card"><div class="card-head"><h3 class="heading">Gym progress</h3><span class="caption">' + (rows ? 'weights go up as reps reach the top' : '') + '</span></div>' +
+      (rows ? '<div class="list">' + rows + '</div>' : '<p class="empty">After your first workout, each exercise shows its weight over time and the next target.</p>') +
+      (el.length ? '<span class="caption">Elliptical: ' + Math.round(sum(el, function (x) { return sum(x.sets, function (s) { return s.minutes; }); })) + ' min over ' + Object.keys(el.reduce(function (o, x) { o[x.date] = 1; return o; }, {})).length + ' sessions.</span>' : '') + '</section>';
+  }
+
+  /* ---------------- walks: Homebush Bay, timed here, distance from the Apple Watch ---------------- */
+  function walkStart() { try { return Number(localStorage.getItem('fn-walk-start')) || 0; } catch (x) { return 0; } }
+  function clockText(ms) { var s = Math.max(0, Math.floor(ms / 1000)); return Math.floor(s / 3600) + ':' + pad(Math.floor(s / 60) % 60) + ':' + pad(s % 60); }
+  function pace(min, km) { if (!km) return '–'; var p = min / km; return Math.floor(p) + ':' + pad(Math.round((p % 1) * 60)) + ' /km'; }
+  function walkCard(d) {
+    var key = ymd(d), today = state.walks.filter(function (w) { return w.date === key; }), st = walkStart(), planned = !schedule(d).gym;
+    var ws = weekStart(d), wk = inWeek(state.walks, ws), km = sum(wk, function (w) { return w.km; }), min = sum(wk, function (w) { return w.minutes; });
+    var all = state.walks.filter(function (w) { return w.km > 0; }).sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+    var rows = state.walks.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 5).map(function (w) {
+      return '<div class="row"><div class="row-main"><span class="row-title">' + shortDate(w.date) + ' · ' + w.minutes + ' min</span><span class="row-sub">' + (w.km ? w.km + ' km · ' + pace(w.minutes, w.km) : 'distance not entered') + (w.hr ? ' · ' + w.hr + ' bpm' : '') + '</span></div>' +
+        '<span class="fig-sm">' + (w.km ? w.km + ' km' : '') + '</span><button class="link-btn" data-act="del" data-c="walks" data-id="' + esc(w.id) + '" aria-label="Delete walk">Delete</button></div>'; }).join('');
+    return '<section class="card a-health has-illo">' + illo('sunrise', 'corner') + '<span class="eyebrow l-health">' + (planned ? 'Homebush Bay walk today · max 1 h 15 door to door' : 'Walks: Wed, Sat, Sun · max 1 h 15') + '</span>' +
+      (st ? '<span class="fig-lg" id="walk-clock">' + clockText(Date.now() - st) + '</span><span class="body" style="color:var(--ink)">Walking since ' + clockAp(new Date(st).getHours() * 60 + new Date(st).getMinutes()) + '. Start the Outdoor Walk on your Watch too, for the distance.</span>' +
+        '<div class="btn-row"><button class="btn btn-primary" data-act="walk-stop">Finish walk</button><button class="btn btn-secondary" data-act="walk-cancel">Cancel</button></div>' :
+        '<span class="title">' + (today.length ? 'Walk done: ' + today[0].minutes + ' min' + (today[0].km ? ', ' + today[0].km + ' km' : '') : planned ? 'Bay walk day' : 'Walk') + '</span>' +
+        '<div class="btn-row"><button class="btn btn-primary btn-small" data-act="walk-start">' + icon('walk', 18) + 'Start timer</button><button class="btn btn-secondary btn-small" data-act="walk-log">Enter from Watch</button></div>') +
+      '<div class="kv">' + kvRow('This week', wk.length + ' walk' + (wk.length === 1 ? '' : 's') + ', ' + min + ' min' + (km ? ', ' + km.toFixed(2) + ' km' : '')) +
+      kvRow('Pace, last walk', all.length ? pace(all[all.length - 1].minutes, all[all.length - 1].km) : '–') + kvRow('Pace, first walk', all.length ? pace(all[0].minutes, all[0].km) : '–') + '</div>' +
+      (rows ? '<div class="list">' + rows + '</div>' : '') + '</section>';
+  }
+  function walkSheet(minutes) {
+    openSheet('<h2 class="title" id="sheet-title">Walk</h2><p class="body" style="margin:0">From your Apple Watch: Fitness app → the walk → Workout Time and Distance.</p>' +
+      '<form id="f-walk" style="display:flex;flex-direction:column;gap:14px" novalidate>' +
+      '<div class="two"><div class="field"><label for="wk-min">Time (minutes)</label><input id="wk-min" type="number" inputmode="numeric" min="1" max="300" value="' + (minutes || '') + '" required></div>' +
+      '<div class="field"><label for="wk-km">Distance (km)</label><input id="wk-km" type="number" inputmode="decimal" min="0" step="0.01"></div></div>' +
+      '<div class="two"><div class="field"><label for="wk-hr">Average heart rate</label><input id="wk-hr" type="number" inputmode="numeric" min="40" max="220" placeholder="optional"></div>' +
+      '<div class="field"><label for="wk-date">Date</label><input id="wk-date" type="date" value="' + ymd(now()) + '"></div></div>' +
+      '<p class="caption" id="wk-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
+      '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save walk</button></div></form>');
+    document.getElementById('f-walk').addEventListener('submit', function (e) {
+      e.preventDefault(); var err = document.getElementById('wk-err'); if (!need5(err)) return;
+      var m = parseInt(document.getElementById('wk-min').value, 10), km = parseFloat(document.getElementById('wk-km').value), hr = parseInt(document.getElementById('wk-hr').value, 10), date = document.getElementById('wk-date').value;
+      if (!(m > 0) || !date) { err.textContent = 'Enter how long you walked.'; return; }
+      write({ t: 'walks', a: 'insert', row: { id: uuid(), date: date, minutes: m, km: km > 0 ? Math.round(km * 100) / 100 : null, avg_hr: hr > 0 ? hr : null, note: '' } });
+      try { localStorage.removeItem('fn-walk-start'); } catch (x) {}
+      if (!dayDoc(date).exercise) setDay(date, { exercise: 'walk' });
+      closeSheet(); toast('Walk saved');
+    });
+  }
+  setInterval(function () { var el = document.getElementById('walk-clock'), st = walkStart(); if (el && st) el.textContent = clockText(Date.now() - st); }, 1000);
+
+  /* ---------------- evening check-in ---------------- */
+  var CHECKS = [['energy', 'Energy today', '1 drained · 5 great'], ['sleep', 'Sleep last night', '1 poor · 5 great'], ['stress', 'Stress today', '1 calm · 5 very stressed']];
+  function lowDay(doc) { return doc && (doc.energy && doc.energy <= 2 || doc.sleep && doc.sleep <= 2 || doc.stress && doc.stress >= 4); }
+  // Two low days out of the last three check-ins → suggest a lighter day.
+  function lighterDay(d) {
+    var n = 0, low = 0; for (var i = 0; i < 4 && n < 3; i++) { var doc = dayDoc(ymd(addDays(d, -i))); if (doc.energy || doc.sleep || doc.stress) { n++; if (lowDay(doc)) low++; } }
+    return low >= 2;
+  }
+  var LIGHT_DAY = 'Lighter day: finish driving at 2:30 pm, study 1 h 30 instead of 2 h 50, an easy Homebush Bay walk instead of the gym, in bed by 9:00 pm.';
+  function checkinCard(d) {
+    var key = ymd(d), doc = dayDoc(key), done = doc.energy && doc.sleep && doc.stress;
+    return '<section class="card"><div class="card-head"><h3 class="heading">Evening check-in</h3><span class="caption">' + (done ? 'Done for today' : 'Takes 5 seconds') + '</span></div>' +
+      CHECKS.map(function (c) {
+        return '<div style="display:flex;flex-direction:column;gap:6px"><span class="eyebrow">' + c[1] + ' <span class="caption" style="text-transform:none;letter-spacing:0">' + c[2] + '</span></span><div class="chips" role="group" aria-label="' + c[1] + '">' +
+          [1, 2, 3, 4, 5].map(function (v) { return '<button class="chip" data-act="check" data-f="' + c[0] + '" data-v="' + v + '" aria-pressed="' + (doc[c[0]] === v) + '" style="min-width:44px">' + v + '</button>'; }).join('') + '</div></div>';
+      }).join('') +
+      (lighterDay(d) ? '<div class="notice">Two of your last three check-ins were low. ' + LIGHT_DAY + '</div>' : '') + '</section>';
   }
 
   /* ---------------- sheets (forms) ---------------- */
@@ -1495,7 +2231,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
   function exportData() {
     var stamp = ymd(now());
     var pack = function (tables) {
-      var payload = { app: 'Field Notes', version: 1, exportedAt: new Date().toISOString(), account: user ? user.email : null, tables: tables };
+      var payload = { app: 'Field Notes', version: 2, appVersion: APP_VERSION, exportedAt: new Date().toISOString(), account: user ? user.email : null, tables: tables };
       var json = JSON.stringify(payload, null, 2);
       var name = 'field-notes-backup-' + stamp + '.json';
       var file = null;
@@ -1510,21 +2246,25 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
       toast('Backup saved: ' + name);
     };
     if (sb && user) {
-      Promise.all(['shifts', 'expenses', 'days', 'tax_weeks', 'logbook', 'body', 'assessments', 'subject_results'].map(function (t) { return sb.from(t).select('*').limit(5000); })).then(function (res) {
-        if (res.slice(0, 4).some(function (r) { return r.error; })) { toast('Could not read your data for the backup'); return; }
-        pack({ shifts: res[0].data, expenses: res[1].data, days: res[2].data, tax_weeks: res[3].data, logbook: res[4].error ? [] : res[4].data, body: res[5].error ? [] : res[5].data, assessments: res[6].error ? [] : res[6].data, subject_results: res[7].error ? [] : res[7].data });
+      Promise.all(TABLE_LIST.map(function (t) { return sb.from(t).select('*').limit(10000); })).then(function (res) {
+        if (res.slice(0, 4).some(function (r) { return r.error; })) { toast('No signal: backing up the copy on this phone'); pack(raw); return; }
+        var out = {}; TABLE_LIST.forEach(function (t, i) { out[t] = res[i].error ? [] : res[i].data; }); pack(out);
       });
-    } else {
-      pack({ shifts: state.shifts, expenses: state.expenses, days: state.days, tax_weeks: state.tax, logbook: state.logbook, body: state.body, assessments: state.assessments, subject_results: state.results });
-    }
+    } else pack(raw);
   }
 
   /* ---------------- actions ---------------- */
   var busy = {};
   function setDay(key, patch) {
-    if (busy[key]) return; busy[key] = true;
-    var doc = Object.assign({}, dayDoc(key), patch); delete doc.id; doc.updatedAt = new Date().toISOString();
-    save('days', key, doc).then(function () { busy[key] = false; }, function () { busy[key] = false; });
+    var doc = Object.assign({}, dayDoc(key), patch); delete doc.id;
+    save('days', key, doc);
+  }
+  // Deleting needs a second tap on the same button within 4 seconds.
+  function confirmDel(b) {
+    if (b.getAttribute('data-armed')) return true;
+    b.setAttribute('data-armed', '1'); var t = b.textContent; b.textContent = 'Tap again'; b.style.color = 'var(--money-label)';
+    setTimeout(function () { if (b.isConnected) { b.removeAttribute('data-armed'); b.textContent = t; b.style.color = ''; } }, 4000);
+    return false;
   }
   document.addEventListener('click', function (e) {
     var b = e.target.closest('[data-act]'); if (!b) return;
@@ -1539,13 +2279,30 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
     else if (act === 'assess') assessSheet(b.getAttribute('data-id'));
     else if (act === 'assess-new') assessSheet(null, b.getAttribute('data-code'));
     else if (act === 'result') resultSheet(b.getAttribute('data-code'));
+    else if (act === 'stint-start') stintStartSheet(b.getAttribute('data-v'));
+    else if (act === 'stint-stop') stintStopSheet(b.getAttribute('data-v'));
+    else if (act === 'stint-past') stintPastSheet();
+    else if (act === 'charge') chargeSheet();
+    else if (act === 'cashout') cashoutSheet(b.getAttribute('data-v'));
+    else if (act === 'balance') balanceSheet();
+    else if (act === 'statement') statementSheet(b.getAttribute('data-v'));
+    else if (act === 'bill') billSheet(b.getAttribute('data-id'));
+    else if (act === 'bill-new') billSheet(null, b.getAttribute('data-v'));
+    else if (act === 'bill-pay') billPaySheet(b.getAttribute('data-id'));
+    else if (act === 'gym-log') gymLogSheet(b.getAttribute('data-v'));
+    else if (act === 'machines') machinesSheet();
+    else if (act === 'walk-start') { try { localStorage.setItem('fn-walk-start', String(Date.now())); } catch (x) {} render(); toast('Walk timer started'); }
+    else if (act === 'walk-stop') { var st0 = walkStart(); walkSheet(st0 ? Math.max(1, Math.round((Date.now() - st0) / 60000)) : null); }
+    else if (act === 'walk-cancel') { try { localStorage.removeItem('fn-walk-start'); } catch (x) {} render(); }
+    else if (act === 'walk-log') walkSheet(null);
+    else if (act === 'check') { if (!need5()) return; var pt = {}; pt[b.getAttribute('data-f')] = parseInt(b.getAttribute('data-v'), 10); setDay(key, pt); }
     else if (act === 'close') closeSheet();
     else if (act === 'theme') { try { localStorage.setItem('fn-theme', b.getAttribute('data-v')); } catch (x) {} if (window.fnApplyTheme) window.fnApplyTheme(true); render(); }
     else if (act === 'export') exportData();
     else if (act === 'signout') { if (sb) sb.auth.signOut(); }
     else if (act === 'ex') { var v = b.getAttribute('data-v'); setDay(key, { exercise: v || null }); toast(v ? (v === 'gym' ? 'Gym logged' : 'Walk logged') : 'Exercise cleared'); }
     else if (act === 'study') { var add = parseInt(b.getAttribute('data-v'), 10); var m = Math.max(0, (Number(dayDoc(key).studyMin) || 0) + add); setDay(key, { studyMin: m }); toast('Study today: ' + hm(m)); }
-    else if (act === 'del') { remove(b.getAttribute('data-c'), b.getAttribute('data-id')).then(function () { toast('Deleted'); }); }
+    else if (act === 'del') { if (!confirmDel(b)) return; remove(b.getAttribute('data-c'), b.getAttribute('data-id')).then(function () { toast('Deleted'); }); }
     else if (act === 'tab') { state.tab = b.getAttribute('data-v'); try { location.hash = state.tab === 'today' ? '' : state.tab; } catch (x) {} render(true); window.scrollTo(0, 0); }
   });
 
@@ -1580,10 +2337,11 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
     }).catch(function () {});
   }
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') checkUpdate(); });
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function () {});
   render(true);
   connect();
   checkUpdate();
-  setInterval(function () { if (!scrim.classList.contains('open')) render(); }, 30000);
+  setInterval(function () { if (!scrim.classList.contains('open') && !(document.activeElement && /INPUT|SELECT/.test(document.activeElement.tagName))) render(); }, 30000);
 })();
 </script>
 </body>
