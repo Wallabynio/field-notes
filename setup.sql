@@ -234,3 +234,20 @@ create policy "own bills" on public.bills for all using (auth.uid() = user_id) w
 create policy "own machines" on public.machines for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "own gym sets" on public.gym_sets for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "own walks" on public.walks for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Food shopping: what you bought, how much, what it cost. Counts against the $165 food and coffee budget.
+create table if not exists public.food_buys (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users on delete cascade,
+  date date not null,
+  store text not null default 'Aldi',
+  item text not null,
+  qty numeric(10,2),
+  unit text default 'each',
+  price numeric(10,2) not null,
+  on_list boolean not null default true,
+  created_at timestamptz not null default now()
+);
+alter table public.food_buys enable row level security;
+drop policy if exists "own food buys" on public.food_buys;
+create policy "own food buys" on public.food_buys for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

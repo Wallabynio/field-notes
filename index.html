@@ -355,7 +355,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '1.1.0';
+  var APP_VERSION = '1.1.1';
   var PLAN_START = '2026-11-08';               // Sunday, week 1 day 1
   var NORMAL_MIN = 340, HOMEWARD_MIN = 60;      // 5 h 40 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
@@ -613,9 +613,9 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
   // raw = the rows exactly as stored in the database, per table. Everything on screen is derived from raw.
   // Writes change raw on the phone at once, then go to a queue that syncs to the database (and waits when there is no signal).
   var state = { shifts: [], oldShifts: [], stints: [], expenses: [], days: {}, tax: {}, logbook: [], body: {}, assessments: [], results: {},
-    cashouts: [], months: {}, bills: [], machines: {}, gymSets: [], walks: [],
+    cashouts: [], months: {}, bills: [], machines: {}, gymSets: [], walks: [], foodBuys: [],
     tab: 'today', saving: true, ready: false, dbV2: true, dbV3: true, dbV4: true, dbV5: true, offline: false };
-  var TABLE_LIST = ['shifts', 'expenses', 'days', 'tax_weeks', 'logbook', 'body', 'assessments', 'subject_results', 'stints', 'cashouts', 'uber_months', 'bills', 'machines', 'gym_sets', 'walks'];
+  var TABLE_LIST = ['shifts', 'expenses', 'days', 'tax_weeks', 'logbook', 'body', 'assessments', 'subject_results', 'stints', 'cashouts', 'uber_months', 'bills', 'machines', 'gym_sets', 'walks', 'food_buys'];
   var PK = { days: ['date'], tax_weeks: ['week_start'], body: ['date'], subject_results: ['code'], uber_months: ['month'], machines: ['key'] };
   var raw = {}; TABLE_LIST.forEach(function (t) { raw[t] = []; });
 
@@ -680,6 +680,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
     var mc = {}; raw.machines.forEach(function (r) { mc[r.key] = { name: r.name, kind: r.kind, hidden: !!r.hidden }; }); state.machines = mc;
     state.gymSets = raw.gym_sets.map(function (r) { return { id: r.id, date: r.date, ex: r.exercise, set: Number(r.set_no) || 1, kg: num(r.kg), reps: num(r.reps), minutes: num(r.minutes), level: num(r.level), km: num(r.km), createdAt: r.created_at }; });
     state.walks = raw.walks.map(function (r) { return { id: r.id, date: r.date, minutes: Number(r.minutes) || 0, km: num(r.km), hr: num(r.avg_hr), note: r.note || '' }; });
+    state.foodBuys = raw.food_buys.map(function (r) { return { id: r.id, date: r.date, store: r.store || 'Aldi', item: r.item, qty: num(r.qty), unit: r.unit || 'each', price: Number(r.price) || 0, onList: !!r.on_list, createdAt: r.created_at || '' }; });
     // Completed work stints count as driving: normal rate or homeward; earnings exclude tolls (they are only paid back).
     var fromStints = state.stints.filter(function (s) { return s.endedAt && (s.kind === 'uber' || s.kind === 'homeward'); }).map(function (s) {
       var m = stintMin(s);
@@ -988,7 +989,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
   /* ---------------- views ---------------- */
   function notice() {
     if (state.offline || queue.length) return '<div class="notice">' + (queue.length ? 'No signal: ' + queue.length + ' change' + (queue.length === 1 ? '' : 's') + ' saved on this phone. They sync by themselves when you are back online.' : 'No signal: showing what is saved on this phone.') + '</div>';
-    if (state.saving && state.dbV4 && !state.dbV5) return '<div class="notice">Driving stints, the Uber balance, bills, gym sets, walks and check-ins can\'t be saved yet. The database needs its one-time update for version 1.1.</div>';
+    if (state.saving && state.dbV4 && !state.dbV5) return '<div class="notice">Driving stints, the Uber balance, bills, food prices, gym sets, walks and check-ins can\'t be saved yet. The database needs its one-time update for version 1.1.</div>';
     if (state.saving && state.dbV2 && !state.dbV3) return '<div class="notice">Weigh-ins can\'t be saved yet. The database needs its one-time update for this version.</div>';
     if (state.saving) return state.dbV2 ? '' : '<div class="notice">Tax, BAS and logbook details can\'t be saved yet. The database needs its one-time update.</div>';
     return '<div class="notice">Not connected to your database yet, so entries are not saved. Finish the setup steps to switch saving on.</div>';
@@ -1569,7 +1570,7 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
     var bfCard = '<section class="card"><div class="card-head"><h3 class="heading">Breakfasts this week</h3><span class="caption">Same every week</span></div><div class="list">' + bweek + '</div></section>';
     var menuCard = '<section class="card"><div class="card-head"><h3 class="heading">Dinners this week</h3><span class="caption">Same every week</span></div><div class="list">' + week + '</div></section>';
 
-    return hero('health', 'Health', 'Eating well, moving daily, ' + WL.kcal.toLocaleString('en-AU') + ' kcal a day.') + notice() + (d.getHours() >= 18 ? checkinCard(d) : '') + exCard + progressCard() + mealsCard + weightCard + histCard + (d.getHours() < 18 ? checkinCard(d) : '') + menuCard + bfCard +
+    return hero('health', 'Health', 'Eating well, moving daily, ' + WL.kcal.toLocaleString('en-AU') + ' kcal a day.') + notice() + (d.getHours() >= 18 ? checkinCard(d) : '') + exCard + progressCard() + mealsCard + foodCard(d) + weightCard + histCard + (d.getHours() < 18 ? checkinCard(d) : '') + menuCard + bfCard +
       '<section class="card"><h3 class="heading">Exercise this week</h3>' + segBar('health', 7, count, 'Days done') + '<div class="list">' + segs + '</div></section>';
   }
 
@@ -1587,19 +1588,85 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
   var shopStore = 'Aldi';
   function shopSheet() {
     function body() {
-      var list = SHOP[shopStore];
-      return '<h2 class="title" id="sheet-title">Weekly shop</h2><p class="body" style="margin:0">Aldi first, then Coles. Pantry: buy only when it runs low (weekly use in brackets).</p>' +
+      var list = SHOP[shopStore], ws = weekStart(now()), week = foodIn(ws), fw = foodWeek(ws);
+      var extras = week.filter(function (f) { return !f.onList; });
+      return '<h2 class="title" id="sheet-title">Weekly shop</h2>' +
+        '<div class="kv">' + kvRow('Spent this week', money(fw.spent, true) + ' / ' + money(FOOD_WEEK)) + kvRow(fw.diff >= 0 ? 'Under budget, to cash extra' : 'Over budget, from cash extra', money(Math.abs(fw.diff), true), 'total') + '</div>' +
+        '<p class="body" style="margin:0">Aldi first, then Coles. Tap Bought and enter the amount and price; the tick goes on by itself. Pantry: buy only when it runs low (weekly use in brackets).</p>' +
         '<div class="tabs" role="group" aria-label="Store">' + Object.keys(SHOP).map(function (s) { return '<button type="button" data-shop-store="' + s + '" aria-pressed="' + (s === shopStore) + '">' + s + '</button>'; }).join('') + '</div>' +
-        '<div class="list">' + list.map(function (it, i) { var id = shopStore + i, done = !!shopState[id];
-          return '<label class="check' + (done ? ' done' : '') + '"><input type="checkbox" data-shop-item="' + id + '"' + (done ? ' checked' : '') + '><span class="row-title">' + esc(it) + '</span><span></span></label>'; }).join('') + '</div>' +
+        '<div class="list">' + list.map(function (it, i) {
+          var id = shopStore + i, buys = week.filter(function (f) { return f.item === it; }), paid = sum(buys, function (f) { return f.price; }), done = !!shopState[id] || buys.length > 0;
+          return '<div class="check' + (done ? ' done' : '') + '" style="display:flex;align-items:center;gap:10px"><input type="checkbox" data-shop-item="' + id + '"' + (done ? ' checked' : '') + ' aria-label="' + esc(it) + '" style="width:22px;height:22px;flex-shrink:0">' +
+            '<span class="row-title" style="flex:1;min-width:0">' + esc(it) + '</span>' +
+            '<button type="button" class="link-btn" data-buy="' + i + '" style="white-space:nowrap' + (buys.length ? ';font-weight:700' : '') + '">' + (buys.length ? money(paid, true) : 'Bought') + '</button></div>';
+        }).join('') + '</div>' +
+        (extras.length ? '<h3 class="heading">Not on the list, this week</h3><div class="list">' + extras.map(function (f) {
+          return '<div class="row"><div class="row-main"><span class="row-title">' + esc(f.item) + '</span><span class="row-sub">' + esc(f.store) + ' · ' + shortDate(f.date) + '</span></div><span class="fig-sm">' + money(f.price, true) + '</span><button class="link-btn" data-buy-del="' + esc(f.id) + '">Delete</button></div>'; }).join('') + '</div>' : '') +
+        '<button type="button" class="btn btn-secondary btn-small" data-buy="extra">' + icon('plus', 18) + 'Something not on the list</button>' +
         '<div class="btn-row"><button type="button" class="btn btn-secondary btn-small" data-shop-clear="1">Clear ticks</button><button type="button" class="btn btn-primary btn-small" data-act="close">Done</button></div>';
     }
     openSheet(body());
     sheet.onchange = function (e) { var id = e.target.getAttribute && e.target.getAttribute('data-shop-item'); if (!id) return; shopState[id] = e.target.checked; try { localStorage.setItem('fn-shop2', JSON.stringify(shopState)); } catch (x) {} e.target.closest('.check').classList.toggle('done', e.target.checked); };
     sheet.onclick = function (e) {
       var st = e.target.closest('[data-shop-store]'); if (st) { shopStore = st.getAttribute('data-shop-store'); sheet.innerHTML = body(); return; }
+      var bt = e.target.closest('[data-buy]'); if (bt) { var v = bt.getAttribute('data-buy'), it = v === 'extra' ? null : SHOP[shopStore][+v]; closeSheet(); boughtSheet(shopStore, it); return; }
+      var bd = e.target.closest('[data-buy-del]'); if (bd) { if (!confirmDel(bd)) return; write({ t: 'food_buys', a: 'delete', id: bd.getAttribute('data-buy-del') }); sheet.innerHTML = body(); return; }
       if (e.target.closest('[data-shop-clear]')) { shopState = {}; try { localStorage.removeItem('fn-shop2'); } catch (x) {} sheet.innerHTML = body(); }
     };
+  }
+
+  /* ---------------- food spending: what each shop really cost ---------------- */
+  var FOOD_WEEK = 165, CASH_EXTRA = 72.61;
+  function foodIn(ws) { return inWeek(state.foodBuys, ws); }
+  function foodWeek(ws) { var spent = sum(foodIn(ws), function (f) { return f.price; }); return { spent: spent, diff: FOOD_WEEK - spent, cashExtra: CASH_EXTRA + FOOD_WEEK - spent }; }
+  // "500 g skinless chicken" → 500 g; "2 × 1 kg yoghurt" → 2 kg; "12 eggs" → 12 each
+  function parseQty(t) {
+    var m = String(t).match(/^(\d+)\s*×\s*(\d+(?:\.\d+)?)\s*(g|kg|mL|L)\b/); if (m) return { qty: +m[1] * +m[2], unit: m[3] };
+    m = String(t).match(/^(\d+(?:[.,]\d+)?)\s*(g|kg|mL|L)\b/); if (m) return { qty: +m[1].replace(',', '.'), unit: m[2] };
+    m = String(t).match(/^(\d+)\b/); if (m) return { qty: +m[1], unit: 'each' };
+    return { qty: 1, unit: 'each' };
+  }
+  function perUnit(f) { // price per kg / L / each, for comparing shops
+    if (!f.qty) return null; var q = f.unit === 'g' ? f.qty / 1000 : f.unit === 'mL' ? f.qty / 1000 : f.qty;
+    return { v: f.price / q, u: f.unit === 'g' || f.unit === 'kg' ? 'kg' : f.unit === 'mL' || f.unit === 'L' ? 'L' : 'each' };
+  }
+  function lastBuy(item) { var l = state.foodBuys.filter(function (f) { return f.item === item; }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (a.createdAt < b.createdAt ? 1 : -1); }); return l[0] || null; }
+  function foodCard(d) {
+    var ws = weekStart(d), fw = foodWeek(ws), list = foodIn(ws), stores = {};
+    list.forEach(function (f) { stores[f.store] = (stores[f.store] || 0) + f.price; });
+    return '<section class="card a-money"><div class="card-head"><span class="eyebrow l-money">Food and coffee · this week</span><span class="caption">from Sunday</span></div>' +
+      '<span class="fig-lg">' + money(fw.spent, true) + ' <span class="caption">of ' + money(FOOD_WEEK) + '</span></span>' + bar('money', fw.spent / FOOD_WEEK, '', '', { lg: true, onSoft: true }) +
+      '<span class="body" style="color:var(--ink)">' + (fw.spent === 0 ? 'Nothing bought yet this week. Tap Bought next to each item as you shop.' : fw.diff >= 0 ? money(fw.diff, true) + ' under budget: it goes to this week\'s cash extra.' : money(-fw.diff, true) + ' over budget: taken from this week\'s cash extra.') + '</span>' +
+      '<div class="kv">' + Object.keys(stores).map(function (s) { return kvRow(esc(s), money(stores[s], true)); }).join('') + kvRow('Cash extra this week (plan ' + money(CASH_EXTRA, true) + ')', money(fw.cashExtra, true), 'total') + '</div>' +
+      '<button class="btn btn-secondary btn-small" data-act="shop" style="background:var(--money-track)">' + icon('bag', 18) + 'Shopping list and prices</button></section>';
+  }
+  function boughtSheet(store, item) {
+    var last = item ? lastBuy(item) : null, q = item ? parseQty(item) : { qty: '', unit: 'each' };
+    if (last) q = { qty: last.qty, unit: last.unit };
+    var units = ['g', 'kg', 'mL', 'L', 'each'];
+    openSheet('<h2 class="title" id="sheet-title">Bought</h2>' + (item ? '<p class="body" style="margin:0">' + esc(item) + '</p>' : '') +
+      (last ? '<span class="hint">Last time: ' + last.qty + ' ' + last.unit + ' for ' + money(last.price, true) + ' at ' + esc(last.store) + ', ' + shortDate(last.date) + (perUnit(last) ? ' (' + money(perUnit(last).v, true) + '/' + perUnit(last).u + ')' : '') + '</span>' : '') +
+      '<form id="f-buy" style="display:flex;flex-direction:column;gap:14px" novalidate>' +
+      (item ? '' : '<div class="field"><label for="by-item">What</label><input id="by-item" type="text" maxlength="60" placeholder="e.g. 1 kg brown onions" required></div>') +
+      '<div class="two"><div class="field"><label for="by-q">Amount</label><input id="by-q" type="number" inputmode="decimal" min="0" step="any" value="' + q.qty + '"></div>' +
+      '<div class="field"><label for="by-u">Unit</label><select id="by-u">' + units.map(function (u) { return '<option' + (u === q.unit ? ' selected' : '') + '>' + u + '</option>'; }).join('') + '</select></div></div>' +
+      '<div class="two"><div class="field"><label for="by-p">Price paid ($)</label><input id="by-p" type="number" inputmode="decimal" min="0" step="0.01" required></div>' +
+      '<div class="field"><label for="by-s">Store</label><select id="by-s">' + ['Aldi', 'Coles', 'Woolworths', 'Other'].map(function (s) { return '<option' + (s === (store === 'Pantry' ? (last ? last.store : 'Aldi') : store) ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select></div></div>' +
+      '<span class="hint" id="by-unit"></span>' +
+      '<div class="field"><label for="by-d">Date</label><input id="by-d" type="date" value="' + ymd(now()) + '"></div>' +
+      '<p class="caption" id="by-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
+      '<div class="btn-row"><button type="button" class="btn btn-secondary" id="by-back">Back to list</button><button type="submit" class="btn btn-primary">Save</button></div></form>');
+    var pEl = document.getElementById('by-p'), qEl = document.getElementById('by-q'), uEl = document.getElementById('by-u'), hint = document.getElementById('by-unit');
+    function upd() { var pu = perUnit({ qty: parseFloat(qEl.value), unit: uEl.value, price: parseFloat(pEl.value) }); hint.textContent = pu && isFinite(pu.v) && pu.v > 0 ? money(pu.v, true) + ' per ' + pu.u + (last && perUnit(last) && perUnit(last).u === pu.u ? ' (last time ' + money(perUnit(last).v, true) + ')' : '') : ''; }
+    [pEl, qEl, uEl].forEach(function (x) { x.addEventListener('input', upd); }); uEl.addEventListener('change', upd);
+    document.getElementById('by-back').addEventListener('click', function () { closeSheet(); shopSheet(); });
+    document.getElementById('f-buy').addEventListener('submit', function (e) {
+      e.preventDefault(); var err = document.getElementById('by-err'); if (!need5(err)) return;
+      var name = item || document.getElementById('by-item').value.trim(), p = parseFloat(pEl.value), qty = parseFloat(qEl.value), date = document.getElementById('by-d').value;
+      if (!name || !(p >= 0) || pEl.value === '' || !date) { err.textContent = 'Enter ' + (item ? '' : 'what you bought and ') + 'the price paid.'; return; }
+      write({ t: 'food_buys', a: 'insert', row: { id: uuid(), date: date, store: document.getElementById('by-s').value, item: name, qty: qty > 0 ? qty : null, unit: uEl.value, price: Math.round(p * 100) / 100, on_list: !!item } });
+      closeSheet(); shopSheet(); toast('Saved: ' + money(p, true));
+    });
   }
 
   function bodySheet() {
@@ -1735,7 +1802,9 @@ svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][str
     var budgetCard = '<section class="card"><div class="card-head"><h3 class="heading">Weekly budget</h3><span class="caption">At ' + money(DAY_TARGET) + ' a day</span></div>' +
       '<div class="kv">' + kvRow('Receipts after fees (' + money(DAY_TARGET) + ' × 7)', money(WEEK_TARGET, true), 'total') +
       lines(BUDGET_BIZ) + lines(BUDGET_TAX) + kvRow('Available after business costs and tax', money(WEEK_TARGET - bizT - taxT, true), 'total') +
-      lines(BUDGET_PERSONAL) + kvRow('Cash extra (unlisted costs and savings)', money(WEEK_TARGET - bizT - taxT - perT, true), 'total') + '</div>' +
+      lines(BUDGET_PERSONAL) + kvRow('Cash extra (unlisted costs and savings)', money(WEEK_TARGET - bizT - taxT - perT, true), 'total') +
+      kvRow('Food and coffee actually spent this week', money(foodWeek(ws).spent, true) + ' / ' + money(FOOD_WEEK)) +
+      kvRow('Cash extra this week after real food spending', money(WEEK_TARGET - bizT - taxT - perT + foodWeek(ws).diff, true), 'total') + '</div>' +
       '<span class="caption">Break-even: ' + money(DAY_BREAKEVEN, true) + ' a day.</span></section>';
 
     return hero('money', 'Money', 'Uber balance, bills, tax, BAS and the weekly budget.') + notice() + walletCard(d) + billsCard(d) + taxCard + expCard + statementsCard(d) + basCard + itCard + lbCard + budgetCard +
