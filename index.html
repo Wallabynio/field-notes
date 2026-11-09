@@ -356,7 +356,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '1.2.5';
+  var APP_VERSION = '1.2.6';
   var PLAN_START = '2026-11-08';               // Sunday, week 1 day 1
   var NORMAL_MIN = 340, HOMEWARD_MIN = 60;      // 5 h 40 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
@@ -1089,7 +1089,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     var wn = weekNumber(d);
     var longView = '<section class="card" aria-label="The long view"><h2 class="heading">The long view</h2>' +
       bar('rest', Math.max(0, wn) / 52, 'Transition year', wn >= 1 ? 'Week ' + Math.min(wn, 52) + ' / 52' : 'Starts 8 Nov') +
-      bar('study', COURSE.filter(function (c) { return finalMark(c) != null; }).length / COURSE.length, 'Master of Urban Planning', COURSE.filter(function (c) { return finalMark(c) != null; }).length + ' / ' + COURSE.length + ' subjects · ends May 2027') + bar('work', 0, 'Splend term', 'Ends December 2027') + '</section>';
+      bar('study', COURSE.filter(function (c) { return finalMark(c) != null; }).length / COURSE.length, 'Master of Urban Planning', COURSE.filter(function (c) { return finalMark(c) != null; }).length + ' / ' + COURSE.length + ' subjects · ends May 2027') + bar('work', splendInfo(d).pct, 'Splend term', splendInfo(d).left ? 'Ends ' + longDate(splendInfo(d).last) + ' · ' + splendInfo(d).left + ' weeks to go' : 'Finished') + '</section>';
 
     var dueSoon = billsDue(key, 3), act = activeStint();
     var reds = ACCOUNTS.filter(function (a) { var b = balance(a[0]); return b != null && b < 0; });
@@ -1840,7 +1840,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
       lines(BUDGET_PERSONAL) + kvRow('Cash extra (unlisted costs and savings)', money(WEEK_TARGET - bizT - taxT - perT, true), 'total') + '</div>' +
       '<span class="caption">Break-even: ' + money(DAY_BREAKEVEN, true) + ' a day.</span></section>';
 
-    return hero('money', 'Money', 'Uber balance, bills, tax, BAS and the weekly budget.') + notice() + liveCard(d) + chargeYearCard(d) + foodYearCard(d) + accountsCard(d) + walletCard(d) + billsCard(d) + taxCard + expCard + statementsCard(d) + basCard + itCard + lbCard + budgetCard +
+    return hero('money', 'Money', 'Uber balance, bills, tax, BAS and the weekly budget.') + notice() + liveCard(d) + chargeYearCard(d) + foodYearCard(d) + accountsCard(d) + walletCard(d) + billsCard(d) + splendCard(d) + taxCard + expCard + statementsCard(d) + basCard + itCard + lbCard + budgetCard +
       appearanceCard() +
       '<section class="card"><div class="card-head"><h3 class="heading">Backup</h3><span class="caption">App version ' + APP_VERSION + '</span></div><p class="body" style="margin:0">Saves a copy of every entry to a file on your phone, for safekeeping.</p><button class="btn btn-secondary btn-small" data-act="export">Back up my data</button></section>' +
       (user ? '<button class="link-btn" data-act="signout" style="align-self:center">Sign out (' + esc(user.email) + ')</button>' : '');
@@ -1856,6 +1856,23 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     ['Rent', 310, 0, false], ['Utilities', 40, 0, true], ['Subscriptions', 46.15 + 21.68 + 11.19 + 5.76, 0, true], ['Gym membership', 25.95, 0, true]
   ];
   var CHARGE_DAY = 35, INCOME_TAX_WEEK = 97.99 + 18.97, PROFIT_MARGINAL = 0.32;
+  // Splend subscription: started Mon 11 Sep 2023, agreement end 11 Sep 2028, less 38 weeks off at the end = ends Mon 20 Dec 2027 (223 weekly payments).
+  var SPLEND = { start: '2023-09-11', agreementEnd: '2028-09-11', weeksOff: 38 };
+  function longDate(dt) { return dt.getDate() + ' ' + MONTHS[dt.getMonth()] + ' ' + dt.getFullYear(); }
+  function splendInfo(d) {
+    var start = parseYmd(SPLEND.start), agEnd = parseYmd(SPLEND.agreementEnd), last = addDays(agEnd, -7 * SPLEND.weeksOff), today = parseYmd(ymd(d));
+    var total = Math.round((last - start) / (7 * 864e5)), days = Math.round((last - today) / 864e5);
+    var left = Math.max(0, Math.min(total, Math.ceil(days / 7)));
+    return { start: start, agEnd: agEnd, last: last, total: total, left: left, done: total - left, pct: (total - left) / total };
+  }
+  function splendCard(d) {
+    var s = splendInfo(d), sp = fixedShares().filter(function (f) { return f.name === 'Splend'; })[0], amt = sp ? sp.amt : 449.01;
+    return '<section class="card"><div class="card-head"><h3 class="heading">Splend subscription</h3><span class="caption">' + (s.left ? s.left + ' week' + (s.left === 1 ? '' : 's') + ' to go' : 'finished') + '</span></div>' +
+      bar('work', s.pct, 'Weeks paid', s.done + ' / ' + s.total) +
+      '<div class="kv">' + kvRow('Started', longDate(s.start)) + kvRow('Agreement ends', longDate(s.agEnd)) + kvRow('Weeks off at the end', '−' + SPLEND.weeksOff + ' weeks') +
+      kvRow('Subscription ends', longDate(s.last), 'total') + kvRow('Still to pay at ' + money(amt, true) + ' a week', money(s.left * amt)) + '</div>' +
+      '<span class="caption">Payments come out every Wednesday, a week in advance.</span></section>';
+  }
   // Real charging average: total charged ÷ days from the first charge up to (not including) the given date.
   function chargeStats(upTo) {
     var list = state.expenses.filter(function (e) { return e.category === 'Charging' && e.date < upTo; });
