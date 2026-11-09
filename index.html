@@ -356,7 +356,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '1.2.4';
+  var APP_VERSION = '1.2.5';
   var PLAN_START = '2026-11-08';               // Sunday, week 1 day 1
   var NORMAL_MIN = 340, HOMEWARD_MIN = 60;      // 5 h 40 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
@@ -1629,6 +1629,31 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     return state.foodBuys.filter(function (f) { return f.date >= a && f.date < b; });
   }
   function foodWeek(ws) { var spent = sum(foodIn(ws), function (f) { return f.price; }); return { spent: spent, diff: FOOD_WEEK - spent, cashExtra: CASH_EXTRA + FOOD_WEEK - spent }; }
+  // Real weekly average: every completed food week from the week of the first logged purchase, a week with nothing logged counting as $0.
+  function foodStats(ws) {
+    if (!state.foodBuys.length) return null;
+    var first = state.foodBuys.reduce(function (m, f) { return f.date < m ? f.date : m; }, state.foodBuys[0].date);
+    var fws = first === '2026-11-08' ? parseYmd('2026-11-09') : weekStart(parseYmd(first));
+    var n = Math.round((ws - fws) / (7 * 864e5));
+    if (n < 1) return null;
+    var total = 0; for (var i = 0; i < n; i++) total += sum(foodIn(addDays(fws, 7 * i)), function (f) { return f.price; });
+    return { weeks: n, total: total, avg: total / n };
+  }
+  // Food expected for a whole week: the $165 plan until 2 completed weeks exist, then the real weekly average.
+  function foodPlanWeek(ws) { var s = foodStats(ws); return s && s.weeks >= 2 ? s.avg : FOOD_WEEK; }
+  function foodYearCard(d) {
+    var s = foodStats(weekStart(d)), planYear = FOOD_WEEK * 52, rows, note;
+    if (!s) {
+      rows = kvRow('Plan per week', money(FOOD_WEEK, true)) + kvRow('Plan per year', money(planYear));
+      note = 'Enter each item you buy in the shopping list. After one full week, this shows your real weekly average and the yearly estimate.';
+    } else {
+      var yr = s.avg * 52, diff = yr - planYear;
+      rows = kvRow('Average per week (over ' + s.weeks + ' week' + (s.weeks === 1 ? '' : 's') + ')', money(s.avg, true)) + kvRow('Per year at that rate', money(yr), 'total') +
+        kvRow('Plan per year (' + money(FOOD_WEEK) + ' a week)', money(planYear)) + kvRow('Difference per year', (diff > 0 ? '+' : '') + money(diff));
+      note = s.weeks >= 2 ? 'Weeks not yet shopped, and the rest of the current week, use this average instead of ' + money(FOOD_WEEK) + '.' : 'From 2 completed weeks, the live week uses this average instead of ' + money(FOOD_WEEK) + '.';
+    }
+    return '<section class="card"><div class="card-head"><h3 class="heading">Food and coffee, yearly estimate</h3></div><div class="kv">' + rows + '</div><span class="caption">' + note + '</span></section>';
+  }
   // "500 g skinless chicken" → 500 g; "2 × 1 kg yoghurt" → 2 kg; "12 eggs" → 12 each
   function parseQty(t) {
     var m = String(t).match(/^(\d+)\s*×\s*(\d+(?:\.\d+)?)\s*(g|kg|mL|L)\b/); if (m) return { qty: +m[1] * +m[2], unit: m[3] };
@@ -1642,12 +1667,12 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   }
   function lastBuy(item) { var l = state.foodBuys.filter(function (f) { return f.item === item; }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (a.createdAt < b.createdAt ? 1 : -1); }); return l[0] || null; }
   function foodCard(d) {
-    var ws = weekStart(d), fw = foodWeek(ws), list = foodIn(ws), stores = {};
+    var ws = weekStart(d), fw = foodWeek(ws), list = foodIn(ws), stores = {}, fs = foodStats(ws);
     list.forEach(function (f) { stores[f.store] = (stores[f.store] || 0) + f.price; });
     return '<section class="card a-money"><div class="card-head"><span class="eyebrow l-money">Food and coffee · this week</span><span class="caption">' + (ymd(ws) === '2026-11-09' ? 'from Sun 8 Nov' : 'from Mon ' + ws.getDate() + ' ' + MONTHS[ws.getMonth()].slice(0, 3)) + '</span></div>' +
       '<span class="fig-lg">' + money(fw.spent, true) + ' <span class="caption">of ' + money(FOOD_WEEK) + '</span></span>' + bar('money', fw.spent / FOOD_WEEK, '', '', { lg: true, onSoft: true }) +
       '<span class="body" style="color:var(--ink)">' + (fw.spent === 0 ? 'Nothing bought yet this week. Tap Bought next to each item as you shop.' : fw.diff >= 0 ? money(fw.diff, true) + ' under budget: it goes to this week\'s cash extra.' : money(-fw.diff, true) + ' over budget: taken from this week\'s cash extra.') + '</span>' +
-      '<div class="kv">' + Object.keys(stores).map(function (s) { return kvRow(esc(s), money(stores[s], true)); }).join('') + kvRow('Cash extra this week, all costs counted (plan ' + money(CASH_EXTRA, true) + ')', money(liveWeek(d).cashExtra, true), 'total') + '</div>' +
+      '<div class="kv">' + Object.keys(stores).map(function (s) { return kvRow(esc(s), money(stores[s], true)); }).join('') + (fs ? kvRow('Real weekly average (' + fs.weeks + ' week' + (fs.weeks === 1 ? '' : 's') + ')', money(fs.avg, true)) : '') + kvRow('Cash extra this week, all costs counted (plan ' + money(CASH_EXTRA, true) + ')', money(liveWeek(d).cashExtra, true), 'total') + '</div>' +
       '<button class="btn btn-secondary btn-small" data-act="shop" style="background:var(--money-track)">' + icon('bag', 18) + 'Shopping list and prices</button></section>';
   }
   function boughtSheet(store, item) {
@@ -1815,7 +1840,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
       lines(BUDGET_PERSONAL) + kvRow('Cash extra (unlisted costs and savings)', money(WEEK_TARGET - bizT - taxT - perT, true), 'total') + '</div>' +
       '<span class="caption">Break-even: ' + money(DAY_BREAKEVEN, true) + ' a day.</span></section>';
 
-    return hero('money', 'Money', 'Uber balance, bills, tax, BAS and the weekly budget.') + notice() + liveCard(d) + chargeYearCard(d) + accountsCard(d) + walletCard(d) + billsCard(d) + taxCard + expCard + statementsCard(d) + basCard + itCard + lbCard + budgetCard +
+    return hero('money', 'Money', 'Uber balance, bills, tax, BAS and the weekly budget.') + notice() + liveCard(d) + chargeYearCard(d) + foodYearCard(d) + accountsCard(d) + walletCard(d) + billsCard(d) + taxCard + expCard + statementsCard(d) + basCard + itCard + lbCard + budgetCard +
       appearanceCard() +
       '<section class="card"><div class="card-head"><h3 class="heading">Backup</h3><span class="caption">App version ' + APP_VERSION + '</span></div><p class="body" style="margin:0">Saves a copy of every entry to a file on your phone, for safekeeping.</p><button class="btn btn-secondary btn-small" data-act="export">Back up my data</button></section>' +
       (user ? '<button class="link-btn" data-act="signout" style="align-self:center">Sign out (' + esc(user.email) + ')</button>' : '');
@@ -1888,7 +1913,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     var others = ex.filter(function (e) { return e.category !== 'Charging' && fixedNames.indexOf(e.category) < 0; });
     var otherBiz = others.filter(function (e) { return e.businessPct > 0; }), otherPersonal = others.filter(function (e) { return !(e.businessPct > 0); });
     var fx = fixedShares(), fxBiz = fx.filter(function (f) { return f.pct > 0; }), fxPers = fx.filter(function (f) { return !(f.pct > 0); });
-    var food = foodWeek(ws).spent, foodUsed = over || food > 0 ? food : FOOD_WEEK;
+    var food = foodWeek(ws).spent, foodUsed = over ? food : Math.max(food, foodPlanWeek(ws));
     var tolls = sum(inWeek(state.shifts, ws), function (s) { return s.tolls || 0; }); // paid back exactly: neutral
     var bizCosts = [{ amt: chargeReal + chargePlanRest, pct: 80, gst: (chargeReal + chargePlanRest) / 11 }, { amt: cashFees, pct: 100, gst: 0 }]
       .concat(fxBiz).concat(otherBiz.map(function (e) { return { amt: e.amount, pct: e.businessPct, gst: e.gst }; }));
@@ -1934,7 +1959,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
       (w.cashFees ? kvRow('Cash-out fees', minus(w.cashFees, true)) : '') + (w.otherBiz ? kvRow('Other business costs', minus(w.otherBiz, true)) : '') +
       w.fx.filter(function (f) { return f.pct > 0; }).map(fxRow).join('') +
       kvRow('GST (on earnings, less credits on costs)', minus(w.gst, true)) + kvRow('Income tax and Medicare (on this week\'s profit)', minus(w.income, true)) +
-      kvRow('Food and coffee' + (w.food > 0 || w.over ? '' : ' (plan, not shopped yet)'), minus(w.foodUsed, true)) +
+      kvRow('Food and coffee' + (w.over || w.foodUsed <= w.food ? '' : w.food > 0 ? ' (' + money(w.food, true) + ' so far, rest expected)' : ' (expected, not shopped yet)'), minus(w.foodUsed, true)) +
       w.fx.filter(function (f) { return !(f.pct > 0); }).map(fxRow).join('') + (w.otherPersonal ? kvRow('Other personal spending', minus(w.otherPersonal, true)) : '') +
       kvRow('Cash extra', money(w.cashExtra, true), 'total') + '</div>' +
       '<span class="caption">Fixed bills count as a weekly share (from your bills when entered). Tax is recalculated from what you really earn and spend; set aside ' + money(w.setAside, true) + ' for the days so far.</span></section>';
