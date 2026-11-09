@@ -356,7 +356,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '1.2.8';
+  var APP_VERSION = '1.2.9';
   var PLAN_START = '2026-12-20';               // Sunday: first dinner. Testing phase until then; week 1 starts Monday 21 Dec 2026, 52 weeks before the Splend subscription ends (Mon 20 Dec 2027)
   var NORMAL_MIN = 340, HOMEWARD_MIN = 60;      // 5 h 40 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
@@ -584,9 +584,10 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
       [720, 780, 'money', 'Midday stop: charge, lunch, rest'],
       [780, 870, 'work', 'Driving'],
       [870, 930, 'commute', 'Homeward driving'],
-      [930, 970, 'neutral', 'Unpack, shower, snack'],
-      [970, 1060, 'study', 'Study'],
-      [1060, 1120, 'money', 'Cook and eat dinner'],
+      [930, 960, 'neutral', 'Unpack, shower, snack'],
+      [960, 1020, 'money', 'Cook and eat dinner'],
+      [1020, 1110, 'study', 'Study'],
+      [1110, 1120, 'neutral', 'Short break'],
       [1120, 1200, 'study', 'Study'],
       [1200, 1230, 'neutral', 'Pack lunch and gear'],
       [1230, 1290, 'rest', 'Personal time, wind-down']
@@ -1008,7 +1009,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   var BLOCK_INFO = {
     'Driving': 'Normal rate', 'Homeward driving': 'Two-thirds rate, heading home', 'Offline break': 'App off, rest',
     'Midday stop: charge, lunch, rest': 'Charge the car, eat, rest', 'Study': 'Focused study at home',
-    'Shower': 'After exercise', 'Breakfast, get ready': 'Pack food and laptop', 'Unpack, shower, snack': 'Reset before study',
+    'Shower': 'After exercise', 'Breakfast, get ready': 'Pack food and laptop', 'Unpack, shower, snack': 'Last snack: the eating window closes at 5:00 pm',
     'Pack lunch and gear': 'Lunch box, snacks, laptop, exercise gear',
     'Personal time, wind-down': 'Screens down, bed at 9:30'
   };
@@ -1018,7 +1019,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     var blocks = sch.blocks.concat([[DAY_END, DAY_END + 480, 'rest', 'Sleep']]);
     return '<div class="agenda" role="list">' + blocks.map(function (b) {
       var past = isToday && nm >= b[1], cur = isToday && nm >= b[0] && nm < b[1];
-      var info = b[3] === 'Cook and eat dinner' ? 'Cook two portions: ' + mealsFor(d).dinner.name : b[3] === 'Midday stop: charge, lunch, rest' ? 'Lunch: ' + mealsFor(d).lunch.name : b[2] === 'health' ? (sch.gym ? 'Workout ' + workoutFor(d) + ', 55 min session, 10 min walk each way' : 'Door to door, max 1 h 15') : b[3] === 'Sleep' ? 'Up at 5:30 am' : (BLOCK_INFO[b[3]] || '');
+      var info = b[3] === 'Cook and eat dinner' ? 'Cook two portions, last bite by 5:00 pm: ' + mealsFor(d).dinner.name : b[3] === 'Midday stop: charge, lunch, rest' ? 'Lunch: ' + mealsFor(d).lunch.name : b[2] === 'health' ? (sch.gym ? 'Workout ' + workoutFor(d) + ', 55 min session, 10 min walk each way' : 'Door to door, max 1 h 15') : b[3] === 'Sleep' ? 'Up at 5:30 am' : (BLOCK_INFO[b[3]] || '');
       var state = cur ? '<span class="ag-badge">Now</span>' : past ? 'Done' : '';
       return '<div class="ag-row' + (cur ? ' now' : '') + (past ? ' past' : '') + '" role="listitem"' + (cur ? ' aria-current="time"' : '') + '>' +
         '<span class="ag-time">' + clock(b[0] % 1440) + '</span><span class="ag-ico i-' + b[2] + '" aria-hidden="true">' + icon(blockIcon(b[3]), 16) + '</span>' +
@@ -1056,7 +1057,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
       nowCard = '<section class="card a-rest has-illo" aria-label="Now">' + illo('sleep', 'corner') + '<span class="eyebrow l-rest">Now · 9:30 pm – 5:30 am</span><span class="title">' + (asleep ? 'Sleep' : 'Rest') + '</span><span class="body" style="color:var(--ink)">Next: ' + (sch.gym ? 'gym' : 'Homebush Bay walk') + ' at 5:30 am</span></section>';
     }
 
-    var tl = '', legend = { health: 'Exercise', work: 'Driving', money: 'Charge + lunch', study: 'Study' };
+    var tl = '', legend = { health: 'Exercise', work: 'Driving', money: 'Charge + meals', study: 'Study' };
     sch.blocks.forEach(function (b) { tl += '<div class="f-' + b[2] + '" style="flex:' + (b[1] - b[0]) + '"></div>'; });
     var timeline = '<section aria-label="Your day" style="display:flex;flex-direction:column;gap:8px"><div class="card-head"><h2 class="heading">Your day</h2><span class="caption">5:30 am – 9:30 pm</span></div>' +
       '<div class="tl-wrap"><div class="tl" role="img" aria-label="Day timeline: exercise from 5:30, driving 7:30 am to 3:30 pm with a midday charging stop, study in the evening">' + tl + '</div>' +
@@ -1433,8 +1434,8 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     return hero('study', 'Study', 'Two hours fifty of focused study every evening, at home.') + notice() +
       (state.saving && !state.dbV4 ? '<div class="notice">Assessments and study plans can\'t be saved yet. The database needs its one-time update for this version.</div>' : '') +
       '<section class="card a-study"><div style="display:flex;gap:16px;align-items:center">' + ring(today / tgtToday, 'study', hm(today), 'of ' + hm(tgtToday), true, 'Study today ' + hm(today) + ' of ' + hm(tgtToday)) +
-      '<div style="display:flex;flex-direction:column;gap:4px"><span class="eyebrow l-study">Today, at home from 4:10 pm</span><span class="title">' + (today >= tgtToday ? 'Target met' : hm(tgtToday - today) + ' to go') + '</span></div></div>' +
-      '<div class="chips"><button class="chip" data-act="study" data-v="90">+1 h 30 (4:10 block)</button><button class="chip" data-act="study" data-v="80">+1 h 20 (6:40 block)</button><button class="chip" data-act="study" data-v="10">+10 min</button><button class="chip" data-act="study" data-v="-10">−10 min</button></div></section>' +
+      '<div style="display:flex;flex-direction:column;gap:4px"><span class="eyebrow l-study">Today, at home from 5:00 pm</span><span class="title">' + (today >= tgtToday ? 'Target met' : hm(tgtToday - today) + ' to go') + '</span></div></div>' +
+      '<div class="chips"><button class="chip" data-act="study" data-v="90">+1 h 30 (5:00 block)</button><button class="chip" data-act="study" data-v="80">+1 h 20 (6:40 block)</button><button class="chip" data-act="study" data-v="10">+10 min</button><button class="chip" data-act="study" data-v="-10">−10 min</button></div></section>' +
       curCard +
       '<section class="card"><div class="card-head"><h3 class="heading">This week</h3><span class="fig-sm">' + hm(total) + ' / ' + hm(WEEK_STUDY_MIN) + '</span></div>' + bar('study', total / WEEK_STUDY_MIN, '', '') + perDay + '</section>' +
       progCard + tlCard;
