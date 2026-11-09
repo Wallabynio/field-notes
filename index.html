@@ -356,23 +356,23 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '1.2.2';
+  var APP_VERSION = '1.2.3';
   var PLAN_START = '2026-11-08';               // Sunday, week 1 day 1
   var NORMAL_MIN = 340, HOMEWARD_MIN = 60;      // 5 h 40 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
   var EQ_HOURS = (NORMAL_MIN + HOMEWARD_MIN * 2 / 3) / 60; // normal-rate-equivalent hours a day
   var WEEK_DRIVE_MIN = DRIVE_TARGET_MIN * 7;   // 47 h 50
   var WEEK_STUDY_MIN = 1190;                    // 19 h 50 (2 h 50 a day)
-  var DAY_TARGET = 245, DAY_BREAKEVEN = 227.84;  // receipts after platform fees
-  var WEEK_TARGET = DAY_TARGET * 7;              // $1,715
-  var TAX_WEEKLY = 233.19;                       // at target: GST 99.94 + income tax 113.26 + Medicare 19.99
+  var DAY_TARGET = 235, DAY_BREAKEVEN = 225.41;  // receipts after platform fees
+  var WEEK_TARGET = DAY_TARGET * 7;              // $1,645
+  var TAX_WEEKLY = 211.81;                       // at target: GST 94.85 + income tax 97.99 + Medicare 18.97
   var TAX_DAILY = TAX_WEEKLY / 7;
   var TAX_MARGINAL = 1 / 11 + 0.30 / 1.1 + 0.02 / 1.1; // 38.2% of each dollar above (or below) target
   var DAY_START = 330, DAY_END = 1290;          // 5:30 am – 9:30 pm
   var BUDGET_BIZ = [
-    ['Splend', 449.01], ['Charging ($35 × 7)', 245], ['Car washes (White Diamond, IMO + vacuum)', 52.50], ['Vodafone ($160.17/month)', 36.96]
+    ['Splend', 449.01], ['Charging ($35 × 7)', 245], ['Car cleaning', 35], ['Vodafone ($160.17/month)', 36.96]
   ];
-  var BUDGET_TAX = [['GST provision', 99.94], ['Income-tax provision', 113.26], ['Medicare provision', 19.99]];
+  var BUDGET_TAX = [['GST provision', 94.85], ['Income-tax provision', 97.99], ['Medicare provision', 18.97]];
   var BUDGET_PERSONAL = [
     ['Rent', 310], ['Food and coffee', 165], ['Utilities', 40], ['Claude Max ($199.99/month)', 46.15], ['Anytime Fitness', 25.95],
     ['Higgsfield (≈ $93.94/month)', 21.68], ['Microsoft 365 ($48.51/month)', 11.19], ['Apple One ($24.95/month)', 5.76]
@@ -488,7 +488,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
 
   /* ---------------- money: Uber balance, bills ---------------- */
   var CASHOUT_FEE = 1.50;
-  var BIZ_FIXED_WEEK = 449.01 + 52.50 + 36.96; // Splend, car washes, Vodafone business share: for profit after all costs
+  var BIZ_FIXED_WEEK = 449.01 + 35 + 36.96; // Splend, car cleaning, Vodafone business share: for profit after all costs
   var BILL_EVERY = [['week', 'Every week'], ['fortnight', 'Every 2 weeks'], ['month', 'Every month'], ['quarter', 'Every 3 months'], ['year', 'Every year']];
   // Quick-add from the weekly budget: [name, category, amount, every, business %]
   var BILL_PRESETS = [['Splend', 'Splend', 449.01, 'week', 80], ['Vodafone', 'Vodafone', 160.17, 'month', 50], ['Rent', 'Rent', 310, 'week', 0], ['Anytime Fitness', 'Gym membership', 25.95, 'week', 0],
@@ -1621,7 +1621,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   }
 
   /* ---------------- food spending: what each shop really cost ---------------- */
-  var FOOD_WEEK = 165, CASH_EXTRA = 72.61;
+  var FOOD_WEEK = 165, CASH_EXTRA = 41.49;
   // Food weeks run Monday to Sunday; the very first one also takes Sunday 8 November (the first dinner, eaten again as Monday's lunch).
   function foodIn(ws) {
     var a = ymd(ws), b = ymd(addDays(ws, 7));
@@ -1827,10 +1827,10 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   // Days not finished yet use the plan: $35 charging a day, $165 food until you have shopped.
   // Tax follows the real numbers: GST = earnings/11 − GST credits on business costs; income tax + Medicare move 32c per dollar of profit.
   var FIXED = [ // [expense type, plan weekly amount, business %, includes GST]
-    ['Splend', 449.01, 80, true], ['Car wash', 52.50, 80, true], ['Vodafone', 36.96, 50, true],
+    ['Splend', 449.01, 80, true], ['Car wash', 35, 80, true], ['Vodafone', 36.96, 50, true],
     ['Rent', 310, 0, false], ['Utilities', 40, 0, true], ['Subscriptions', 46.15 + 21.68 + 11.19 + 5.76, 0, true], ['Gym membership', 25.95, 0, true]
   ];
-  var CHARGE_DAY = 35, INCOME_TAX_WEEK = 113.26 + 19.99, PROFIT_MARGINAL = 0.32;
+  var CHARGE_DAY = 35, INCOME_TAX_WEEK = 97.99 + 18.97, PROFIT_MARGINAL = 0.32;
   var EVERY_WEEKS = { week: 1, fortnight: 0.5, month: 12 / 52, quarter: 4 / 52, year: 1 / 52 };
   function weekBits(costs) { // costs: [{amt, pct, gst}] → full spend, GST credits, profit deductions
     var full = 0, credits = 0, ded = 0;
