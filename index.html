@@ -356,7 +356,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '1.3.1';
+  var APP_VERSION = '1.3.2';
   var PLAN_START = '2026-12-20';               // Sunday: first dinner. Testing phase until then; week 1 starts Monday 21 Dec 2026, 52 weeks before the Splend subscription ends (Mon 20 Dec 2027)
   var NORMAL_MIN = 340, HOMEWARD_MIN = 60;      // 5 h 40 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 40
@@ -425,7 +425,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   // 10:30 fruit: apple Sun/Tue/Thu/Sat, orange Mon/Wed, banana Fri.
   var FRUIT = [['150 g', 'apple, 1 medium'], ['150 g', 'orange, 1 medium, peeled'], ['150 g', 'apple, 1 medium'], ['150 g', 'orange, 1 medium, peeled'], ['150 g', 'apple, 1 medium'], ['120 g', 'banana, 1 medium, peeled'], ['150 g', 'apple, 1 medium']];
   var SNACKS = [0, 1, 2, 3, 4, 5, 6].map(function (i) { return { name: 'Coffee and snacks', desc: 'Coffee, Greek yoghurt and ' + FRUIT[i][1].split(',')[0] + ', unsalted nuts', kcal: i === 5 ? 450 : 421, protein: 26, time: '', photo: 'coffee', serves: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][i],
-    ingredients: [['1', 'coffee capsule (espresso, ≈ 40 mL)'], ['150 mL', 'lactose-free full cream milk'], ['170 g', 'plain Greek yoghurt (10:30 break)'], [FRUIT[i][0], FRUIT[i][1] + ' (10:30 break)'], ['20 g', 'unsalted mixed nuts (3:30 pm)']],
+    ingredients: [['1', 'coffee capsule (espresso, ≈ 40 mL)'], ['150 mL', 'lactose-free full cream milk'], ['170 g', 'plain Greek yoghurt (10:30 break)'], [FRUIT[i][0], FRUIT[i][1] + ' (10:30 break)'], ['20 g', 'unsalted mixed nuts (2:50 pm)']],
     steps: ['Coffee with breakfast: pull the capsule, add the milk.', 'Pack the yoghurt, ' + FRUIT[i][1].split(',')[0] + ' and nuts in the cooler bag at 8:10 pm the night before.'] }; });
   function mealsFor(d) { var i = d.getDay(); return { breakfast: BREAKFASTS[i], lunch: DINNERS[(i + 6) % 7], dinner: DINNERS[i], snacks: SNACKS[i] }; }
   // Weekly shop. Aldi first; Coles for what Aldi doesn't stock.
@@ -584,8 +584,9 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
       [660, 730, 'work', 'Driving'],
       [730, 800, 'money', 'Midday stop: charge, lunch, rest'],
       [800, 890, 'work', 'Driving'],
-      [890, 950, 'commute', 'Homeward driving'],
-      [950, 970, 'neutral', 'Unpack and snack'],
+      [890, 900, 'neutral', 'Snack break'],
+      [900, 960, 'commute', 'Homeward driving'],
+      [960, 970, 'neutral', 'Unpack'],
       [970, 1030, 'money', 'Cook and eat dinner'],
       [1030, 1120, 'study', 'Study'],
       [1120, 1130, 'neutral', 'Short break'],
@@ -938,7 +939,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   };
   // Icon for each block of the day plan
   function blockIcon(name) {
-    return /Gym/.test(name) ? 'dumbbell' : /walk/.test(name) ? 'walk' : /Shower|Unpack/.test(name) ? 'drop' : /Breakfast/.test(name) ? 'cup' :
+    return /Gym/.test(name) ? 'dumbbell' : /walk/.test(name) ? 'walk' : /Shower|Unpack/.test(name) ? 'drop' : /Breakfast|Snack/.test(name) ? 'cup' :
       /Offline/.test(name) ? 'pause' : /Midday/.test(name) ? 'bolt' : /Homeward/.test(name) ? 'route' : /Driving/.test(name) ? 'car' :
       /Study/.test(name) ? 'book' : /Cook/.test(name) ? 'pan' : /Pack/.test(name) ? 'bag' : /Personal/.test(name) ? 'leaf' : /Sleep/.test(name) ? 'moon' : 'clock';
   }
@@ -983,7 +984,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     if (/Sleep|Personal/.test(name)) return 'sleep';
     if (/Gym/.test(name)) return 'gym';
     if (/walk/.test(name)) return 'sunrise';
-    if (/Breakfast|Shower|Unpack/.test(name)) return 'coffee';
+    if (/Breakfast|Shower|Unpack|Snack/.test(name)) return 'coffee';
     return null;
   }
 
@@ -1011,7 +1012,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   var BLOCK_INFO = {
     'Driving': 'Normal rate', 'Homeward driving': 'Two-thirds rate, heading home', 'Offline break': 'App off, rest',
     'Midday stop: charge, lunch, rest': 'Charge the car, eat, rest', 'Study': 'Focused study at home',
-    'Wake up': 'Bathroom', 'Shower and get ready': 'After breakfast', 'Breakfast and coffee': 'Eating window opens at 6:50 am', 'Quick shower': 'Before wind-down', 'Short break': 'Stretch, water', 'Unpack and snack': 'Last snack: the eating window closes at 5:10 pm',
+    'Wake up': 'Bathroom', 'Shower and get ready': 'After breakfast', 'Breakfast and coffee': 'Eating window opens at 6:50 am', 'Quick shower': 'Before wind-down', 'Short break': 'Stretch, water', 'Snack break': 'Nuts and water, the last snack of the day', 'Unpack': 'Bags in, reset before cooking',
     'Pack lunch and gear': 'Lunch box, snacks, laptop, exercise gear',
     'Personal time, wind-down': 'Screens down, bed at 9:30'
   };
@@ -1062,7 +1063,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     var tl = '', legend = { health: 'Exercise', work: 'Driving', money: 'Charge + meals', study: 'Study' };
     sch.blocks.forEach(function (b) { tl += '<div class="f-' + b[2] + '" style="flex:' + (b[1] - b[0]) + '"></div>'; });
     var timeline = '<section aria-label="Your day" style="display:flex;flex-direction:column;gap:8px"><div class="card-head"><h2 class="heading">Your day</h2><span class="caption">5:30 am – 9:30 pm</span></div>' +
-      '<div class="tl-wrap"><div class="tl" role="img" aria-label="Day timeline: exercise from 5:30, driving 7:50 am to 3:50 pm with a midday charging stop, study in the evening">' + tl + '</div>' +
+      '<div class="tl-wrap"><div class="tl" role="img" aria-label="Day timeline: exercise from 5:30, driving 7:50 am to 4:00 pm with a midday charging stop, study in the evening">' + tl + '</div>' +
       (nm >= DAY_START && nm <= DAY_END ? '<div class="tl-now" aria-hidden="true" style="left:' + (dayFrac * 100).toFixed(1) + '%"></div>' : '') + '</div>' +
       '<div class="tl-ends caption"><span>5:30</span><span>' + (nm >= DAY_START && nm <= DAY_END ? 'Now ' + clock(nm) : '') + '</span><span>9:30 pm</span></div>' +
       '<div class="legend-row caption">' + Object.keys(legend).map(function (k) { return '<span><span class="dot f-' + k + '"></span>' + legend[k] + '</span>'; }).join('') + '</div></section>';
@@ -1220,7 +1221,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     }).join('');
     var listCard = rows ? '<section class="card"><h3 class="heading">Earlier this week</h3><div class="list">' + rows + '</div></section>' : '';
 
-    return hero('work', 'Work', 'One shift, 7:50 am to 3:50 pm. Target ' + money(DAY_TARGET) + ' a day.') + notice() + live + todayCard + liveCard(d, true) + profitCard + chargeCard + stats + listCard;
+    return hero('work', 'Work', 'One shift, 7:50 am to 4:00 pm. Target ' + money(DAY_TARGET) + ' a day.') + notice() + live + todayCard + liveCard(d, true) + profitCard + chargeCard + stats + listCard;
   }
 
   function kindChips(cur, name) {
