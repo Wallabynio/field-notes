@@ -356,7 +356,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '1.3.0';
+  var APP_VERSION = '1.3.1';
   var PLAN_START = '2026-12-20';               // Sunday: first dinner. Testing phase until then; week 1 starts Monday 21 Dec 2026, 52 weeks before the Splend subscription ends (Mon 20 Dec 2027)
   var NORMAL_MIN = 340, HOMEWARD_MIN = 60;      // 5 h 40 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 40
@@ -396,7 +396,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   var OATS = { name: 'Overnight oats with berries', desc: 'Oats, light milk, chia, berries, soaked overnight', kcal: 464, protein: 20, time: '5 min the night before', photo: 'oats',
     serves: 'Breakfast. Make it at 8:10 pm the night before, while packing',
     ingredients: [['60 g', 'rolled oats'], ['250 mL', 'light milk'], ['15 g', 'chia seeds'], ['100 g', 'frozen mixed berries']],
-    steps: ['At 8:10 pm the night before: mix the oats, chia and milk in a lidded container.', 'Put the frozen berries on top, close the lid and refrigerate overnight.', 'Eat cold at 7:00 am. Stir first.'] };
+    steps: ['At 8:10 pm the night before: mix the oats, chia and milk in a lidded container.', 'Put the frozen berries on top, close the lid and refrigerate overnight.', 'Eat cold at 6:50 am. Stir first.'] };
   var DINNERS = [
     { name: 'Lemon-oregano chicken tray bake', desc: 'Chicken thigh, chickpeas, roast vegetables, tzatziki', kcal: 670, protein: 69, time: '40 min', photo: 'chicken',
       ingredients: [['500 g', 'skinless chicken thigh fillets'], ['240 g', 'no-added-salt chickpeas, drained (1 × 400 g can)'], ['150 g', 'red capsicum'], ['250 g', 'zucchini'], ['100 g', 'red onion'], ['100 g', 'cherry tomatoes'], ['15 mL', 'olive oil'], ['1 (≈ 100 g)', 'lemon, zest and juice'], ['6 g', 'garlic (2 cloves)'], ['2 g', 'dried oregano'], ['150 g', 'Greek yoghurt (tzatziki)'], ['75 g', 'cucumber, grated (tzatziki)'], ['3 g', 'garlic (tzatziki)'], ['10 mL', 'lemon juice (tzatziki)'], ['2 g', 'fresh dill (tzatziki)']],
@@ -1011,7 +1011,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   var BLOCK_INFO = {
     'Driving': 'Normal rate', 'Homeward driving': 'Two-thirds rate, heading home', 'Offline break': 'App off, rest',
     'Midday stop: charge, lunch, rest': 'Charge the car, eat, rest', 'Study': 'Focused study at home',
-    'Wake up': 'Bathroom', 'Shower and get ready': 'After breakfast', 'Breakfast and coffee': 'Eating window opens at 7:00 am', 'Quick shower': 'Before wind-down', 'Short break': 'Stretch, water', 'Unpack and snack': 'Last snack: the eating window closes at 5:00 pm',
+    'Wake up': 'Bathroom', 'Shower and get ready': 'After breakfast', 'Breakfast and coffee': 'Eating window opens at 6:50 am', 'Quick shower': 'Before wind-down', 'Short break': 'Stretch, water', 'Unpack and snack': 'Last snack: the eating window closes at 5:10 pm',
     'Pack lunch and gear': 'Lunch box, snacks, laptop, exercise gear',
     'Personal time, wind-down': 'Screens down, bed at 9:30'
   };
@@ -1021,7 +1021,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     var blocks = sch.blocks.concat([[DAY_END, DAY_END + 480, 'rest', 'Sleep']]);
     return '<div class="agenda" role="list">' + blocks.map(function (b) {
       var past = isToday && nm >= b[1], cur = isToday && nm >= b[0] && nm < b[1];
-      var info = b[3] === 'Cook and eat dinner' ? 'Cook two portions, last bite by 5:00 pm: ' + mealsFor(d).dinner.name : b[3] === 'Midday stop: charge, lunch, rest' ? 'Lunch: ' + mealsFor(d).lunch.name : b[2] === 'health' ? (sch.gym ? 'Workout ' + workoutFor(d) + ', 55 min session, 10 min walk each way' : 'Door to door, max 1 h 15') : b[3] === 'Sleep' ? 'Up at 5:30 am' : (BLOCK_INFO[b[3]] || '');
+      var info = b[3] === 'Cook and eat dinner' ? 'Cook two portions, last bite by 5:10 pm: ' + mealsFor(d).dinner.name : b[3] === 'Midday stop: charge, lunch, rest' ? 'Lunch: ' + mealsFor(d).lunch.name : b[2] === 'health' ? (sch.gym ? 'Workout ' + workoutFor(d) + ', 55 min session, 10 min walk each way' : 'Door to door, max 1 h 15') : b[3] === 'Sleep' ? 'Up at 5:30 am' : (BLOCK_INFO[b[3]] || '');
       var state = cur ? '<span class="ag-badge">Now</span>' : past ? 'Done' : '';
       return '<div class="ag-row' + (cur ? ' now' : '') + (past ? ' past' : '') + '" role="listitem"' + (cur ? ' aria-current="time"' : '') + '>' +
         '<span class="ag-time">' + clock(b[0] % 1440) + '</span><span class="ag-ico i-' + b[2] + '" aria-hidden="true">' + icon(blockIcon(b[3]), 16) + '</span>' +
@@ -1526,7 +1526,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     var bKey = 'b' + di;
     var kcal = m.breakfast.kcal + m.lunch.kcal + m.dinner.kcal + m.snacks.kcal;
     var mealsCard = '<section class="card"><div class="card-head"><h3 class="heading">Today\'s meals</h3><span class="fig-sm l-health">' + kcal.toLocaleString('en-AU') + ' kcal</span></div><div class="list">' +
-      mealBtn('Breakfast', m.breakfast, bKey, '7:00') + mealBtn('Lunch', m.lunch, 'd' + ((di + 6) % 7), 'last night\'s dinner') + mealBtn('Dinner', m.dinner, 'd' + di, 'cook two portions') + mealBtn('Through the day', m.snacks, 's' + di, '') +
+      mealBtn('Breakfast', m.breakfast, bKey, '6:50') + mealBtn('Lunch', m.lunch, 'd' + ((di + 6) % 7), 'last night\'s dinner') + mealBtn('Dinner', m.dinner, 'd' + di, 'cook two portions') + mealBtn('Through the day', m.snacks, 's' + di, '') +
       '</div><button class="btn btn-secondary btn-small" data-act="shop">' + icon('bag', 18) + 'Weekly shopping list</button></section>';
 
     var series = bodySeries(), weights = series.filter(function (r) { return r.weight > 0; });
