@@ -356,7 +356,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '1.2.3';
+  var APP_VERSION = '1.2.4';
   var PLAN_START = '2026-11-08';               // Sunday, week 1 day 1
   var NORMAL_MIN = 340, HOMEWARD_MIN = 60;      // 5 h 40 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
@@ -1201,8 +1201,8 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
       return '<div class="row"><div class="row-main"><span class="row-title">' + shortDate(e.date) + (e.note ? ' · ' + esc(e.note) : '') + '</span><span class="row-sub">' + (e.kwh ? e.kwh + ' kWh · ' + money(e.amount / e.kwh, true) + '/kWh' : 'kWh not entered') + '</span></div>' +
         '<span class="fig-sm">' + money(e.amount, true) + '</span><button class="link-btn" data-act="del" data-c="expenses" data-id="' + esc(e.id) + '" aria-label="Delete charge">Delete</button></div>';
     }).join('');
-    var chargeCard = '<section class="card"><div class="card-head"><h3 class="heading">Charging this week</h3><span class="fig-sm">' + money(chT, true) + ' / ' + money(245) + '</span></div>' +
-      bar('money', chT / 245, '', '', {}) +
+    var chargeCard = '<section class="card"><div class="card-head"><h3 class="heading">Charging this week</h3><span class="fig-sm">' + money(chT, true) + ' / ' + money(chargeDayRate(ws) * 7) + '</span></div>' +
+      bar('money', chT / (chargeDayRate(ws) * 7), '', '', {}) +
       '<div class="kv">' + kvRow('Energy', kwh ? kwh.toFixed(1) + ' kWh' : '–') + kvRow('Average price', kwh ? money(chT / kwh, true) + '/kWh' : '–') + kvRow('Per 100 km driven', km ? money(chT / km * 100, true) : '–') + '</div>' +
       (chRows ? '<div class="list">' + chRows + '</div>' : '') + '<button class="btn btn-secondary btn-small" data-act="charge">' + icon('bolt', 18) + 'Log a charge</button></section>';
 
@@ -1815,7 +1815,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
       lines(BUDGET_PERSONAL) + kvRow('Cash extra (unlisted costs and savings)', money(WEEK_TARGET - bizT - taxT - perT, true), 'total') + '</div>' +
       '<span class="caption">Break-even: ' + money(DAY_BREAKEVEN, true) + ' a day.</span></section>';
 
-    return hero('money', 'Money', 'Uber balance, bills, tax, BAS and the weekly budget.') + notice() + liveCard(d) + accountsCard(d) + walletCard(d) + billsCard(d) + taxCard + expCard + statementsCard(d) + basCard + itCard + lbCard + budgetCard +
+    return hero('money', 'Money', 'Uber balance, bills, tax, BAS and the weekly budget.') + notice() + liveCard(d) + chargeYearCard(d) + accountsCard(d) + walletCard(d) + billsCard(d) + taxCard + expCard + statementsCard(d) + basCard + itCard + lbCard + budgetCard +
       appearanceCard() +
       '<section class="card"><div class="card-head"><h3 class="heading">Backup</h3><span class="caption">App version ' + APP_VERSION + '</span></div><p class="body" style="margin:0">Saves a copy of every entry to a file on your phone, for safekeeping.</p><button class="btn btn-secondary btn-small" data-act="export">Back up my data</button></section>' +
       (user ? '<button class="link-btn" data-act="signout" style="align-self:center">Sign out (' + esc(user.email) + ')</button>' : '');
@@ -1824,13 +1824,38 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   /* ---------------- this week, live: earnings − costs − tax − personal = cash extra ---------------- */
   // Variable costs are real (charging, food, cash-out fees, one-off expenses). Fixed bills count as their weekly share:
   // from the Bills list when a bill of that type exists, otherwise the plan figure.
-  // Days not finished yet use the plan: $35 charging a day, $165 food until you have shopped.
+  // Days not finished yet use the plan: charging at $35 a day until 14 days of real charging exist, then the real daily average; $165 food until you have shopped.
   // Tax follows the real numbers: GST = earnings/11 − GST credits on business costs; income tax + Medicare move 32c per dollar of profit.
   var FIXED = [ // [expense type, plan weekly amount, business %, includes GST]
     ['Splend', 449.01, 80, true], ['Car wash', 35, 80, true], ['Vodafone', 36.96, 50, true],
     ['Rent', 310, 0, false], ['Utilities', 40, 0, true], ['Subscriptions', 46.15 + 21.68 + 11.19 + 5.76, 0, true], ['Gym membership', 25.95, 0, true]
   ];
   var CHARGE_DAY = 35, INCOME_TAX_WEEK = 97.99 + 18.97, PROFIT_MARGINAL = 0.32;
+  // Real charging average: total charged ÷ days from the first charge up to (not including) the given date.
+  function chargeStats(upTo) {
+    var list = state.expenses.filter(function (e) { return e.category === 'Charging' && e.date < upTo; });
+    if (!list.length) return null;
+    var first = list.reduce(function (m, e) { return e.date < m ? e.date : m; }, list[0].date);
+    var days = Math.round((parseYmd(upTo) - parseYmd(first)) / 864e5);
+    if (days < 1) return null;
+    var total = sum(list, function (e) { return e.amount; });
+    return { days: days, total: total, perDay: total / days };
+  }
+  // Charging per day used for days not yet charged: $35 until 14 days of charging exist, then the real daily average.
+  function chargeDayRate(ws) { var s = chargeStats(ymd(ws)); return s && s.days >= 14 ? s.perDay : CHARGE_DAY; }
+  function chargeYearCard(d) {
+    var s = chargeStats(ymd(d)), planWeek = CHARGE_DAY * 7, planYear = planWeek * 52, rows, note;
+    if (!s || s.days < 7) {
+      rows = kvRow('Plan per week', money(planWeek, true)) + kvRow('Plan per year', money(planYear));
+      note = 'Log each charge with the Charged button. After a week of charging, this shows your real average and the yearly estimate.';
+    } else {
+      var wk = s.perDay * 7, yr = wk * 52, diff = yr - planYear;
+      rows = kvRow('Average per week (over ' + s.days + ' days)', money(wk, true)) + kvRow('Per year at that rate', money(yr), 'total') +
+        kvRow('Plan per year (' + money(planWeek) + ' a week)', money(planYear)) + kvRow('Difference per year', (diff > 0 ? '+' : '') + money(diff));
+      note = s.days >= 14 ? 'Days not yet charged in the live week use this average instead of ' + money(CHARGE_DAY) + ' a day.' : 'From 14 days of charging, the live week uses this average instead of ' + money(CHARGE_DAY) + ' a day.';
+    }
+    return '<section class="card"><div class="card-head"><h3 class="heading">Charging, yearly estimate</h3></div><div class="kv">' + rows + '</div><span class="caption">' + note + '</span></section>';
+  }
   var EVERY_WEEKS = { week: 1, fortnight: 0.5, month: 12 / 52, quarter: 4 / 52, year: 1 / 52 };
   function weekBits(costs) { // costs: [{amt, pct, gst}] → full spend, GST credits, profit deductions
     var full = 0, credits = 0, ded = 0;
@@ -1858,7 +1883,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     var fixedNames = FIXED.map(function (f) { return f[0]; });
     var charges = ex.filter(function (e) { return e.category === 'Charging'; }), chargeReal = sum(charges, function (e) { return e.amount; });
     var chargedToday = charges.some(function (e) { return e.date === key; });
-    var daysLeft = over ? 0 : 7 - idx - (chargedToday ? 1 : 0), chargePlanRest = CHARGE_DAY * Math.max(0, daysLeft);
+    var daysLeft = over ? 0 : 7 - idx - (chargedToday ? 1 : 0), chargePlanRest = chargeDayRate(ws) * Math.max(0, daysLeft);
     var cashFees = sum(state.cashouts.filter(function (c) { return c.date >= a && c.date < b; }), function (c) { return c.fee; });
     var others = ex.filter(function (e) { return e.category !== 'Charging' && fixedNames.indexOf(e.category) < 0; });
     var otherBiz = others.filter(function (e) { return e.businessPct > 0; }), otherPersonal = others.filter(function (e) { return !(e.businessPct > 0); });
