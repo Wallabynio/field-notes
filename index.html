@@ -356,8 +356,8 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '1.2.6';
-  var PLAN_START = '2026-11-08';               // Sunday, week 1 day 1
+  var APP_VERSION = '1.2.7';
+  var PLAN_START = '2026-12-20';               // Sunday: first dinner. Testing phase until then; week 1 starts Monday 21 Dec 2026, 52 weeks before the Splend subscription ends (Mon 20 Dec 2027)
   var NORMAL_MIN = 340, HOMEWARD_MIN = 60;      // 5 h 40 + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
   var EQ_HOURS = (NORMAL_MIN + HOMEWARD_MIN * 2 / 3) / 60; // normal-rate-equivalent hours a day
@@ -866,7 +866,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   function inWeek(list, ws) { var a = ymd(ws), b = ymd(addDays(ws, 7)); return list.filter(function (r) { return r.date >= a && r.date < b; }); }
   function driveMin(s) { return (Number(s.normalMin) || 0) + (Number(s.homeMin) || 0); }
   function sum(list, f) { return list.reduce(function (t, r) { return t + (Number(f(r)) || 0); }, 0); }
-  function weekNumber(d) { var start = parseYmd('2026-11-09'); /* week 1 starts Monday 9 Nov; the plan's first day is Sunday 8 Nov */ var diff = Math.floor((weekStart(d) - start) / 864e5 / 7); return diff + 1; }
+  function weekNumber(d) { var start = parseYmd('2026-12-21'); /* week 1 starts Monday 21 Dec; the first day is Sunday 20 Dec */ var diff = Math.floor((weekStart(d) - start) / 864e5 / 7); return diff + 1; }
 
   /* ---------------- graphics ---------------- */
   var STROKE = { work: 'var(--work)', study: 'var(--study)', health: 'var(--health)', money: 'var(--money)', rest: 'var(--rest)' };
@@ -1002,7 +1002,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     var start = parseYmd(PLAN_START);
     if (d >= start) return '';
     var days = Math.ceil((start - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 864e5);
-    return '<div class="notice">Practice run: the plan starts Sunday 8 November (' + days + ' day' + (days === 1 ? '' : 's') + ' to go). Anything you log now still saves.</div>';
+    return '<div class="notice">Testing phase: the app goes live on Monday 21 December, with the first dinner on Sunday 20 December (' + days + ' day' + (days === 1 ? '' : 's') + ' to go). Anything you log now still saves.</div>';
   }
 
   var BLOCK_INFO = {
@@ -1088,7 +1088,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
 
     var wn = weekNumber(d);
     var longView = '<section class="card" aria-label="The long view"><h2 class="heading">The long view</h2>' +
-      bar('rest', Math.max(0, wn) / 52, 'Transition year', wn >= 1 ? 'Week ' + Math.min(wn, 52) + ' / 52' : 'Starts 8 Nov') +
+      bar('rest', Math.max(0, wn) / 52, 'Transition year', wn >= 1 ? 'Week ' + Math.min(wn, 52) + ' / 52' : 'Starts 21 Dec') +
       bar('study', COURSE.filter(function (c) { return finalMark(c) != null; }).length / COURSE.length, 'Master of Urban Planning', COURSE.filter(function (c) { return finalMark(c) != null; }).length + ' / ' + COURSE.length + ' subjects · ends May 2027') + bar('work', splendInfo(d).pct, 'Splend term', splendInfo(d).left ? 'Ends ' + longDate(splendInfo(d).last) + ' · ' + splendInfo(d).left + ' weeks to go' : 'Finished') + '</section>';
 
     var dueSoon = billsDue(key, 3), act = activeStint();
@@ -1542,7 +1542,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     var weighDay = d.getDay() === 0 && !(state.body[key] && state.body[key].weight);
     var weightCard = '<section class="card a-health has-illo">' + illo('scale', 'corner') + '<div class="card-head"><span class="eyebrow l-health">Weight</span><span class="caption">' + esc(stage[1]) + ': ' + stage[0] + ' kg by ' + esc(stage[2]) + '</span></div>' +
       '<span class="fig-lg">' + (cur != null ? cur.toFixed(1) + ' kg' : 'Not weighed yet') + '</span>' +
-      (cur != null ? '<span class="body">' + (startW - cur >= 0 ? (startW - cur).toFixed(1) + ' kg lost' : (cur - startW).toFixed(1) + ' kg up') + ' since ' + shortDate(weights[0].date) + '. ' + Math.max(0, cur - stage[0]).toFixed(1) + ' kg to ' + stage[1].toLowerCase() + '.</span>' : '<span class="body">First weigh-in: Sunday 8 November, before breakfast.</span>') +
+      (cur != null ? '<span class="body">' + (startW - cur >= 0 ? (startW - cur).toFixed(1) + ' kg lost' : (cur - startW).toFixed(1) + ' kg up') + ' since ' + shortDate(weights[0].date) + '. ' + Math.max(0, cur - stage[0]).toFixed(1) + ' kg to ' + stage[1].toLowerCase() + '.</span>' : '<span class="body">First weigh-in: Sunday 20 December, before breakfast.</span>') +
       bar('health', cur != null ? (prevTarget - cur) / (prevTarget - stage[0]) : 0, '', '', { lg: true, onSoft: true }) +
       '<div class="kv">' +
       '<span>Average loss, last 4 weeks</span><span class="fig-sm">' + (rate != null ? rate.toFixed(2) + ' kg a week' : '–') + '</span>' +
@@ -1622,10 +1622,10 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
 
   /* ---------------- food spending: what each shop really cost ---------------- */
   var FOOD_WEEK = 165, CASH_EXTRA = 41.49;
-  // Food weeks run Monday to Sunday; the very first one also takes Sunday 8 November (the first dinner, eaten again as Monday's lunch).
+  // Food weeks run Monday to Sunday; the very first live one also takes Sunday 20 December (the first dinner, eaten again as Monday's lunch).
   function foodIn(ws) {
     var a = ymd(ws), b = ymd(addDays(ws, 7));
-    if (a === '2026-11-09') a = '2026-11-08'; else if (b === '2026-11-09') b = '2026-11-08';
+    if (a === '2026-12-21') a = '2026-12-20'; else if (b === '2026-12-21') b = '2026-12-20';
     return state.foodBuys.filter(function (f) { return f.date >= a && f.date < b; });
   }
   function foodWeek(ws) { var spent = sum(foodIn(ws), function (f) { return f.price; }); return { spent: spent, diff: FOOD_WEEK - spent, cashExtra: CASH_EXTRA + FOOD_WEEK - spent }; }
@@ -1633,7 +1633,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   function foodStats(ws) {
     if (!state.foodBuys.length) return null;
     var first = state.foodBuys.reduce(function (m, f) { return f.date < m ? f.date : m; }, state.foodBuys[0].date);
-    var fws = first === '2026-11-08' ? parseYmd('2026-11-09') : weekStart(parseYmd(first));
+    var fws = first === '2026-12-20' ? parseYmd('2026-12-21') : weekStart(parseYmd(first));
     var n = Math.round((ws - fws) / (7 * 864e5));
     if (n < 1) return null;
     var total = 0; for (var i = 0; i < n; i++) total += sum(foodIn(addDays(fws, 7 * i)), function (f) { return f.price; });
@@ -1669,7 +1669,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   function foodCard(d) {
     var ws = weekStart(d), fw = foodWeek(ws), list = foodIn(ws), stores = {}, fs = foodStats(ws);
     list.forEach(function (f) { stores[f.store] = (stores[f.store] || 0) + f.price; });
-    return '<section class="card a-money"><div class="card-head"><span class="eyebrow l-money">Food and coffee · this week</span><span class="caption">' + (ymd(ws) === '2026-11-09' ? 'from Sun 8 Nov' : 'from Mon ' + ws.getDate() + ' ' + MONTHS[ws.getMonth()].slice(0, 3)) + '</span></div>' +
+    return '<section class="card a-money"><div class="card-head"><span class="eyebrow l-money">Food and coffee · this week</span><span class="caption">' + (ymd(ws) === '2026-12-21' ? 'from Sun 20 Dec' : 'from Mon ' + ws.getDate() + ' ' + MONTHS[ws.getMonth()].slice(0, 3)) + '</span></div>' +
       '<span class="fig-lg">' + money(fw.spent, true) + ' <span class="caption">of ' + money(FOOD_WEEK) + '</span></span>' + bar('money', fw.spent / FOOD_WEEK, '', '', { lg: true, onSoft: true }) +
       '<span class="body" style="color:var(--ink)">' + (fw.spent === 0 ? 'Nothing bought yet this week. Tap Bought next to each item as you shop.' : fw.diff >= 0 ? money(fw.diff, true) + ' under budget: it goes to this week\'s cash extra.' : money(-fw.diff, true) + ' over budget: taken from this week\'s cash extra.') + '</span>' +
       '<div class="kv">' + Object.keys(stores).map(function (s) { return kvRow(esc(s), money(stores[s], true)); }).join('') + (fs ? kvRow('Real weekly average (' + fs.weeks + ' week' + (fs.weeks === 1 ? '' : 's') + ')', money(fs.avg, true)) : '') + kvRow('Cash extra this week, all costs counted (plan ' + money(CASH_EXTRA, true) + ')', money(liveWeek(d).cashExtra, true), 'total') + '</div>' +
@@ -2035,7 +2035,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     openSheet('<h2 class="title" id="sheet-title">' + acctName(acct) + '</h2><p class="body" style="margin:0">' + (o ? 'The app has ' + money(b, true) + '. Type what the bank app shows now; the difference is saved as "not logged", so you can see what was missed.' : 'Enter the balance at the start of the day you begin (before anything else that day). From then on every entry moves it.') + '</p>' +
       '<form id="f-ao" style="display:flex;flex-direction:column;gap:14px" novalidate>' +
       '<div class="two"><div class="field"><label for="ao-amt">' + (o ? 'Balance in the bank now ($)' : 'Starting balance ($)') + '</label><input id="ao-amt" type="number" inputmode="decimal" step="0.01" required></div>' +
-      (o ? '' : '<div class="field"><label for="ao-d">At the start of</label><input id="ao-d" type="date" value="' + (ymd(now()) < '2026-11-08' ? '2026-11-08' : ymd(now())) + '"></div>') + '</div>' +
+      (o ? '' : '<div class="field"><label for="ao-d">At the start of</label><input id="ao-d" type="date" value="' + ymd(now()) + '"></div>') + '</div>' +
       (o ? '<button type="button" class="link-btn" id="ao-restart" style="align-self:flex-start">Start again from a new opening balance</button>' : '') +
       '<p class="caption" id="ao-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
       '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div></form>');
