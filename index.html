@@ -356,12 +356,12 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '1.2.9';
+  var APP_VERSION = '1.3.0';
   var PLAN_START = '2026-12-20';               // Sunday: first dinner. Testing phase until then; week 1 starts Monday 21 Dec 2026, 52 weeks before the Splend subscription ends (Mon 20 Dec 2027)
   var NORMAL_MIN = 340, HOMEWARD_MIN = 60;      // 5 h 40 + 1 h per day
-  var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 50
+  var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 40
   var EQ_HOURS = (NORMAL_MIN + HOMEWARD_MIN * 2 / 3) / 60; // normal-rate-equivalent hours a day
-  var WEEK_DRIVE_MIN = DRIVE_TARGET_MIN * 7;   // 47 h 50
+  var WEEK_DRIVE_MIN = DRIVE_TARGET_MIN * 7;   // 46 h 40
   var WEEK_STUDY_MIN = 1190;                    // 19 h 50 (2 h 50 a day)
   var DAY_TARGET = 235, DAY_BREAKEVEN = 225.02;  // receipts after platform fees
   var WEEK_TARGET = DAY_TARGET * 7;              // $1,645
@@ -394,9 +394,9 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     [['100 g', 'tomato (1 medium), halved'], ['3 mL', 'olive oil']],
     ['Heat the oil in a non-stick pan over medium heat.', 'Put the tomato halves in cut side down, 2 min.', 'Crack the eggs into the pan beside them. Cover with a lid and cook 3 min until the whites are set.']);
   var OATS = { name: 'Overnight oats with berries', desc: 'Oats, light milk, chia, berries, soaked overnight', kcal: 464, protein: 20, time: '5 min the night before', photo: 'oats',
-    serves: 'Breakfast. Make it at 8:00 pm the night before, while packing',
+    serves: 'Breakfast. Make it at 8:10 pm the night before, while packing',
     ingredients: [['60 g', 'rolled oats'], ['250 mL', 'light milk'], ['15 g', 'chia seeds'], ['100 g', 'frozen mixed berries']],
-    steps: ['At 8:00 pm the night before: mix the oats, chia and milk in a lidded container.', 'Put the frozen berries on top, close the lid and refrigerate overnight.', 'Eat cold at 7:00 am. Stir first.'] };
+    steps: ['At 8:10 pm the night before: mix the oats, chia and milk in a lidded container.', 'Put the frozen berries on top, close the lid and refrigerate overnight.', 'Eat cold at 7:00 am. Stir first.'] };
   var DINNERS = [
     { name: 'Lemon-oregano chicken tray bake', desc: 'Chicken thigh, chickpeas, roast vegetables, tzatziki', kcal: 670, protein: 69, time: '40 min', photo: 'chicken',
       ingredients: [['500 g', 'skinless chicken thigh fillets'], ['240 g', 'no-added-salt chickpeas, drained (1 × 400 g can)'], ['150 g', 'red capsicum'], ['250 g', 'zucchini'], ['100 g', 'red onion'], ['100 g', 'cherry tomatoes'], ['15 mL', 'olive oil'], ['1 (≈ 100 g)', 'lemon, zest and juice'], ['6 g', 'garlic (2 cloves)'], ['2 g', 'dried oregano'], ['150 g', 'Greek yoghurt (tzatziki)'], ['75 g', 'cucumber, grated (tzatziki)'], ['3 g', 'garlic (tzatziki)'], ['10 mL', 'lemon juice (tzatziki)'], ['2 g', 'fresh dill (tzatziki)']],
@@ -426,7 +426,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   var FRUIT = [['150 g', 'apple, 1 medium'], ['150 g', 'orange, 1 medium, peeled'], ['150 g', 'apple, 1 medium'], ['150 g', 'orange, 1 medium, peeled'], ['150 g', 'apple, 1 medium'], ['120 g', 'banana, 1 medium, peeled'], ['150 g', 'apple, 1 medium']];
   var SNACKS = [0, 1, 2, 3, 4, 5, 6].map(function (i) { return { name: 'Coffee and snacks', desc: 'Coffee, Greek yoghurt and ' + FRUIT[i][1].split(',')[0] + ', unsalted nuts', kcal: i === 5 ? 450 : 421, protein: 26, time: '', photo: 'coffee', serves: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][i],
     ingredients: [['1', 'coffee capsule (espresso, ≈ 40 mL)'], ['150 mL', 'lactose-free full cream milk'], ['170 g', 'plain Greek yoghurt (10:30 break)'], [FRUIT[i][0], FRUIT[i][1] + ' (10:30 break)'], ['20 g', 'unsalted mixed nuts (3:30 pm)']],
-    steps: ['Coffee with breakfast: pull the capsule, add the milk.', 'Pack the yoghurt, ' + FRUIT[i][1].split(',')[0] + ' and nuts in the cooler bag at 8:00 pm the night before.'] }; });
+    steps: ['Coffee with breakfast: pull the capsule, add the milk.', 'Pack the yoghurt, ' + FRUIT[i][1].split(',')[0] + ' and nuts in the cooler bag at 8:10 pm the night before.'] }; });
   function mealsFor(d) { var i = d.getDay(); return { breakfast: BREAKFASTS[i], lunch: DINNERS[(i + 6) % 7], dinner: DINNERS[i], snacks: SNACKS[i] }; }
   // Weekly shop. Aldi first; Coles for what Aldi doesn't stock.
   var SHOP = {
@@ -466,7 +466,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     row: { m: 'row', sets: 3, lo: 10, hi: 12, step: 2.5 },
     shoulderpress: { m: 'shoulderpress', sets: 3, lo: 10, hi: 12, step: 2.5 },
     legext: { m: 'legext', sets: 2, lo: 12, hi: 15, step: 2.5 },
-    finish: { m: 'elliptical', name: 'Elliptical', type: 'cardio', min: 15, note: 'Steady, a little breathless' }
+    finish: { m: 'elliptical', name: 'Elliptical', type: 'cardio', min: 12, note: 'Steady, a little breathless' }
   };
   var WORKOUTS = { A: ['warm', 'legpress', 'chestpress', 'pulldown', 'legcurl', 'abcrunch', 'finish'], B: ['warm', 'legpress', 'row', 'shoulderpress', 'legcurl', 'legext', 'finish'] };
   var WORKOUT_DAYS = { 1: 'A', 2: 'B', 4: 'A', 5: 'B' };
@@ -575,21 +575,23 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     var dow = d.getDay(); var weekend = dow === 0 || dow === 6;
     var gym = GYM_DAYS.indexOf(dow) >= 0; // gym Mon, Tue, Thu, Fri; Homebush Bay walk Wed, Sat, Sun
     var s = [
-      [330, 405, 'health', gym ? 'Gym' : 'Homebush Bay walk'],
-      [405, 420, 'neutral', 'Shower'],
-      [420, 450, 'neutral', 'Breakfast, get ready'],
-      [450, 630, 'work', 'Driving'],
-      [630, 650, 'neutral', 'Offline break'],
-      [650, 720, 'work', 'Driving'],
-      [720, 780, 'money', 'Midday stop: charge, lunch, rest'],
-      [780, 870, 'work', 'Driving'],
-      [870, 930, 'commute', 'Homeward driving'],
-      [930, 960, 'neutral', 'Unpack, shower, snack'],
-      [960, 1020, 'money', 'Cook and eat dinner'],
-      [1020, 1110, 'study', 'Study'],
-      [1110, 1120, 'neutral', 'Short break'],
-      [1120, 1200, 'study', 'Study'],
-      [1200, 1230, 'neutral', 'Pack lunch and gear'],
+      [330, 340, 'neutral', 'Wake up'],
+      [340, 410, 'health', gym ? 'Gym' : 'Homebush Bay walk'],
+      [410, 440, 'neutral', 'Breakfast and coffee'],
+      [440, 470, 'neutral', 'Shower and get ready'],
+      [470, 650, 'work', 'Driving'],
+      [650, 660, 'neutral', 'Offline break'],
+      [660, 730, 'work', 'Driving'],
+      [730, 800, 'money', 'Midday stop: charge, lunch, rest'],
+      [800, 890, 'work', 'Driving'],
+      [890, 950, 'commute', 'Homeward driving'],
+      [950, 970, 'neutral', 'Unpack and snack'],
+      [970, 1030, 'money', 'Cook and eat dinner'],
+      [1030, 1120, 'study', 'Study'],
+      [1120, 1130, 'neutral', 'Short break'],
+      [1130, 1210, 'study', 'Study'],
+      [1210, 1220, 'neutral', 'Pack lunch and gear'],
+      [1220, 1230, 'neutral', 'Quick shower'],
       [1230, 1290, 'rest', 'Personal time, wind-down']
     ];
     return { blocks: s, studyTarget: 170, gym: gym };
@@ -1009,7 +1011,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   var BLOCK_INFO = {
     'Driving': 'Normal rate', 'Homeward driving': 'Two-thirds rate, heading home', 'Offline break': 'App off, rest',
     'Midday stop: charge, lunch, rest': 'Charge the car, eat, rest', 'Study': 'Focused study at home',
-    'Shower': 'After exercise', 'Breakfast, get ready': 'Pack food and laptop', 'Unpack, shower, snack': 'Last snack: the eating window closes at 5:00 pm',
+    'Wake up': 'Bathroom', 'Shower and get ready': 'After breakfast', 'Breakfast and coffee': 'Eating window opens at 7:00 am', 'Quick shower': 'Before wind-down', 'Short break': 'Stretch, water', 'Unpack and snack': 'Last snack: the eating window closes at 5:00 pm',
     'Pack lunch and gear': 'Lunch box, snacks, laptop, exercise gear',
     'Personal time, wind-down': 'Screens down, bed at 9:30'
   };
@@ -1060,7 +1062,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     var tl = '', legend = { health: 'Exercise', work: 'Driving', money: 'Charge + meals', study: 'Study' };
     sch.blocks.forEach(function (b) { tl += '<div class="f-' + b[2] + '" style="flex:' + (b[1] - b[0]) + '"></div>'; });
     var timeline = '<section aria-label="Your day" style="display:flex;flex-direction:column;gap:8px"><div class="card-head"><h2 class="heading">Your day</h2><span class="caption">5:30 am – 9:30 pm</span></div>' +
-      '<div class="tl-wrap"><div class="tl" role="img" aria-label="Day timeline: exercise from 5:30, driving 7:30 am to 3:30 pm with a midday charging stop, study in the evening">' + tl + '</div>' +
+      '<div class="tl-wrap"><div class="tl" role="img" aria-label="Day timeline: exercise from 5:30, driving 7:50 am to 3:50 pm with a midday charging stop, study in the evening">' + tl + '</div>' +
       (nm >= DAY_START && nm <= DAY_END ? '<div class="tl-now" aria-hidden="true" style="left:' + (dayFrac * 100).toFixed(1) + '%"></div>' : '') + '</div>' +
       '<div class="tl-ends caption"><span>5:30</span><span>' + (nm >= DAY_START && nm <= DAY_END ? 'Now ' + clock(nm) : '') + '</span><span>9:30 pm</span></div>' +
       '<div class="legend-row caption">' + Object.keys(legend).map(function (k) { return '<span><span class="dot f-' + k + '"></span>' + legend[k] + '</span>'; }).join('') + '</div></section>';
@@ -1218,7 +1220,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     }).join('');
     var listCard = rows ? '<section class="card"><h3 class="heading">Earlier this week</h3><div class="list">' + rows + '</div></section>' : '';
 
-    return hero('work', 'Work', 'One shift, 7:30 am to 3:30 pm. Target ' + money(DAY_TARGET) + ' a day.') + notice() + live + todayCard + liveCard(d, true) + profitCard + chargeCard + stats + listCard;
+    return hero('work', 'Work', 'One shift, 7:50 am to 3:50 pm. Target ' + money(DAY_TARGET) + ' a day.') + notice() + live + todayCard + liveCard(d, true) + profitCard + chargeCard + stats + listCard;
   }
 
   function kindChips(cur, name) {
@@ -1290,7 +1292,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     openSheet('<h2 class="title" id="sheet-title">Add a stint afterwards</h2>' +
       '<form id="f-pa" style="display:flex;flex-direction:column;gap:14px" novalidate>' + kindChips('uber', 'pa-kind') +
       '<div class="field"><label for="pa-date">Date</label><input id="pa-date" type="date" value="' + ymd(d) + '" required></div>' +
-      '<div class="two"><div class="field"><label for="pa-t1">Start time</label><input id="pa-t1" type="time" value="07:30"></div><div class="field"><label for="pa-t2">Stop time</label><input id="pa-t2" type="time" value="' + hhmm() + '"></div></div>' +
+      '<div class="two"><div class="field"><label for="pa-t1">Start time</label><input id="pa-t1" type="time" value="07:50"></div><div class="field"><label for="pa-t2">Stop time</label><input id="pa-t2" type="time" value="' + hhmm() + '"></div></div>' +
       '<div class="two"><div class="field"><label for="pa-o1">Odometer start</label><input id="pa-o1" type="number" inputmode="numeric" min="0" step="1" value="' + (last || '') + '"></div><div class="field"><label for="pa-o2">Odometer end</label><input id="pa-o2" type="number" inputmode="numeric" min="0" step="1"></div></div>' +
       '<div class="two"><div class="field"><label for="pa-paid">Paid ($)</label><input id="pa-paid" type="number" inputmode="decimal" min="0" step="0.01" placeholder="tolls included"></div><div class="field"><label for="pa-tolls">Tolls inside ($)</label><input id="pa-tolls" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"></div></div>' +
       '<div class="field"><label for="pa-n">Note</label><input id="pa-n" type="text" maxlength="80"></div>' +
@@ -1434,8 +1436,8 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     return hero('study', 'Study', 'Two hours fifty of focused study every evening, at home.') + notice() +
       (state.saving && !state.dbV4 ? '<div class="notice">Assessments and study plans can\'t be saved yet. The database needs its one-time update for this version.</div>' : '') +
       '<section class="card a-study"><div style="display:flex;gap:16px;align-items:center">' + ring(today / tgtToday, 'study', hm(today), 'of ' + hm(tgtToday), true, 'Study today ' + hm(today) + ' of ' + hm(tgtToday)) +
-      '<div style="display:flex;flex-direction:column;gap:4px"><span class="eyebrow l-study">Today, at home from 5:00 pm</span><span class="title">' + (today >= tgtToday ? 'Target met' : hm(tgtToday - today) + ' to go') + '</span></div></div>' +
-      '<div class="chips"><button class="chip" data-act="study" data-v="90">+1 h 30 (5:00 block)</button><button class="chip" data-act="study" data-v="80">+1 h 20 (6:40 block)</button><button class="chip" data-act="study" data-v="10">+10 min</button><button class="chip" data-act="study" data-v="-10">−10 min</button></div></section>' +
+      '<div style="display:flex;flex-direction:column;gap:4px"><span class="eyebrow l-study">Today, at home from 5:10 pm</span><span class="title">' + (today >= tgtToday ? 'Target met' : hm(tgtToday - today) + ' to go') + '</span></div></div>' +
+      '<div class="chips"><button class="chip" data-act="study" data-v="90">+1 h 30 (5:10 block)</button><button class="chip" data-act="study" data-v="80">+1 h 20 (6:50 block)</button><button class="chip" data-act="study" data-v="10">+10 min</button><button class="chip" data-act="study" data-v="-10">−10 min</button></div></section>' +
       curCard +
       '<section class="card"><div class="card-head"><h3 class="heading">This week</h3><span class="fig-sm">' + hm(total) + ' / ' + hm(WEEK_STUDY_MIN) + '</span></div>' + bar('study', total / WEEK_STUDY_MIN, '', '') + perDay + '</section>' +
       progCard + tlCard;
@@ -2300,10 +2302,10 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     var key = ymd(d), w = workoutFor(d), done = gymSummary(key), wk = w || 'A';
     var plan = WORKOUTS[wk].map(function (k) { var e = exDef(k), t = exTarget(k, key);
       return '<div class="row"><div class="row-main"><span class="row-title">' + esc(e.name) + (e.machineName && e.machineName !== e.name && e.m !== 'dumbbells' && e.m !== 'mat' ? ' · ' + esc(e.machineName) : '') + '</span><span class="row-sub">' + esc(t.text) + (t.note ? ' · ' + esc(t.note) : '') + '</span></div><span class="fig-sm' + (t.plateau ? ' l-money' : '') + '">' + (t.kg ? t.kg + ' kg' : '') + '</span><span></span></div>'; }).join('');
-    return '<section class="card a-health has-illo">' + illo('gym', 'corner') + '<span class="eyebrow l-health">' + (w ? 'Gym today · 5:30, Anytime Fitness Rhodes' : 'Gym days: Mon A, Tue B, Thu A, Fri B') + '</span>' +
+    return '<section class="card a-health has-illo">' + illo('gym', 'corner') + '<span class="eyebrow l-health">' + (w ? 'Gym today · 5:40, Anytime Fitness Rhodes' : 'Gym days: Mon A, Tue B, Thu A, Fri B') + '</span>' +
       '<span class="title">Workout ' + wk + (done ? ' · done' : '') + '</span>' +
       (done ? '<span class="body" style="color:var(--ink)">' + done.exercises + ' exercises, ' + done.sets + ' sets' + (done.cardio ? ', ' + Math.round(done.cardio) + ' min elliptical' : '') + '.</span>' :
-        '<span class="body" style="color:var(--ink)">55 min: 10 min walk there · elliptical 8 min · weights ≈ 27 min, 75 s rest between sets · elliptical 15 min · stretch 3 min · 10 min walk home.</span>') +
+        '<span class="body" style="color:var(--ink)">70 min door to door: 10 min walk there · 50 min in the gym (elliptical 8 min · weights ≈ 27 min, 75 s rest between sets · elliptical 12 min · stretch 3 min) · 10 min walk home.</span>') +
       '<div class="list">' + plan + '</div>' +
       '<button class="btn btn-primary btn-small" data-act="gym-log" data-v="' + wk + '">' + icon('dumbbell', 18) + (done ? 'Edit today\'s workout' : 'Log workout ' + wk) + '</button>' +
       '<div class="btn-row"><button class="btn btn-secondary btn-small" data-act="gym-log" data-v="' + (wk === 'A' ? 'B' : 'A') + '">Log workout ' + (wk === 'A' ? 'B' : 'A') + ' instead</button><button class="btn btn-secondary btn-small" data-act="machines">Machines</button></div></section>';
@@ -2400,7 +2402,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     var rows = state.walks.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 5).map(function (w) {
       return '<div class="row"><div class="row-main"><span class="row-title">' + shortDate(w.date) + ' · ' + w.minutes + ' min</span><span class="row-sub">' + (w.km ? w.km + ' km · ' + pace(w.minutes, w.km) : 'distance not entered') + (w.hr ? ' · ' + w.hr + ' bpm' : '') + '</span></div>' +
         '<span class="fig-sm">' + (w.km ? w.km + ' km' : '') + '</span><button class="link-btn" data-act="del" data-c="walks" data-id="' + esc(w.id) + '" aria-label="Delete walk">Delete</button></div>'; }).join('');
-    return '<section class="card a-health has-illo">' + illo('sunrise', 'corner') + '<span class="eyebrow l-health">' + (planned ? 'Homebush Bay walk today · max 1 h 15 door to door' : 'Walks: Wed, Sat, Sun · max 1 h 15') + '</span>' +
+    return '<section class="card a-health has-illo">' + illo('sunrise', 'corner') + '<span class="eyebrow l-health">' + (planned ? 'Homebush Bay walk today · 1 h 10 door to door' : 'Walks: Wed, Sat, Sun · 1 h 10') + '</span>' +
       (st ? '<span class="fig-lg" id="walk-clock">' + clockText(Date.now() - st) + '</span><span class="body" style="color:var(--ink)">Walking since ' + clockAp(new Date(st).getHours() * 60 + new Date(st).getMinutes()) + '. Start the Outdoor Walk on your Watch too, for the distance.</span>' +
         '<div class="btn-row"><button class="btn btn-primary" data-act="walk-stop">Finish walk</button><button class="btn btn-secondary" data-act="walk-cancel">Cancel</button></div>' :
         '<span class="title">' + (today.length ? 'Walk done: ' + today[0].minutes + ' min' + (today[0].km ? ', ' + today[0].km + ' km' : '') : planned ? 'Bay walk day' : 'Walk') + '</span>' +

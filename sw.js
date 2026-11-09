@@ -1,6 +1,6 @@
 /* Field Notes offline support: keeps a copy of the app on the phone so it opens without signal.
    Pages and settings: network first, the saved copy when offline. Fonts, icons and the database library: saved copy first. */
-var CACHE = 'field-notes-v1.2.9';
+var CACHE = 'field-notes-v1.3.0';
 var SHELL = ['./', 'index.html', 'config.js', 'manifest.webmanifest', 'version.json',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js'];
 
