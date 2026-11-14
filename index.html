@@ -356,7 +356,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '1.4.1';
+  var APP_VERSION = '1.4.2';
   var PLAN_START = '2026-12-20';               // Sunday: first dinner. Testing phase until then; week 1 starts Monday 21 Dec 2026, 52 weeks before the Splend subscription ends (Mon 20 Dec 2027)
   var NORMAL_MIN = 300, HOMEWARD_MIN = 60;      // 5 h + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h
@@ -375,7 +375,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   var BUDGET_TAX = [['GST provision', 85.30], ['Income-tax provision', 69.20], ['Medicare provision', 17.06]];
   var BUDGET_PERSONAL = [
     ['Rent', 310], ['Food and coffee', 165], ['Utilities', 40], ['Claude AI ($30/month)', 6.92], ['Anytime Fitness', 25.95],
-    ['Higgsfield ($48.25/month)', 11.13], ['Microsoft 365 ($48.55/month)', 11.20], ['iCloud+ ($24.95/month)', 5.76]
+    ['Higgsfield ($48.25/month)', 11.13], ['Microsoft 365 ($48.55/month)', 11.20], ['Apple One ($24.95/month)', 5.76]
   ];
   // Weekly menu. Index 0 = Sunday. Lunch = yesterday's dinner. All quantities in g and mL.
   // Dinner quantities make 2 portions (tonight + tomorrow's lunch); kcal and protein are per portion.
@@ -492,7 +492,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   var BILL_EVERY = [['week', 'Every week'], ['fortnight', 'Every 2 weeks'], ['month', 'Every month'], ['quarter', 'Every 3 months'], ['year', 'Every year']];
   // Quick-add from the weekly budget: [name, category, amount, every, business %]
   var BILL_PRESETS = [['Splend', 'Splend', 449.01, 'week', 80], ['Vodafone', 'Vodafone', 160.17, 'month', 50], ['Rent', 'Rent', 310, 'week', 0], ['Anytime Fitness', 'Gym membership', 25.95, 'week', 0],
-    ['Claude AI', 'Subscriptions', 30, 'month', 0], ['Higgsfield', 'Subscriptions', 48.25, 'month', 0], ['Microsoft 365', 'Subscriptions', 48.55, 'month', 0], ['iCloud+', 'Subscriptions', 24.95, 'month', 0]];
+    ['Claude AI', 'Subscriptions', 30, 'month', 0], ['Higgsfield', 'Subscriptions', 48.25, 'month', 0], ['Microsoft 365', 'Subscriptions', 48.55, 'month', 0], ['Apple One', 'Subscriptions', 24.95, 'month', 0]];
 
   // Expense categories: [name, default business %, includes GST by default]
   var EXPENSE_CATS = [
