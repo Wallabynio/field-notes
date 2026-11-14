@@ -356,23 +356,23 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '1.3.4';
+  var APP_VERSION = '1.4.0';
   var PLAN_START = '2026-12-20';               // Sunday: first dinner. Testing phase until then; week 1 starts Monday 21 Dec 2026, 52 weeks before the Splend subscription ends (Mon 20 Dec 2027)
-  var NORMAL_MIN = 340, HOMEWARD_MIN = 60;      // 5 h 40 + 1 h per day
-  var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h 40
+  var NORMAL_MIN = 300, HOMEWARD_MIN = 60;      // 5 h + 1 h per day
+  var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h
   var EQ_HOURS = (NORMAL_MIN + HOMEWARD_MIN * 2 / 3) / 60; // normal-rate-equivalent hours a day
-  var WEEK_DRIVE_MIN = DRIVE_TARGET_MIN * 7;   // 46 h 40
-  var WEEK_STUDY_MIN = 1190;                    // 19 h 50 (2 h 50 a day)
-  var DAY_TARGET = 230, DAY_BREAKEVEN = 214.98;  // receipts after platform fees
-  var WEEK_TARGET = DAY_TARGET * 7;              // $1,610
-  var TAX_WEEKLY = 197.19;                       // at target: GST 91.66 + income tax 87.20 + Medicare 18.33
+  var WEEK_DRIVE_MIN = DRIVE_TARGET_MIN * 7;   // 42 h
+  var WEEK_STUDY_MIN = 1260;                    // 21 h (3 h a day)
+  var DAY_TARGET = 225, DAY_BREAKEVEN = 214.98;  // receipts after platform fees
+  var WEEK_TARGET = DAY_TARGET * 7;              // $1,575
+  var TAX_WEEKLY = 183.36;                       // at target: GST 88.48 + income tax 77.18 + Medicare 17.70
   var TAX_DAILY = TAX_WEEKLY / 7;
   var TAX_MARGINAL = 1 / 11 + 0.30 / 1.1 + 0.02 / 1.1; // 38.2% of each dollar above (or below) target
   var DAY_START = 330, DAY_END = 1290;          // 5:30 am – 9:30 pm
   var BUDGET_BIZ = [
-    ['Splend', 449.01], ['Charging ($35 × 7)', 245], ['Car cleaning', 35], ['Vodafone ($160.20/month)', 36.97]
+    ['Splend', 449.01], ['Charging ($35 × 7)', 245], ['Car cleaning', 35], ['Vodafone ($160.17/month)', 36.96]
   ];
-  var BUDGET_TAX = [['GST provision', 91.66], ['Income-tax provision', 87.20], ['Medicare provision', 18.33]];
+  var BUDGET_TAX = [['GST provision', 88.48], ['Income-tax provision', 77.18], ['Medicare provision', 17.70]];
   var BUDGET_PERSONAL = [
     ['Rent', 310], ['Food and coffee', 165], ['Utilities', 40], ['Claude AI ($30/month)', 6.92], ['Anytime Fitness', 25.95],
     ['Higgsfield ($48.25/month)', 11.13], ['Microsoft 365 ($48.55/month)', 11.20], ['iCloud+ ($24.95/month)', 5.76]
@@ -394,9 +394,9 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     [['100 g', 'tomato (1 medium), halved'], ['3 mL', 'olive oil']],
     ['Heat the oil in a non-stick pan over medium heat.', 'Put the tomato halves in cut side down, 2 min.', 'Crack the eggs into the pan beside them. Cover with a lid and cook 3 min until the whites are set.']);
   var OATS = { name: 'Overnight oats with berries', desc: 'Oats, light milk, chia, berries, soaked overnight', kcal: 464, protein: 20, time: '5 min the night before', photo: 'oats',
-    serves: 'Breakfast. Make it at 8:10 pm the night before, while packing',
+    serves: 'Breakfast. Make it at 7:40 pm the night before, while packing',
     ingredients: [['60 g', 'rolled oats'], ['250 mL', 'light milk'], ['15 g', 'chia seeds'], ['100 g', 'frozen mixed berries']],
-    steps: ['At 8:10 pm the night before: mix the oats, chia and milk in a lidded container.', 'Put the frozen berries on top, close the lid and refrigerate overnight.', 'Eat cold at 6:50 am. Stir first.'] };
+    steps: ['At 7:40 pm the night before: mix the oats, chia and milk in a lidded container.', 'Put the frozen berries on top, close the lid and refrigerate overnight.', 'Eat cold at 6:50 am. Stir first.'] };
   var DINNERS = [
     { name: 'Lemon-oregano chicken tray bake', desc: 'Chicken thigh, chickpeas, roast vegetables, tzatziki', kcal: 670, protein: 69, time: '40 min', photo: 'chicken',
       ingredients: [['500 g', 'skinless chicken thigh fillets'], ['240 g', 'no-added-salt chickpeas, drained (1 × 400 g can)'], ['150 g', 'red capsicum'], ['250 g', 'zucchini'], ['100 g', 'red onion'], ['100 g', 'cherry tomatoes'], ['15 mL', 'olive oil'], ['1 (≈ 100 g)', 'lemon, zest and juice'], ['6 g', 'garlic (2 cloves)'], ['2 g', 'dried oregano'], ['150 g', 'Greek yoghurt (tzatziki)'], ['75 g', 'cucumber, grated (tzatziki)'], ['3 g', 'garlic (tzatziki)'], ['10 mL', 'lemon juice (tzatziki)'], ['2 g', 'fresh dill (tzatziki)']],
@@ -425,8 +425,8 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   // 10:30 fruit: apple Sun/Tue/Thu/Sat, orange Mon/Wed, banana Fri.
   var FRUIT = [['150 g', 'apple, 1 medium'], ['150 g', 'orange, 1 medium, peeled'], ['150 g', 'apple, 1 medium'], ['150 g', 'orange, 1 medium, peeled'], ['150 g', 'apple, 1 medium'], ['120 g', 'banana, 1 medium, peeled'], ['150 g', 'apple, 1 medium']];
   var SNACKS = [0, 1, 2, 3, 4, 5, 6].map(function (i) { return { name: 'Coffee and snacks', desc: 'Coffee, Greek yoghurt and ' + FRUIT[i][1].split(',')[0] + ', unsalted nuts', kcal: i === 5 ? 450 : 421, protein: 26, time: '', photo: 'coffee', serves: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][i],
-    ingredients: [['1', 'coffee capsule (espresso, ≈ 40 mL)'], ['150 mL', 'lactose-free full cream milk'], ['170 g', 'plain Greek yoghurt (10:30 break)'], [FRUIT[i][0], FRUIT[i][1] + ' (10:30 break)'], ['20 g', 'unsalted mixed nuts (2:50 pm)']],
-    steps: ['Coffee with breakfast: pull the capsule, add the milk.', 'Pack the yoghurt, ' + FRUIT[i][1].split(',')[0] + ' and nuts in the cooler bag at 8:10 pm the night before.'] }; });
+    ingredients: [['1', 'coffee capsule (espresso, ≈ 40 mL)'], ['150 mL', 'lactose-free full cream milk'], ['170 g', 'plain Greek yoghurt (10:30 break)'], [FRUIT[i][0], FRUIT[i][1] + ' (10:30 break)'], ['20 g', 'unsalted mixed nuts (2:10 pm)']],
+    steps: ['Coffee with breakfast: pull the capsule, add the milk.', 'Pack the yoghurt, ' + FRUIT[i][1].split(',')[0] + ' and nuts in the cooler bag at 7:40 pm the night before.'] }; });
   function mealsFor(d) { var i = d.getDay(); return { breakfast: BREAKFASTS[i], lunch: DINNERS[(i + 6) % 7], dinner: DINNERS[i], snacks: SNACKS[i] }; }
   // Weekly shop. Aldi first; Coles for what Aldi doesn't stock.
   var SHOP = {
@@ -488,10 +488,10 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
 
   /* ---------------- money: Uber balance, bills ---------------- */
   var CASHOUT_FEE = 1.50;
-  var BIZ_FIXED_WEEK = 449.01 + 35 + 36.97; // Splend, car cleaning, Vodafone business share: for profit after all costs
+  var BIZ_FIXED_WEEK = 449.01 + 35 + 36.96; // Splend, car cleaning, Vodafone business share: for profit after all costs
   var BILL_EVERY = [['week', 'Every week'], ['fortnight', 'Every 2 weeks'], ['month', 'Every month'], ['quarter', 'Every 3 months'], ['year', 'Every year']];
   // Quick-add from the weekly budget: [name, category, amount, every, business %]
-  var BILL_PRESETS = [['Splend', 'Splend', 449.01, 'week', 80], ['Vodafone', 'Vodafone', 160.20, 'month', 50], ['Rent', 'Rent', 310, 'week', 0], ['Anytime Fitness', 'Gym membership', 25.95, 'week', 0],
+  var BILL_PRESETS = [['Splend', 'Splend', 449.01, 'week', 80], ['Vodafone', 'Vodafone', 160.17, 'month', 50], ['Rent', 'Rent', 310, 'week', 0], ['Anytime Fitness', 'Gym membership', 25.95, 'week', 0],
     ['Claude AI', 'Subscriptions', 30, 'month', 0], ['Higgsfield', 'Subscriptions', 48.25, 'month', 0], ['Microsoft 365', 'Subscriptions', 48.55, 'month', 0], ['iCloud+', 'Subscriptions', 24.95, 'month', 0]];
 
   // Expense categories: [name, default business %, includes GST by default]
@@ -583,19 +583,19 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
       [650, 660, 'neutral', 'Offline break'],
       [660, 730, 'work', 'Driving'],
       [730, 800, 'money', 'Midday stop: charge, lunch, rest'],
-      [800, 890, 'work', 'Driving'],
-      [890, 900, 'neutral', 'Snack break'],
-      [900, 960, 'commute', 'Homeward driving'],
-      [960, 970, 'neutral', 'Unpack'],
-      [970, 1030, 'money', 'Cook and eat dinner'],
-      [1030, 1120, 'study', 'Study'],
-      [1120, 1130, 'neutral', 'Short break'],
-      [1130, 1210, 'study', 'Study'],
-      [1210, 1220, 'neutral', 'Pack lunch and gear'],
-      [1220, 1230, 'neutral', 'Quick shower'],
-      [1230, 1290, 'rest', 'Personal time, wind-down']
+      [800, 850, 'work', 'Driving'],
+      [850, 860, 'neutral', 'Snack break'],
+      [860, 920, 'commute', 'Homeward driving'],
+      [920, 930, 'neutral', 'Unpack'],
+      [930, 990, 'money', 'Cook and eat dinner'],
+      [990, 1080, 'study', 'Study'],
+      [1080, 1090, 'neutral', 'Short break'],
+      [1090, 1180, 'study', 'Study'],
+      [1180, 1190, 'neutral', 'Pack lunch and gear'],
+      [1190, 1200, 'neutral', 'Quick shower'],
+      [1200, 1290, 'rest', 'Personal time, wind-down']
     ];
-    return { blocks: s, studyTarget: 170, gym: gym };
+    return { blocks: s, studyTarget: 180, gym: gym };
   }
 
   /* ---------------- helpers ---------------- */
@@ -1022,7 +1022,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     var blocks = sch.blocks.concat([[DAY_END, DAY_END + 480, 'rest', 'Sleep']]);
     return '<div class="agenda" role="list">' + blocks.map(function (b) {
       var past = isToday && nm >= b[1], cur = isToday && nm >= b[0] && nm < b[1];
-      var info = b[3] === 'Cook and eat dinner' ? 'Cook two portions, last bite by 5:10 pm: ' + mealsFor(d).dinner.name : b[3] === 'Midday stop: charge, lunch, rest' ? 'Lunch: ' + mealsFor(d).lunch.name : b[2] === 'health' ? (sch.gym ? 'Workout ' + workoutFor(d) + ', 55 min session, 10 min walk each way' : 'Door to door, max 1 h 15') : b[3] === 'Sleep' ? 'Up at 5:30 am' : (BLOCK_INFO[b[3]] || '');
+      var info = b[3] === 'Cook and eat dinner' ? 'Cook two portions, last bite by 4:30 pm: ' + mealsFor(d).dinner.name : b[3] === 'Midday stop: charge, lunch, rest' ? 'Lunch: ' + mealsFor(d).lunch.name : b[2] === 'health' ? (sch.gym ? 'Workout ' + workoutFor(d) + ', 50 min session, 10 min walk each way' : 'Door to door, max 1 h 15') : b[3] === 'Sleep' ? 'Up at 5:30 am' : (BLOCK_INFO[b[3]] || '');
       var state = cur ? '<span class="ag-badge">Now</span>' : past ? 'Done' : '';
       return '<div class="ag-row' + (cur ? ' now' : '') + (past ? ' past' : '') + '" role="listitem"' + (cur ? ' aria-current="time"' : '') + '>' +
         '<span class="ag-time">' + clock(b[0] % 1440) + '</span><span class="ag-ico i-' + b[2] + '" aria-hidden="true">' + icon(blockIcon(b[3]), 16) + '</span>' +
@@ -1063,7 +1063,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     var tl = '', legend = { health: 'Exercise', work: 'Driving', money: 'Charge + meals', study: 'Study' };
     sch.blocks.forEach(function (b) { tl += '<div class="f-' + b[2] + '" style="flex:' + (b[1] - b[0]) + '"></div>'; });
     var timeline = '<section aria-label="Your day" style="display:flex;flex-direction:column;gap:8px"><div class="card-head"><h2 class="heading">Your day</h2><span class="caption">5:30 am – 9:30 pm</span></div>' +
-      '<div class="tl-wrap"><div class="tl" role="img" aria-label="Day timeline: exercise from 5:30, driving 7:50 am to 4:00 pm with a midday charging stop, study in the evening">' + tl + '</div>' +
+      '<div class="tl-wrap"><div class="tl" role="img" aria-label="Day timeline: exercise from 5:30, driving 7:50 am to 3:20 pm with a midday charging stop, study in the evening">' + tl + '</div>' +
       (nm >= DAY_START && nm <= DAY_END ? '<div class="tl-now" aria-hidden="true" style="left:' + (dayFrac * 100).toFixed(1) + '%"></div>' : '') + '</div>' +
       '<div class="tl-ends caption"><span>5:30</span><span>' + (nm >= DAY_START && nm <= DAY_END ? 'Now ' + clock(nm) : '') + '</span><span>9:30 pm</span></div>' +
       '<div class="legend-row caption">' + Object.keys(legend).map(function (k) { return '<span><span class="dot f-' + k + '"></span>' + legend[k] + '</span>'; }).join('') + '</div></section>';
@@ -1221,7 +1221,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     }).join('');
     var listCard = rows ? '<section class="card"><h3 class="heading">Earlier this week</h3><div class="list">' + rows + '</div></section>' : '';
 
-    return hero('work', 'Work', 'One shift, 7:50 am to 4:00 pm. Target ' + money(DAY_TARGET) + ' a day.') + notice() + live + todayCard + liveCard(d, true) + profitCard + chargeCard + stats + listCard;
+    return hero('work', 'Work', 'One shift, 7:50 am to 3:20 pm. Target ' + money(DAY_TARGET) + ' a day.') + notice() + live + todayCard + liveCard(d, true) + profitCard + chargeCard + stats + listCard;
   }
 
   function kindChips(cur, name) {
@@ -1437,8 +1437,8 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     return hero('study', 'Study', 'Two hours fifty of focused study every evening, at home.') + notice() +
       (state.saving && !state.dbV4 ? '<div class="notice">Assessments and study plans can\'t be saved yet. The database needs its one-time update for this version.</div>' : '') +
       '<section class="card a-study"><div style="display:flex;gap:16px;align-items:center">' + ring(today / tgtToday, 'study', hm(today), 'of ' + hm(tgtToday), true, 'Study today ' + hm(today) + ' of ' + hm(tgtToday)) +
-      '<div style="display:flex;flex-direction:column;gap:4px"><span class="eyebrow l-study">Today, at home from 5:10 pm</span><span class="title">' + (today >= tgtToday ? 'Target met' : hm(tgtToday - today) + ' to go') + '</span></div></div>' +
-      '<div class="chips"><button class="chip" data-act="study" data-v="90">+1 h 30 (5:10 block)</button><button class="chip" data-act="study" data-v="80">+1 h 20 (6:50 block)</button><button class="chip" data-act="study" data-v="10">+10 min</button><button class="chip" data-act="study" data-v="-10">−10 min</button></div></section>' +
+      '<div style="display:flex;flex-direction:column;gap:4px"><span class="eyebrow l-study">Today, at home from 4:30 pm</span><span class="title">' + (today >= tgtToday ? 'Target met' : hm(tgtToday - today) + ' to go') + '</span></div></div>' +
+      '<div class="chips"><button class="chip" data-act="study" data-v="90">+1 h 30 (4:30 block)</button><button class="chip" data-act="study" data-v="90">+1 h 30 (6:10 block)</button><button class="chip" data-act="study" data-v="10">+10 min</button><button class="chip" data-act="study" data-v="-10">−10 min</button></div></section>' +
       curCard +
       '<section class="card"><div class="card-head"><h3 class="heading">This week</h3><span class="fig-sm">' + hm(total) + ' / ' + hm(WEEK_STUDY_MIN) + '</span></div>' + bar('study', total / WEEK_STUDY_MIN, '', '') + perDay + '</section>' +
       progCard + tlCard;
@@ -1625,7 +1625,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   }
 
   /* ---------------- food spending: what each shop really cost ---------------- */
-  var FOOD_WEEK = 165, CASH_EXTRA = 70.87;
+  var FOOD_WEEK = 165, CASH_EXTRA = 49.71;
   // Food weeks run Monday to Sunday; the very first live one also takes Sunday 20 December (the first dinner, eaten again as Monday's lunch).
   function foodIn(ws) {
     var a = ymd(ws), b = ymd(addDays(ws, 7));
@@ -1856,10 +1856,10 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   // Days not finished yet use the plan: charging at $35 a day until 14 days of real charging exist, then the real daily average; $165 food until you have shopped.
   // Tax follows the real numbers: GST = earnings/11 − GST credits on business costs; income tax + Medicare move 32c per dollar of profit.
   var FIXED = [ // [expense type, plan weekly amount, business %, includes GST]
-    ['Splend', 449.01, 80, true], ['Car wash', 35, 80, true], ['Vodafone', 36.97, 50, true],
-    ['Rent', 310, 0, false], ['Utilities', 40, 0, true], ['Subscriptions', 46.15 + 21.68 + 11.19 + 5.76, 0, true], ['Gym membership', 25.95, 0, true]
+    ['Splend', 449.01, 80, true], ['Car wash', 35, 80, true], ['Vodafone', 36.96, 50, true],
+    ['Rent', 310, 0, false], ['Utilities', 40, 0, true], ['Subscriptions', 6.92 + 11.13 + 11.20 + 5.76, 0, true], ['Gym membership', 25.95, 0, true]
   ];
-  var CHARGE_DAY = 35, INCOME_TAX_WEEK = 87.20 + 18.33, PROFIT_MARGINAL = 0.32;
+  var CHARGE_DAY = 35, INCOME_TAX_WEEK = 77.18 + 17.70, PROFIT_MARGINAL = 0.32;
   // Splend subscription: started Mon 11 Sep 2023, agreement end 11 Sep 2028, less 38 weeks off at the end = ends Mon 20 Dec 2027 (223 weekly payments).
   var SPLEND = { start: '2023-09-11', agreementEnd: '2028-09-11', weeksOff: 38 };
   function longDate(dt) { return dt.getDate() + ' ' + MONTHS[dt.getMonth()] + ' ' + dt.getFullYear(); }
@@ -2441,7 +2441,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     var n = 0, low = 0; for (var i = 0; i < 4 && n < 3; i++) { var doc = dayDoc(ymd(addDays(d, -i))); if (doc.energy || doc.sleep || doc.stress) { n++; if (lowDay(doc)) low++; } }
     return low >= 2;
   }
-  var LIGHT_DAY = 'Lighter day: finish driving at 2:30 pm, study 1 h 30 instead of 2 h 50, an easy Homebush Bay walk instead of the gym, in bed by 9:00 pm.';
+  var LIGHT_DAY = 'Lighter day: finish driving at 2:00 pm, study 1 h 30 instead of 3 h, an easy Homebush Bay walk instead of the gym, in bed by 9:00 pm.';
   function checkinCard(d) {
     var key = ymd(d), doc = dayDoc(key), done = doc.energy && doc.sleep && doc.stress;
     return '<section class="card"><div class="card-head"><h3 class="heading">Evening check-in</h3><span class="caption">' + (done ? 'Done for today' : 'Takes 5 seconds') + '</span></div>' +
