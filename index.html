@@ -356,23 +356,23 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '1.4.0';
+  var APP_VERSION = '1.4.1';
   var PLAN_START = '2026-12-20';               // Sunday: first dinner. Testing phase until then; week 1 starts Monday 21 Dec 2026, 52 weeks before the Splend subscription ends (Mon 20 Dec 2027)
   var NORMAL_MIN = 300, HOMEWARD_MIN = 60;      // 5 h + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h
   var EQ_HOURS = (NORMAL_MIN + HOMEWARD_MIN * 2 / 3) / 60; // normal-rate-equivalent hours a day
   var WEEK_DRIVE_MIN = DRIVE_TARGET_MIN * 7;   // 42 h
   var WEEK_STUDY_MIN = 1260;                    // 21 h (3 h a day)
-  var DAY_TARGET = 225, DAY_BREAKEVEN = 214.98;  // receipts after platform fees
-  var WEEK_TARGET = DAY_TARGET * 7;              // $1,575
-  var TAX_WEEKLY = 183.36;                       // at target: GST 88.48 + income tax 77.18 + Medicare 17.70
+  var DAY_TARGET = 220, DAY_BREAKEVEN = 214.98;  // receipts after platform fees
+  var WEEK_TARGET = DAY_TARGET * 7;              // $1,540
+  var TAX_WEEKLY = 171.56;                       // at target: GST 85.30 + income tax 69.20 + Medicare 17.06
   var TAX_DAILY = TAX_WEEKLY / 7;
   var TAX_MARGINAL = 1 / 11 + 0.30 / 1.1 + 0.02 / 1.1; // 38.2% of each dollar above (or below) target
   var DAY_START = 330, DAY_END = 1290;          // 5:30 am – 9:30 pm
   var BUDGET_BIZ = [
     ['Splend', 449.01], ['Charging ($35 × 7)', 245], ['Car cleaning', 35], ['Vodafone ($160.17/month)', 36.96]
   ];
-  var BUDGET_TAX = [['GST provision', 88.48], ['Income-tax provision', 77.18], ['Medicare provision', 17.70]];
+  var BUDGET_TAX = [['GST provision', 85.30], ['Income-tax provision', 69.20], ['Medicare provision', 17.06]];
   var BUDGET_PERSONAL = [
     ['Rent', 310], ['Food and coffee', 165], ['Utilities', 40], ['Claude AI ($30/month)', 6.92], ['Anytime Fitness', 25.95],
     ['Higgsfield ($48.25/month)', 11.13], ['Microsoft 365 ($48.55/month)', 11.20], ['iCloud+ ($24.95/month)', 5.76]
@@ -1625,7 +1625,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   }
 
   /* ---------------- food spending: what each shop really cost ---------------- */
-  var FOOD_WEEK = 165, CASH_EXTRA = 49.71;
+  var FOOD_WEEK = 165, CASH_EXTRA = 26.51;
   // Food weeks run Monday to Sunday; the very first live one also takes Sunday 20 December (the first dinner, eaten again as Monday's lunch).
   function foodIn(ws) {
     var a = ymd(ws), b = ymd(addDays(ws, 7));
@@ -1859,7 +1859,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     ['Splend', 449.01, 80, true], ['Car wash', 35, 80, true], ['Vodafone', 36.96, 50, true],
     ['Rent', 310, 0, false], ['Utilities', 40, 0, true], ['Subscriptions', 6.92 + 11.13 + 11.20 + 5.76, 0, true], ['Gym membership', 25.95, 0, true]
   ];
-  var CHARGE_DAY = 35, INCOME_TAX_WEEK = 77.18 + 17.70, PROFIT_MARGINAL = 0.32;
+  var CHARGE_DAY = 35, INCOME_TAX_WEEK = 69.20 + 17.06, PROFIT_MARGINAL = 0.32;
   // Splend subscription: started Mon 11 Sep 2023, agreement end 11 Sep 2028, less 38 weeks off at the end = ends Mon 20 Dec 2027 (223 weekly payments).
   var SPLEND = { start: '2023-09-11', agreementEnd: '2028-09-11', weeksOff: 38 };
   function longDate(dt) { return dt.getDate() + ' ' + MONTHS[dt.getMonth()] + ' ' + dt.getFullYear(); }
