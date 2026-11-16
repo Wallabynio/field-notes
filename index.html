@@ -90,7 +90,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
 .l-work { color: var(--work-label); } .l-study { color: var(--study-label); } .l-health { color: var(--health-label); } .l-money { color: var(--money-label); } .l-rest { color: var(--rest-label); }
 
 /* cards: graphite, gold hairline; tinted cards get a jewel wash in one corner */
-.card { position: relative; background: var(--surface); box-shadow: var(--shadow); border: 1px solid var(--line); border-radius: 22px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.card { position: relative; background: var(--surface); box-shadow: var(--shadow); border: 1px solid var(--hair); border-radius: 22px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
 .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .a-work, .a-study, .a-health, .a-money, .a-rest { border-color: var(--hair); background-image: radial-gradient(140% 120% at 100% 0%, var(--wash), transparent 60%); }
 .a-work { --wash: rgba(111,147,207,.16); } .a-study { --wash: rgba(164,135,209,.16); } .a-health { --wash: rgba(93,176,140,.16); } .a-money { --wash: rgba(201,169,110,.16); } .a-rest { --wash: rgba(142,136,125,.14); }
@@ -146,14 +146,14 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
 
 /* lists */
 .list { display: flex; flex-direction: column; }
-.row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--hair); }
 .row:first-child { border-top: none; }
 .row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .row-title { font-size: 15px; font-weight: 500; }
 .row-sub { font-size: 13px; color: var(--ink-muted); overflow-wrap: anywhere; }
-.row-btn { all: unset; cursor: pointer; display: grid; grid-template-columns: 64px minmax(0,1fr) auto; gap: 14px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+.row-btn { all: unset; cursor: pointer; display: grid; grid-template-columns: 64px minmax(0,1fr) auto; gap: 14px; align-items: center; padding: 10px 0; border-top: 1px solid var(--hair); }
 .row-btn:first-child { border-top: none; }
-.thumb { width: 64px; height: 64px; border-radius: 14px; background: var(--raised) center/cover no-repeat; border: 1px solid var(--line); }
+.thumb { width: 64px; height: 64px; border-radius: 14px; background: var(--raised) center/cover no-repeat; border: 1px solid var(--hair); }
 .chev { color: var(--gold); }
 .empty { font-size: 14px; color: var(--ink-muted); padding: 6px 0; }
 .kv { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 14px; font-size: 14px; }
@@ -183,6 +183,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
 
 /* sheet */
 .sheet-scrim { position: fixed; inset: 0; background: var(--scrim); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); z-index: 10; display: none; align-items: flex-end; justify-content: center; }
+.rp { display: flex; flex-direction: column; gap: 12px; } .rp .rp-title { margin: 0; } .rp-src { font-size: 11px; opacity: .7; }
+@media print { body > *:not(.sheet-scrim) { display: none !important; } .sheet-scrim { position: static !important; background: none !important; display: block !important; backdrop-filter: none !important; }
+  .sheet { position: static !important; max-height: none !important; box-shadow: none !important; transform: none !important; overflow: visible !important; width: auto !important; max-width: none !important; animation: none !important; }
+  .no-print { display: none !important; } body, .sheet { background: #fff !important; color: #000 !important; } }
 .sheet-scrim.open { display: flex; animation: fade .25s var(--ease); }
 .sheet { width: 100%; max-width: 480px; max-height: 92%; overflow-y: auto; background: var(--surface); border: 1px solid var(--hair); border-bottom: none; border-radius: 28px 28px 0 0; padding: 26px 22px calc(26px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 16px; }
 .sheet-scrim.open .sheet { animation: rise .35s var(--ease); }
@@ -191,7 +195,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
 @keyframes rise { from { transform: translateY(40px); opacity: 0; } } @keyframes fade { from { opacity: 0; } }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field label { font-size: 13px; font-weight: 500; color: var(--ink-muted); }
-.field input, .field select { min-height: 50px; border-radius: 14px; border: 1px solid var(--line); background: var(--sunken); padding: 0 14px; font-size: 16px; color: var(--ink); }
+.field input, .field select { min-height: 50px; border-radius: 14px; border: 1px solid var(--hair); background: var(--sunken); padding: 0 14px; font-size: 16px; color: var(--ink); }
 .field input:focus, .field select:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,169,110,.18); }
 .field .hint { font-size: 12.5px; color: var(--ink-faint); }
 .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -207,19 +211,19 @@ h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 500; }
 .steps li::before { content: counter(step); font-family: var(--font-display); color: var(--gold); font-size: 18px; line-height: 22px; }
 .ingr { display: grid; grid-template-columns: 76px minmax(0,1fr); gap: 8px 12px; font-size: 15px; }
 .ingr .q { text-align: right; color: var(--gold-bright); font-variant-numeric: tabular-nums; }
-.check { display: grid; grid-template-columns: 24px minmax(0,1fr) auto; gap: 12px; align-items: center; padding: 11px 0; border-top: 1px solid var(--line); cursor: pointer; }
+.check { display: grid; grid-template-columns: 24px minmax(0,1fr) auto; gap: 12px; align-items: center; padding: 11px 0; border-top: 1px solid var(--hair); cursor: pointer; }
 .check:first-child { border-top: none; }
 .check input { width: 20px; height: 20px; accent-color: var(--gold); }
 .check.done .row-title { color: var(--ink-faint); text-decoration: line-through; }
-.grade { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .06em; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-muted); }
+.grade { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .06em; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--hair); color: var(--ink-muted); }
 .grade.hd { color: var(--gold-bright); border-color: var(--hair); background: var(--gold-soft); }
 .as-row { grid-template-columns: 40px minmax(0,1fr) auto; }
-.as-icon { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; border: 1px solid var(--line); color: var(--ink-muted); }
+.as-icon { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; border: 1px solid var(--hair); color: var(--ink-muted); }
 .as-icon.done { color: var(--on-gold); background: var(--gold); border-color: var(--gold); }
 .timeline { display: flex; flex-direction: column; position: relative; }
 .tl-year { font-family: var(--font-display); font-size: 17px; color: var(--gold-bright); padding: 14px 0 4px; }
 .tl-year:first-child { padding-top: 0; }
-.tl-row { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 14px minmax(0,1fr) auto; gap: 12px; align-items: start; padding: 10px 0; border-top: 1px solid var(--line); }
+.tl-row { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 14px minmax(0,1fr) auto; gap: 12px; align-items: start; padding: 10px 0; border-top: 1px solid var(--hair); }
 button.tl-row { cursor: pointer; }
 .tl-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--gold); margin-top: 6px; }
 .tl-row.future .tl-dot { background: transparent; border: 1px solid var(--ink-faint); }
@@ -228,14 +232,14 @@ button.tl-row { cursor: pointer; }
 .tl-row.now .row-title { color: var(--ink); }
 .tl-mark { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .check .row-main .eyebrow { font-size: 12px; }
-.tabs { display: flex; gap: 6px; padding: 4px; background: var(--sunken); border-radius: 999px; border: 1px solid var(--line); }
+.tabs { display: flex; gap: 6px; padding: 4px; background: var(--sunken); border-radius: 999px; border: 1px solid var(--hair); }
 .tabs button { flex: 1; min-height: 40px; border: none; border-radius: 999px; background: none; color: var(--ink-muted); font-weight: 500; cursor: pointer; }
 .tabs button[aria-pressed="true"] { background: var(--raised); color: var(--gold-bright); box-shadow: inset 0 0 0 1px var(--hair); }
 
 
 /* day-plan icons */
 .ag-row { grid-template-columns: 50px 30px minmax(0, 1fr) auto; }
-.ag-ico { width: 30px; height: 30px; border-radius: 999px; display: grid; place-items: center; background: var(--raised); color: var(--ink-muted); border: 1px solid var(--line); align-self: start; }
+.ag-ico { width: 30px; height: 30px; border-radius: 999px; display: grid; place-items: center; background: var(--raised); color: var(--ink-muted); border: 1px solid var(--hair); align-self: start; }
 .i-work { color: var(--work-label); background: var(--work-soft); } .i-study { color: var(--study-label); background: var(--study-soft); }
 .i-health { color: var(--health-label); background: var(--health-soft); } .i-money { color: var(--gold-bright); background: var(--money-soft); }
 .i-commute { color: var(--work-label); background: var(--work-soft); } .i-rest { color: var(--rest-label); background: var(--rest-soft); }
@@ -293,7 +297,7 @@ button.tl-row { cursor: pointer; }
 .hero-date { color: #F3DFAF !important; text-shadow: 0 1px 8px rgba(0,0,0,.35); }
 .hero-title { color: #FFFFFF; text-shadow: 0 2px 18px rgba(0,0,0,.35); }
 .hero-sub { color: rgba(255,255,255,.86) !important; }
-.notice { font-size: 13px; line-height: 19px; color: var(--ink-muted); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px 10px 30px; position: relative; box-shadow: none; }
+.notice { font-size: 13px; line-height: 19px; color: var(--ink-muted); background: var(--surface); border: 1px solid var(--hair); border-radius: 14px; padding: 10px 14px 10px 30px; position: relative; box-shadow: none; }
 .notice::before { content: ""; position: absolute; left: 13px; top: 16px; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); }
 svg circle[stroke^="var(--"][stroke$="-soft)"], svg circle[stroke^="var(--"][stroke$="-track)"] { opacity: 1; }
 
@@ -356,8 +360,8 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
   'use strict';
 
   /* ---------------- Plan constants ---------------- */
-  var APP_VERSION = '1.4.2';
-  var PLAN_START = '2026-12-20';               // Sunday: first dinner. Testing phase until then; week 1 starts Monday 21 Dec 2026, 52 weeks before the Splend subscription ends (Mon 20 Dec 2027)
+  var APP_VERSION = '1.5.0';
+  var PLAN_START = '2026-12-20';               // Sunday: first dinner. Week 1 starts Monday 21 Dec 2026, 52 weeks before the Splend subscription ends (Mon 20 Dec 2027)
   var NORMAL_MIN = 300, HOMEWARD_MIN = 60;      // 5 h + 1 h per day
   var DRIVE_TARGET_MIN = NORMAL_MIN + HOMEWARD_MIN; // 6 h
   var EQ_HOURS = (NORMAL_MIN + HOMEWARD_MIN * 2 / 3) / 60; // normal-rate-equivalent hours a day
@@ -1002,12 +1006,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     if (state.saving) return state.dbV2 ? '' : '<div class="notice">Tax, BAS and logbook details can\'t be saved yet. The database needs its one-time update.</div>';
     return '<div class="notice">Not connected to your database yet, so entries are not saved. Finish the setup steps to switch saving on.</div>';
   }
-  function startNote(d) {
-    var start = parseYmd(PLAN_START);
-    if (d >= start) return '';
-    var days = Math.ceil((start - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 864e5);
-    return '<div class="notice">Testing phase: the app goes live on Monday 21 December, with the first dinner on Sunday 20 December (' + days + ' day' + (days === 1 ? '' : 's') + ' to go). Anything you log now still saves.</div>';
-  }
 
   var BLOCK_INFO = {
     'Driving': 'Normal rate', 'Homeward driving': 'Two-thirds rate, heading home', 'Offline break': 'App off, rest',
@@ -1092,7 +1090,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
 
     var wn = weekNumber(d);
     var longView = '<section class="card" aria-label="The long view"><h2 class="heading">The long view</h2>' +
-      bar('rest', Math.max(0, wn) / 52, 'Transition year', wn >= 1 ? 'Week ' + Math.min(wn, 52) + ' / 52' : 'Starts 21 Dec') +
+      bar('rest', Math.max(0, wn) / 52, 'Transition year', wn >= 1 ? 'Week ' + Math.min(wn, 52) + ' / 52' : 'Not started') +
       bar('study', COURSE.filter(function (c) { return finalMark(c) != null; }).length / COURSE.length, 'Master of Urban Planning', COURSE.filter(function (c) { return finalMark(c) != null; }).length + ' / ' + COURSE.length + ' subjects · ends May 2027') + bar('work', splendInfo(d).pct, 'Splend term', splendInfo(d).left ? 'Ends ' + longDate(splendInfo(d).last) + ' · ' + splendInfo(d).left + ' weeks to go' : 'Finished') + '</section>';
 
     var dueSoon = billsDue(key, 3), act = activeStint();
@@ -1100,7 +1098,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     var alerts = (reds.length ? '<section class="card a-money"><span class="eyebrow l-money">In the red</span>' + reds.map(function (a) { return '<span class="body" style="color:var(--ink)">' + a[1] + ': −' + money(-balance(a[0]), true) + '</span>'; }).join('') + '</section>' : '') + (lighterDay(d) ? '<section class="card a-rest"><span class="eyebrow l-rest">Take it easier tomorrow</span><span class="body" style="color:var(--ink)">Two of your last three check-ins were low. ' + LIGHT_DAY + '</span></section>' : '') +
       (dueSoon.length ? '<section class="card a-money"><span class="eyebrow l-money">Bills due</span>' + dueSoon.map(function (b) { return '<span class="body" style="color:var(--ink)">' + esc(b.name) + ' · ' + money(b.amount, true) + ' · ' + dueLabel(b.nextDue, key) + '</span>'; }).join('') + '</section>' : '') +
       (act ? '<section class="card a-work"><span class="eyebrow l-work">' + esc(KIND_LABEL[act.kind]) + ' since ' + timeOf(act.startedAt) + '</span><span class="body" style="color:var(--ink)">Stop it on the Work tab with the odometer' + (act.kind === 'private' || act.kind === 'business' ? '.' : ' and what you were paid.') + '</span></section>' : '');
-    return hero('today', (d.getHours() < 12 ? 'Good morning' : d.getHours() < 17 ? 'Good afternoon' : 'Good evening') + ', Istvan', '', { tall: true }) + notice() + startNote(d) + alerts + rings + nowCard + timeline +
+    return hero('today', (d.getHours() < 12 ? 'Good morning' : d.getHours() < 17 ? 'Good afternoon' : 'Good evening') + ', Istvan', '', { tall: true }) + notice() + alerts + rings + nowCard + timeline +
       liveCard(d, true) + '<section class="card" aria-label="Today\'s plan"><div class="card-head"><h2 class="heading">Today\'s plan</h2><span class="caption">' + DAYS[d.getDay()] + '</span></div>' + agenda(d) + '</section>' + week + moneyCard + longView;
   }
 
@@ -1434,7 +1432,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     });
     var tlCard = '<section class="card"><div class="card-head"><h3 class="heading">Course timeline</h3><span class="caption">Aug 2024 – May 2027</span></div><div class="timeline">' + tl + '</div></section>';
 
-    return hero('study', 'Study', 'Two hours fifty of focused study every evening, at home.') + notice() +
+    return hero('study', 'Study', 'Three hours of focused study every evening, at home.') + notice() +
       (state.saving && !state.dbV4 ? '<div class="notice">Assessments and study plans can\'t be saved yet. The database needs its one-time update for this version.</div>' : '') +
       '<section class="card a-study"><div style="display:flex;gap:16px;align-items:center">' + ring(today / tgtToday, 'study', hm(today), 'of ' + hm(tgtToday), true, 'Study today ' + hm(today) + ' of ' + hm(tgtToday)) +
       '<div style="display:flex;flex-direction:column;gap:4px"><span class="eyebrow l-study">Today, at home from 4:30 pm</span><span class="title">' + (today >= tgtToday ? 'Target met' : hm(tgtToday - today) + ' to go') + '</span></div></div>' +
@@ -1844,7 +1842,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
       lines(BUDGET_PERSONAL) + kvRow('Cash extra (unlisted costs and savings)', money(WEEK_TARGET - bizT - taxT - perT, true), 'total') + '</div>' +
       '<span class="caption">Break-even: ' + money(DAY_BREAKEVEN, true) + ' a day.</span></section>';
 
-    return hero('money', 'Money', 'Uber balance, bills, tax, BAS and the weekly budget.') + notice() + liveCard(d) + chargeYearCard(d) + foodYearCard(d) + accountsCard(d) + walletCard(d) + billsCard(d) + splendCard(d) + taxCard + expCard + statementsCard(d) + basCard + itCard + lbCard + budgetCard +
+    return hero('money', 'Money', 'Uber balance, bills, tax, BAS and the weekly budget.') + notice() + liveCard(d) + chargeYearCard(d) + foodYearCard(d) + accountsCard(d) + walletCard(d) + billsCard(d) + splendCard(d) + taxCard + expCard + statementsCard(d) + catchUpCard() + basCard + itCard + lbCard + budgetCard +
       appearanceCard() +
       '<section class="card"><div class="card-head"><h3 class="heading">Backup</h3><span class="caption">App version ' + APP_VERSION + '</span></div><p class="body" style="margin:0">Saves a copy of every entry to a file on your phone, for safekeeping.</p><button class="btn btn-secondary btn-small" data-act="export">Back up my data</button></section>' +
       (user ? '<button class="link-btn" data-act="signout" style="align-self:center">Sign out (' + esc(user.email) + ')</button>' : '');
@@ -2191,6 +2189,191 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
       write({ t: 'uber_months', a: 'upsert', row: { month: mm + '-01', gross_fares: Math.round(gv * 100) / 100, uber_fees: Math.round(fv * 100) / 100, updated_at: new Date().toISOString() } });
       closeSheet(); toast(monthName(mm) + ' statement saved');
     });
+  }
+
+  /* ---------------- catching up: past months, regular payments, accountant report ---------------- */
+  var CATCHUP_PRESETS = [['Splend', 'Splend', 449.01, 'week', 80], ['Vodafone', 'Vodafone', 160.17, 'month', 50], ['Rent', 'Rent', 310, 'week', 0], ['Anytime Fitness', 'Gym membership', 112.45, 'month', 0],
+    ['Claude AI', 'Subscriptions', 30, 'month', 0], ['Higgsfield', 'Subscriptions', 48.25, 'month', 0], ['Microsoft 365', 'Subscriptions', 48.55, 'month', 0], ['Apple One', 'Subscriptions', 24.95, 'month', 0]];
+  var BOOKS_START = '2026-07-01'; // financial year 2026–27 starts here: the first quarter the records cover
+  function lastDayOf(m) { var p = m.split('-'); return ymd(new Date(+p[0], +p[1], 0)); }
+  function addEvery(baseStr, every, i) {
+    var b = parseYmd(baseStr);
+    if (every === 'week') return ymd(addDays(b, 7 * i)); if (every === 'fortnight') return ymd(addDays(b, 14 * i));
+    var n = every === 'month' ? 1 : every === 'quarter' ? 3 : 12, x = new Date(b.getFullYear(), b.getMonth() + n * i, 1);
+    x.setDate(Math.min(b.getDate(), new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate())); return ymd(x);
+  }
+  function catchUpCard() {
+    return '<section class="card"><div class="card-head"><h3 class="heading">Accountant report</h3><span class="caption">from 1 Jul 2026</span></div>' +
+      '<p class="body" style="margin:0">Put in past months, then open a report for any quarter: GST, income, expenses, tax set aside and bank balances, ready to print, save as a PDF or send as a spreadsheet.</p>' +
+      '<div class="chips"><button class="chip" data-act="pastmonth" data-v="">+ A past month</button><button class="chip" data-act="catchup" data-v="Splend">+ Regular payments</button></div>' +
+      '<button class="btn btn-primary btn-small" data-act="report" data-v="">Open the report</button></section>';
+  }
+  function firstMissingMonth() {
+    var d = now(), cur = ymd(d).slice(0, 7), m = BOOKS_START.slice(0, 7);
+    while (m < cur) { if (!state.months[m]) return m; var p = m.split('-'), x = new Date(+p[0], +p[1], 1); m = ymd(x).slice(0, 7); }
+    return ymd(new Date(d.getFullYear(), d.getMonth() - 1, 1)).slice(0, 7);
+  }
+  // One past month in one go: the Uber statement, tolls paid, and what Uber paid into the bank.
+  function pastMonthSheet(m) {
+    m = m || firstMissingMonth();
+    var st = state.months[m] || {};
+    openSheet('<h2 class="title" id="sheet-title">A past month</h2>' +
+      '<p class="body" style="margin:0">From the Uber monthly statement and your bank. Saving again for the same month updates it. Leave a box empty to skip it.</p>' +
+      '<form id="f-pm" style="display:flex;flex-direction:column;gap:14px" novalidate>' +
+      '<div class="field"><label for="pm-m">Month</label><input id="pm-m" type="month" value="' + m + '" required></div>' +
+      '<div class="two"><div class="field"><label for="pm-g">Gross fares ($, incl. GST)</label><input id="pm-g" type="number" inputmode="decimal" min="0" step="0.01" value="' + (st.gross != null ? st.gross : '') + '"></div>' +
+      '<div class="field"><label for="pm-f">Uber fees ($)</label><input id="pm-f" type="number" inputmode="decimal" min="0" step="0.01" value="' + (st.fees != null ? st.fees : '') + '"></div></div>' +
+      '<div class="two"><div class="field"><label for="pm-t">Tolls paid ($)</label><input id="pm-t" type="number" inputmode="decimal" min="0" step="0.01"></div>' +
+      '<div class="field"><label for="pm-p">Uber paid into the bank ($)</label><input id="pm-p" type="number" inputmode="decimal" min="0" step="0.01"></div></div>' +
+      '<span class="hint">Tolls count as a business expense and the bank amount goes into ANZ Plus Everyday, both dated the last day of the month.</span>' +
+      '<p class="caption" id="pm-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
+      '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Save month</button></div></form>');
+    document.getElementById('f-pm').addEventListener('submit', function (e) {
+      e.preventDefault(); var err = document.getElementById('pm-err'); if (!need5(err)) return;
+      var mm = document.getElementById('pm-m').value, gv = document.getElementById('pm-g').value, fv = document.getElementById('pm-f').value;
+      var tv = parseFloat(document.getElementById('pm-t').value) || 0, pv = parseFloat(document.getElementById('pm-p').value) || 0, last = mm ? lastDayOf(mm) : '', done = [];
+      if (!mm) { err.textContent = 'Choose the month.'; return; }
+      if (gv !== '' || fv !== '') {
+        var g = parseFloat(gv), f = parseFloat(fv) || 0;
+        if (!(g >= 0)) { err.textContent = 'Enter the gross fares from the statement.'; return; }
+        write({ t: 'uber_months', a: 'upsert', row: { month: mm + '-01', gross_fares: Math.round(g * 100) / 100, uber_fees: Math.round(f * 100) / 100, updated_at: new Date().toISOString() } }); done.push('statement');
+      }
+      if (tv > 0) {
+        var tnote = 'Tolls, ' + monthName(mm), old = state.expenses.filter(function (x) { return x.date === last && x.category === 'Tolls (on shift)' && x.note === tnote; })[0];
+        if (old) write({ t: 'expenses', a: 'update', id: old.id, row: { amount: Math.round(tv * 100) / 100, gst: Math.round(tv / 11 * 100) / 100 } });
+        else save('expenses', null, { date: last, category: 'Tolls (on shift)', amount: Math.round(tv * 100) / 100, businessPct: 100, gst: Math.round(tv / 11 * 100) / 100, receiptKept: false, note: tnote, account: 'everyday', createdAt: new Date().toISOString() });
+        done.push('tolls');
+      }
+      if (pv > 0) {
+        var pnote = 'Uber paid into the bank, ' + monthName(mm), oldp = state.ledger.filter(function (x) { return x.date === last && x.kind === 'in' && x.note === pnote; })[0];
+        if (oldp) write({ t: 'ledger', a: 'update', id: oldp.id, row: { amount: Math.round(pv * 100) / 100 } });
+        else write({ t: 'ledger', a: 'insert', row: { id: uuid(), date: last, account: 'everyday', kind: 'in', amount: Math.round(pv * 100) / 100, to_account: null, note: pnote } });
+        done.push('bank');
+      }
+      if (!done.length) { err.textContent = 'Enter at least one amount.'; return; }
+      closeSheet(); toast(monthName(mm) + ' saved');
+    });
+  }
+  // Regular payments in one go: every Splend week, every phone bill, from a start date to an end date.
+  function catchUpSheet(name) {
+    var p = CATCHUP_PRESETS.filter(function (x) { return x[0] === name; })[0] || CATCHUP_PRESETS[0], today = ymd(now());
+    openSheet('<h2 class="title" id="sheet-title">Regular payments</h2>' +
+      '<p class="body" style="margin:0">Records one expense for every payment between two dates. Dates already recorded for the same payment are skipped, so it is safe to run twice.</p>' +
+      '<form id="f-cu" style="display:flex;flex-direction:column;gap:14px" novalidate>' +
+      '<div class="field"><label for="cu-p">Payment</label><select id="cu-p">' + CATCHUP_PRESETS.map(function (x) { return '<option' + (x[0] === p[0] ? ' selected' : '') + '>' + esc(x[0]) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="two"><div class="field"><label for="cu-a">Amount each time ($)</label><input id="cu-a" type="number" inputmode="decimal" min="0" step="0.01" value="' + p[2].toFixed(2) + '"></div>' +
+      '<div class="field"><label for="cu-e">How often</label><select id="cu-e">' + BILL_EVERY.map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === p[3] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select></div></div>' +
+      '<div class="two"><div class="field"><label for="cu-d1">First payment</label><input id="cu-d1" type="date" value="' + BOOKS_START + '"></div>' +
+      '<div class="field"><label for="cu-d2">Last payment on or before</label><input id="cu-d2" type="date" value="' + today + '"></div></div>' +
+      '<div class="two"><div class="field"><label for="cu-pc">Business share (%)</label><input id="cu-pc" type="number" inputmode="numeric" min="0" max="100" step="5" value="' + p[4] + '"></div>' +
+      '<div class="field"><label for="cu-ac">Paid from</label><select id="cu-ac"><option value="everyday">ANZ Plus Everyday</option><option value="savings">Savings (tax)</option></select></div></div>' +
+      '<label class="chip" style="display:flex;align-items:center;gap:10px;justify-content:flex-start"><input id="cu-rec" type="checkbox" style="width:20px;height:20px"> Tax invoices / bills kept</label>' +
+      '<span class="hint" id="cu-sum"></span>' +
+      '<p class="caption" id="cu-err" role="alert" style="margin:0;color:var(--money-label)"></p>' +
+      '<div class="btn-row"><button type="button" class="btn btn-secondary" data-act="close">Cancel</button><button type="submit" class="btn btn-primary">Record them</button></div></form>');
+    var sel = document.getElementById('cu-p'), amt = document.getElementById('cu-a'), ev = document.getElementById('cu-e'), d1 = document.getElementById('cu-d1'), d2 = document.getElementById('cu-d2'), pc = document.getElementById('cu-pc'), sum$ = document.getElementById('cu-sum');
+    function dates() { var out = [], a = d1.value, b = d2.value; if (!a || !b) return out; for (var i = 0; i < 400; i++) { var x = addEvery(a, ev.value, i); if (x > b) break; out.push(x); } return out; }
+    function cat() { return (CATCHUP_PRESETS.filter(function (x) { return x[0] === sel.value; })[0] || p)[1]; }
+    function fresh() { var list = dates(), amtv = parseFloat(amt.value) || 0; return list.filter(function (dt) { return !state.expenses.some(function (x) { return x.date === dt && x.category === cat() && x.note === sel.value && Math.abs(x.amount - amtv) < 0.005; }); }); }
+    function upd() { var all = dates(), f = fresh(), a = parseFloat(amt.value) || 0; sum$.textContent = all.length ? f.length + ' to record' + (all.length - f.length ? ' (' + (all.length - f.length) + ' already there)' : '') + ': ' + money(f.length * a, true) + ' in total, ' + shortDate(all[0]) + ' to ' + shortDate(all[all.length - 1]) + '.' : 'Choose the dates.'; }
+    sel.addEventListener('change', function () { var x = CATCHUP_PRESETS.filter(function (y) { return y[0] === sel.value; })[0]; amt.value = x[2].toFixed(2); ev.value = x[3]; pc.value = x[4]; upd(); });
+    [amt, ev, d1, d2].forEach(function (el) { el.addEventListener('input', upd); el.addEventListener('change', upd); }); upd();
+    document.getElementById('f-cu').addEventListener('submit', function (e) {
+      e.preventDefault(); var err = document.getElementById('cu-err'); if (!need5(err)) return;
+      var a = parseFloat(amt.value), pcv = parseInt(pc.value, 10), list = fresh(), c = cat(), gstIn = catInfo(c)[2], rec = document.getElementById('cu-rec').checked, acct = document.getElementById('cu-ac').value;
+      if (!(a > 0)) { err.textContent = 'Enter the amount.'; return; }
+      if (!(pcv >= 0 && pcv <= 100)) { err.textContent = 'Business share must be between 0 and 100.'; return; }
+      if (!list.length) { err.textContent = 'Nothing new to record for those dates.'; return; }
+      list.forEach(function (dt) {
+        save('expenses', null, { date: dt, category: c, amount: Math.round(a * 100) / 100, businessPct: pcv, gst: gstIn ? Math.round(a / 11 * 100) / 100 : 0, receiptKept: rec, note: sel.value, account: acct, createdAt: new Date().toISOString() });
+      });
+      var bl = state.bills.filter(function (b) { return b.name === sel.value && b.every === ev.value && b.active; })[0], all = dates();
+      if (bl && bl.nextDue <= all[all.length - 1]) write({ t: 'bills', a: 'update', id: bl.id, row: { next_due: addEvery(d1.value, ev.value, all.length) } });
+      closeSheet(); toast(list.length + ' ' + sel.value + ' payment' + (list.length === 1 ? '' : 's') + ' recorded');
+    });
+  }
+
+  // The report for one date range [a, b)
+  var reportKey = null;
+  function reportRanges() {
+    var out = [], cq = quarterOf(ymd(now()));
+    for (var fy = 2026; fy <= cq.fy; fy++) {
+      for (var q = 1; q <= 4; q++) { if (fy === cq.fy && q > cq.q) break; var r = qRange(fy, q); out.push({ key: fy + '-' + q, label: Q_NAMES[q] + ' ' + (q <= 2 ? fy : fy + 1), a: r[0], b: r[1], due: qDue(fy, q) }); }
+      out.push({ key: 'fy' + fy, label: 'Financial year ' + fyLabel(fy), a: fy + '-07-01', b: (fy + 1) + '-07-01', due: '' });
+    }
+    return out;
+  }
+  function reportData(rg) {
+    var a = rg.a, b = rg.b, f = taxFigures(a, b), months = [], p = a.slice(0, 7).split('-'), x = new Date(+p[0], +p[1] - 1, 1), today = ymd(now());
+    for (var i = 0; i < 12; i++) { var m = ymd(x).slice(0, 7), nx = ymd(new Date(x.getFullYear(), x.getMonth() + 1, 1)); if (m + '-01' >= b) break;
+      if (m + '-01' <= today) { var mf = taxFigures(m + '-01', nx), st = state.months[m]; months.push({ m: m, g1: mf.g1, fees: mf.fees, tolls: mf.tolls, source: st && st.gross != null ? 'Uber statement' : mf.g1 > 0 ? 'Paid amounts (no statement yet)' : '' }); }
+      x = new Date(x.getFullYear(), x.getMonth() + 1, 1); }
+    var ex = state.expenses.filter(function (e) { return e.date >= a && e.date < b; }).sort(function (u, v) { return u.date < v.date ? -1 : u.date > v.date ? 1 : 0; });
+    var shiftsT = state.shifts.filter(function (s) { return s.date >= a && s.date < b && s.tolls > 0; }), cash = state.cashouts.filter(function (c) { return c.date >= a && c.date < b && c.fee > 0; });
+    var cats = {}, personal = 0, personalList = {};
+    ex.forEach(function (e) { var pct = (e.businessPct == null ? 100 : Number(e.businessPct)) / 100, g = Number(e.gst) || 0, am = Number(e.amount) || 0;
+      if (pct <= 0) { personal += am; personalList[e.category] = (personalList[e.category] || 0) + am; return; }
+      var c = cats[e.category] || (cats[e.category] = { n: 0, amt: 0, gst: 0, ded: 0, pct: Math.round(pct * 100) }); c.n++; c.amt += am; c.gst += g * pct; c.ded += (am - g) * pct; if (c.pct !== Math.round(pct * 100)) c.pct = null; });
+    var tollsAmt = sum(shiftsT, function (s) { return s.tolls; }), cashAmt = sum(cash, function (c) { return c.fee; });
+    var lines = Object.keys(cats).sort().map(function (k) { return { name: k, n: cats[k].n, amt: cats[k].amt, gst: cats[k].gst, ded: cats[k].ded, pct: cats[k].pct }; });
+    if (f.fees > 0) lines.unshift({ name: 'Uber fees', n: months.filter(function (m) { return m.fees > 0; }).length, amt: f.fees, gst: f.fees / 11, ded: f.fees - f.fees / 11, pct: 100 });
+    if (tollsAmt > 0) lines.push({ name: 'Tolls (from logged shifts)', n: shiftsT.length, amt: tollsAmt, gst: tollsAmt / 11, ded: tollsAmt - tollsAmt / 11, pct: 100 });
+    if (cashAmt > 0) lines.push({ name: 'Uber instant cash-out fees', n: cash.length, amt: cashAmt, gst: 0, ded: cashAmt, pct: 100 });
+    var accts = ACCOUNTS.map(function (ac) {
+      var o = opening(ac[0]); if (!o) return { name: ac[1], none: true };
+      var last = ymd(addDays(parseYmd(b), -1)); if (last > today) last = today;
+      var mv = movements().filter(function (z) { return z.acct === ac[0] && z.date >= o.date && z.date >= a && z.date <= last; });
+      var inn = sum(mv.filter(function (z) { return z.amt > 0; }), function (z) { return z.amt; }), out = sum(mv.filter(function (z) { return z.amt < 0; }), function (z) { return -z.amt; });
+      var close = balance(ac[0], last);
+      return { name: ac[1], open: close - inn + out, inn: inn, out: out, close: close, from: o.date > a ? o.date : null };
+    });
+    return { rg: rg, f: f, months: months, ex: ex, shiftsT: shiftsT, cash: cash, lines: lines, personal: personal, personalList: personalList, accts: accts, setAside: setAsideBetween(a, b) };
+  }
+  function reportSheet(key) {
+    var ranges = reportRanges(); if (!key) key = reportKey || ranges.filter(function (r) { return r.key.indexOf('fy') !== 0; }).slice(-1)[0].key; reportKey = key;
+    var rg = ranges.filter(function (r) { return r.key === key; })[0] || ranges[0], R = reportData(rg), f = R.f, d = now();
+    var th = 'style="text-align:left;font-weight:600;padding:5px 0;border-bottom:1px solid var(--hair)"', thn = 'style="text-align:right;font-weight:600;padding:5px 0 5px 8px;border-bottom:1px solid var(--hair)"';
+    var td = 'style="padding:5px 0;border-bottom:1px solid var(--hair)"', tdn = 'style="text-align:right;padding:5px 0 5px 8px;border-bottom:1px solid var(--hair);white-space:nowrap"';
+    var incomeRows = R.months.map(function (m) { return '<tr><td ' + td + '>' + monthName(m.m) + '</td><td ' + tdn + '>' + money(m.g1, true) + '</td><td ' + tdn + '>' + money(m.fees, true) + '</td><td ' + td + ' class="rp-src">' + esc(m.source || 'nothing entered') + '</td></tr>'; }).join('');
+    var expRows = R.lines.map(function (l) { return '<tr><td ' + td + '>' + esc(l.name) + (l.n > 1 ? ' <span class="caption">×' + l.n + '</span>' : '') + '</td><td ' + tdn + '>' + money(l.amt, true) + '</td><td ' + tdn + '>' + money(l.gst, true) + '</td><td ' + tdn + '>' + (l.pct == null ? 'mixed' : l.pct + '%') + '</td><td ' + tdn + '>' + money(l.ded, true) + '</td></tr>'; }).join('');
+    var itemRows = R.ex.filter(function (e) { return (e.businessPct == null ? 100 : Number(e.businessPct)) > 0; }).map(function (e) { var pct = (e.businessPct == null ? 100 : Number(e.businessPct)) / 100, g = Number(e.gst) || 0, am = Number(e.amount) || 0;
+      return '<tr><td ' + td + '>' + shortDate(e.date) + '</td><td ' + td + '>' + esc(e.category) + (e.note ? ' · ' + esc(e.note) : '') + '</td><td ' + tdn + '>' + money(am, true) + '</td><td ' + tdn + '>' + money((am - g) * pct, true) + '</td><td ' + td + '>' + (e.receiptKept ? '✓' : '–') + '</td></tr>'; }).join('');
+    var acctRows = R.accts.map(function (z) { return z.none ? '<tr><td ' + td + '>' + esc(z.name) + '</td><td ' + td + ' colspan="4">No opening balance entered yet</td></tr>' :
+      '<tr><td ' + td + '>' + esc(z.name) + (z.from ? ' <span class="caption">from ' + shortDate(z.from) + '</span>' : '') + '</td><td ' + tdn + '>' + (z.open < 0 ? '−' : '') + money(Math.abs(z.open), true) + '</td><td ' + tdn + '>+' + money(z.inn, true) + '</td><td ' + tdn + '>−' + money(z.out, true) + '</td><td ' + tdn + '>' + (z.close < 0 ? '−' : '') + money(Math.abs(z.close), true) + '</td></tr>'; }).join('');
+    var dedTotal = f.deductions, persList = Object.keys(R.personalList).sort().map(function (k) { return esc(k) + ' ' + money(R.personalList[k], true); }).join(' · ');
+    openSheet('<div class="rp" id="report">' +
+      '<div class="no-print" style="display:flex;flex-direction:column;gap:12px"><h2 class="title" id="sheet-title">Accountant report</h2>' +
+      '<div class="chips">' + ranges.slice().reverse().map(function (r) { return '<button class="chip' + (r.key === rg.key ? ' on' : '') + '" data-act="report" data-v="' + r.key + '"' + (r.key === rg.key ? ' aria-pressed="true"' : '') + '>' + esc(r.label) + '</button>'; }).join('') + '</div></div>' +
+      '<div class="rp-head"><span class="eyebrow l-money">Bakos business · Uber driving, sole trader</span><h2 class="title rp-title">' + esc(rg.label) + '</h2><span class="caption">' + shortDate(rg.a) + ' ' + rg.a.slice(0, 4) + ' to ' + shortDate(ymd(addDays(parseYmd(rg.b), -1))) + ' ' + ymd(addDays(parseYmd(rg.b), -1)).slice(0, 4) + ' · prepared ' + shortDate(ymd(d)) + ' ' + ymd(d).slice(0, 4) + ' · amounts include GST unless stated</span></div>' +
+      warnList(f) +
+      '<h3 class="heading">GST (BAS)' + (rg.due ? ' <span class="caption">due ' + rg.due + '</span>' : '') + '</h3><div class="kv">' +
+      kvRow('G1 Total sales (gross fares)', money(f.g1, true)) + kvRow('1A GST on sales', money(f.a1, true)) + kvRow('1B GST credits', money(f.b1, true)) +
+      kvRow(f.gstOwing >= 0 ? 'GST to pay (1A − 1B)' : 'GST refund (1B − 1A)', money(Math.abs(f.gstOwing), true), 'total') + '</div>' +
+      '<h3 class="heading">Income by month</h3><table style="width:100%;border-collapse:collapse;font-size:13px"><tr><th ' + th + '>Month</th><th ' + thn + '>Gross fares</th><th ' + thn + '>Uber fees</th><th ' + th + '>Source</th></tr>' + incomeRows + '<tr><td ' + td + '><b>Total</b></td><td ' + tdn + '><b>' + money(f.g1, true) + '</b></td><td ' + tdn + '><b>' + money(f.fees, true) + '</b></td><td ' + td + '></td></tr></table>' +
+      '<h3 class="heading">Business expenses</h3><table style="width:100%;border-collapse:collapse;font-size:13px"><tr><th ' + th + '>Type</th><th ' + thn + '>Paid</th><th ' + thn + '>GST credit</th><th ' + thn + '>Business</th><th ' + thn + '>Deduction</th></tr>' + expRows + '<tr><td ' + td + '><b>Total</b></td><td ' + tdn + '></td><td ' + tdn + '><b>' + money(f.b1, true) + '</b></td><td ' + tdn + '></td><td ' + tdn + '><b>' + money(dedTotal, true) + '</b></td></tr></table>' +
+      '<span class="caption">Deductions are the business share excluding GST.' + (R.personal > 0 ? ' Personal spending recorded and not claimed: ' + money(R.personal, true) + (persList ? ' (' + persList + ')' : '') + '.' : '') + '</span>' +
+      '<h3 class="heading">Profit for the period</h3><div class="kv">' +
+      kvRow('Income excluding GST', money(f.income, true)) + kvRow('Deductions excluding GST', minus(dedTotal, true)) + kvRow('Taxable profit', money(f.profit, true), 'total') + kvRow('Set aside in the tax account', money(R.setAside, true)) + '</div>' +
+      '<h3 class="heading">Bank accounts</h3><table style="width:100%;border-collapse:collapse;font-size:13px"><tr><th ' + th + '>Account</th><th ' + thn + '>Start</th><th ' + thn + '>In</th><th ' + thn + '>Out</th><th ' + thn + '>End</th></tr>' + acctRows + '</table>' +
+      (itemRows ? '<h3 class="heading">Business expenses, itemised</h3><table style="width:100%;border-collapse:collapse;font-size:13px"><tr><th ' + th + '>Date</th><th ' + th + '>What</th><th ' + thn + '>Paid</th><th ' + thn + '>Deduction</th><th ' + th + '>Invoice</th></tr>' + itemRows + '</table>' : '') +
+      '<span class="caption">Illustrative figures from the entries in the app; the accountant confirms GST, business-use shares and residency. Food bought for the week is personal and not listed.</span>' +
+      '<div class="btn-row no-print" style="margin-top:6px"><button type="button" class="btn btn-secondary" data-act="close">Close</button><button type="button" class="btn btn-secondary" data-act="report-csv">Spreadsheet (CSV)</button><button type="button" class="btn btn-primary" data-act="report-print">Print or save PDF</button></div></div>');
+  }
+  function csvCell(v) { var s = String(v == null ? '' : v); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+  function reportCsv() {
+    var rg = reportRanges().filter(function (r) { return r.key === reportKey; })[0]; if (!rg) return; var R = reportData(rg), rows = [['Date', 'Type', 'Category', 'Description', 'Account', 'Amount incl GST', 'GST', 'Business %', 'Deductible excl GST', 'Tax invoice kept']];
+    function r2(n) { return (Math.round((Number(n) || 0) * 100) / 100).toFixed(2); }
+    R.months.forEach(function (m) { if (m.g1 > 0) rows.push([lastDayOf(m.m), 'Income', 'Uber gross fares', 'Gross fares, ' + monthName(m.m) + ' (' + (m.source || '') + ')', '', r2(m.g1), r2(m.g1 / 11), '100', '', '']);
+      if (m.fees > 0) rows.push([lastDayOf(m.m), 'Expense', 'Uber fees', 'Uber fees, ' + monthName(m.m), '', r2(m.fees), r2(m.fees / 11), '100', r2(m.fees - m.fees / 11), '']); });
+    R.shiftsT.forEach(function (s) { rows.push([s.date, 'Expense', 'Tolls (from logged shifts)', 'Tolls', 'Everyday', r2(s.tolls), r2(s.tolls / 11), '100', r2(s.tolls - s.tolls / 11), '']); });
+    R.cash.forEach(function (c) { rows.push([c.date, 'Expense', 'Uber instant cash-out fee', 'Instant cash-out', 'Everyday', r2(c.fee), '0.00', '100', r2(c.fee), '']); });
+    R.ex.forEach(function (e) { var pct = e.businessPct == null ? 100 : Number(e.businessPct), g = Number(e.gst) || 0, am = Number(e.amount) || 0;
+      rows.push([e.date, pct > 0 ? 'Expense' : 'Personal (not claimed)', e.category, e.note || '', acctName(e.account || 'everyday'), r2(am), r2(g * pct / 100), String(pct), r2((am - g) * pct / 100), e.receiptKept ? 'yes' : 'no']); });
+    rows.sort(function (u, v) { return u[0] < v[0] ? -1 : u[0] > v[0] ? 1 : 0; });     var head = rows.shift(); rows.sort(function (u, v) { return u[0] < v[0] ? -1 : u[0] > v[0] ? 1 : 0; });
+    var csv = '﻿' + [head].concat(rows).map(function (r) { return r.map(csvCell).join(','); }).join('\r\n'), name = 'field-notes-' + rg.key.replace('fy', 'FY-') + '-' + ymd(now()) + '.csv', file = null;
+    try { file = new File([csv], name, { type: 'text/csv' }); } catch (x) {}
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: name }).catch(function () {}); return; }
+    var url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })), a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
   }
 
   function nextDue(dateStr, every) {
@@ -2627,6 +2810,11 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); }
     else if (act === 'cashout') cashoutSheet(b.getAttribute('data-v'));
     else if (act === 'balance') balanceSheet();
     else if (act === 'statement') statementSheet(b.getAttribute('data-v'));
+    else if (act === 'pastmonth') pastMonthSheet(b.getAttribute('data-v'));
+    else if (act === 'catchup') catchUpSheet(b.getAttribute('data-v'));
+    else if (act === 'report') reportSheet(b.getAttribute('data-v'));
+    else if (act === 'report-csv') reportCsv();
+    else if (act === 'report-print') window.print();
     else if (act === 'bill') billSheet(b.getAttribute('data-id'));
     else if (act === 'bill-new') billSheet(null, b.getAttribute('data-v'));
     else if (act === 'bill-pay') billPaySheet(b.getAttribute('data-id'));
